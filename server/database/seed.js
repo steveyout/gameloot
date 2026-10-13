@@ -145,13 +145,10 @@ async function seed() {
     ];
 
     for (const g of gamesData) {
-      const [game, created] = await Game.findOrCreate({
+      await Game.findOrCreate({
         where: { slug: g.slug },
         defaults: g
       });
-      if (!created) {
-        await game.update({ reward_rate: g.reward_rate, max_daily_reward: g.max_daily_reward, min_play_seconds: g.min_play_seconds });
-      }
     }
     console.log('🎮 Games catalog updated with Google Play low sustainable reward rates.');
 
@@ -166,13 +163,10 @@ async function seed() {
     ];
 
     for (const r of rewardItemsData) {
-      const [item, created] = await RewardItem.findOrCreate({
+      await RewardItem.findOrCreate({
         where: { title: r.title },
         defaults: r
       });
-      if (!created) {
-        await item.update(r);
-      }
     }
     console.log('🎁 Reward items synchronized.');
 
@@ -196,13 +190,10 @@ async function seed() {
     ];
 
     for (const s of defaultSettings) {
-      const [setting, created] = await SystemSetting.findOrCreate({
+      await SystemSetting.findOrCreate({
         where: { setting_key: s.setting_key },
         defaults: s
       });
-      if (!created) {
-        await setting.update(s);
-      }
     }
     console.log('⚙️ System settings updated for ad-revenue sustainability.');
 
@@ -251,13 +242,10 @@ async function seed() {
     ];
 
     for (const ad of adPlacements) {
-      const [item, created] = await AdPlacement.findOrCreate({
+      await AdPlacement.findOrCreate({
         where: { placement_key: ad.placement_key },
         defaults: ad
       });
-      if (!created) {
-        await item.update(ad);
-      }
     }
     console.log('📺 Google AdMob placements synchronized.');
 

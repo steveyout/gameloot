@@ -134,8 +134,12 @@ async function startServer() {
     await sequelize.authenticate();
     console.log('✅ Sequelize ORM connected to MySQL (gameloot).');
 
-    // Run migrations sync if needed
-    await sequelize.sync({ alter: false });
+    // Safe Non-Destructive Sync: create tables if they do not exist; NEVER drop or alter tables destructively
+    await sequelize.sync({ force: false, alter: false });
+
+    // Non-destructive schema guard: checks and adds new columns if missing without touching existing data
+    const { ensureSafeSchema } = require('./database/safeSchema');
+    await ensureSafeSchema(sequelize);
 
     // Setup Single-Port Vite Frontend
     await setupFrontend();
