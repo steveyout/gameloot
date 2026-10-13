@@ -1,4 +1,4 @@
-import { API_BASE_URL, CURRENT_APP_VERSION, CURRENT_VERSION_CODE } from './config';
+import { API_BASE_URL, CURRENT_APP_VERSION, CURRENT_VERSION_CODE, PRODUCTION_HOST } from './config';
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
   const controller = new AbortController();
@@ -10,7 +10,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
   } catch (err) {
     clearTimeout(id);
     if (err.name === 'AbortError') {
-      throw new Error(`Connection timed out after ${timeoutMs / 1000}s`);
+      throw new Error('Connection timed out after ' + (timeoutMs / 1000) + 's');
     }
     throw err;
   }
@@ -23,24 +23,32 @@ async function request(endpoint, options = {}, token = null) {
   };
 
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers['Authorization'] = 'Bearer ' + token;
   }
 
-  const primaryUrl = `${API_BASE_URL}${endpoint}`;
-  
-  // Potential fallback endpoints if connected via emulator or LAN
+  const primaryUrl = API_BASE_URL + endpoint;
   const candidateUrls = [primaryUrl];
-  if (!primaryUrl.includes('10.0.2.2')) {
-    candidateUrls.push(`http://10.0.2.2:5000/api${endpoint}`);
+
+  // Ensure production API is always in candidate list
+  const prodUrl = PRODUCTION_HOST + '/api' + endpoint;
+  if (!candidateUrls.includes(prodUrl)) {
+    candidateUrls.push(prodUrl);
   }
-  if (!primaryUrl.includes('localhost') && !primaryUrl.includes('127.0.0.1')) {
-    candidateUrls.push(`http://localhost:5000/api${endpoint}`);
+
+  // Dev fallbacks if debugging locally
+  if (__DEV__) {
+    if (!primaryUrl.includes('10.0.2.2')) {
+      candidateUrls.push('http://10.0.2.2:5000/api' + endpoint);
+    }
+    if (!primaryUrl.includes('localhost') && !primaryUrl.includes('127.0.0.1')) {
+      candidateUrls.push('http://localhost:5000/api' + endpoint);
+    }
   }
 
   let lastError = null;
   for (const url of candidateUrls) {
     try {
-      const res = await fetchWithTimeout(url, { ...options, headers }, 6000);
+      const res = await fetchWithTimeout(url, { ...options, headers }, 6500);
       const data = await res.json();
       return data;
     } catch (err) {
@@ -49,12 +57,12 @@ async function request(endpoint, options = {}, token = null) {
     }
   }
 
-  throw new Error(lastError ? lastError.message : 'Network request failed. Is server running on port 5000?');
+  throw new Error(lastError ? lastError.message : 'Network request failed to GameLoot server.');
 }
 
 // 1. App Version & Forced Update Checker
 export async function checkAppVersion(version = CURRENT_APP_VERSION, versionCode = CURRENT_VERSION_CODE) {
-  return request(`/client/app-version?version=${encodeURIComponent(version)}&version_code=${versionCode}`);
+  return request('/client/app-version?version=' + encodeURIComponent(version) + '&version_code=' + versionCode);
 }
 
 // 2. Authentication
@@ -84,10 +92,10 @@ export async function getCategories() {
 export async function getGames(category = null, search = null) {
   let q = '';
   const params = [];
-  if (category) params.push(`category=${encodeURIComponent(category)}`);
-  if (search) params.push(`search=${encodeURIComponent(search)}`);
-  if (params.length) q = `?${params.join('&')}`;
-  return request(`/client/games${q}`);
+  if (category) params.push('category=' + encodeURIComponent(category));
+  if (search) params.push('search=' + encodeURIComponent(search));
+  if (params.length) q = '?' + params.join('&');
+  return request('/client/games' + q);
 }
 
 // 4. Play-To-Earn Heartbeat Session (Proof of Play)
@@ -146,7 +154,7 @@ export async function claimSurveyReward(token, survey_id, answers) {
   }, token);
 }
 
-// 6. AdMob Rewarded Ads
+// 6. Rewarded Ad Video Drops
 export async function getAdConfig() {
   return request('/client/ads/config');
 }

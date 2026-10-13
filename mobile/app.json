@@ -27,8 +27,8 @@
       "barStyle": "light-content"
     },
     "extra": {
-      "apiUrl": "http://10.0.2.2:5000/api",
-      "socketUrl": "http://10.0.2.2:5000",
+      "apiUrl": "https://gameloot.youplex.cc/api",
+      "socketUrl": "https://gameloot.youplex.cc",
       "localApiUrl": "http://localhost:5000/api",
       "localSocketUrl": "http://localhost:5000"
     }

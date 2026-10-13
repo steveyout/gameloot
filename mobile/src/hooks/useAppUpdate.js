@@ -83,12 +83,12 @@ export function useAppUpdate() {
   }, [performCheck]);
 
   const openUpdateUrl = useCallback(() => {
-    const url = updateInfo?.update_url || 'https://play.google.com/store/apps/details?id=com.gameloot.app';
+    const url = updateInfo?.update_url || 'https://github.com/steveyout/gameloot/releases/latest';
     Linking.openURL(url).catch(err => console.error('Failed to open update URL:', err));
   }, [updateInfo]);
 
   const openApkDownloadUrl = useCallback(() => {
-    const url = updateInfo?.download_apk_url || 'https://gameloot.app/releases/GameLoot-v1.1.0.apk';
+    const url = updateInfo?.download_apk_url || 'https://github.com/steveyout/gameloot/releases/latest/download/GameLoot.apk';
     Linking.openURL(url).catch(err => console.error('Failed to open APK URL:', err));
   }, [updateInfo]);
 

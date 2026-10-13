@@ -14,7 +14,14 @@ admin/node_modules/
 .expo/
 mobile/.expo/
 mobile/dist/
+mobile/android/
+mobile/ios/
+android/
+ios/
+*.apk
+*.aab
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key

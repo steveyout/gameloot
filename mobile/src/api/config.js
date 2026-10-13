@@ -1,21 +1,26 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
+export const PRODUCTION_HOST = 'https://gameloot.youplex.cc';
+
 function resolveHost() {
-  // If running via Expo Go on physical device or emulator, get host IP dynamically from Expo packager/debugger host
-  const hostUri = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost || '';
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
-      return `http://${ip}:5000`;
+  // If explicitly developing via local Expo Go packager on device or emulator
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost || '';
+    if (hostUri) {
+      const ip = hostUri.split(':')[0];
+      if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+        return `http://${ip}:5000`;
+      }
+    }
+    // Android emulator loopback in dev
+    if (Platform.OS === 'android' && Constants.isDevice === false) {
+      return 'http://10.0.2.2:5000';
     }
   }
 
-  // Fallback to LAN IP (192.168.100.214) or Android emulator loopback (10.0.2.2)
-  if (Platform.OS === 'android') {
-    return 'http://192.168.100.214:5000';
-  }
-  return 'http://localhost:5000';
+  // Official production host
+  return PRODUCTION_HOST;
 }
 
 export const DEFAULT_HOST = resolveHost();
