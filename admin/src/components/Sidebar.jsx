@@ -7,7 +7,15 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export default function Sidebar({ activeTab, onSelectTab, counts, onOpenSimulator, isMobileOpen, onCloseMobile }) {
+export default function Sidebar({
+  activeTab,
+  onSelectTab,
+  setActiveTab,
+  counts,
+  onOpenSimulator,
+  isMobileOpen,
+  onCloseMobile
+}) {
   const { logout, admin } = useAuth();
 
   const menuItems = [
@@ -38,8 +46,14 @@ export default function Sidebar({ activeTab, onSelectTab, counts, onOpenSimulato
   ];
 
   const handleNavClick = (id) => {
-    onSelectTab(id);
-    if (onCloseMobile) onCloseMobile();
+    if (typeof onSelectTab === 'function') {
+      onSelectTab(id);
+    } else if (typeof setActiveTab === 'function') {
+      setActiveTab(id);
+    }
+    if (typeof onCloseMobile === 'function') {
+      onCloseMobile();
+    }
   };
 
   const content = (
@@ -76,8 +90,8 @@ export default function Sidebar({ activeTab, onSelectTab, counts, onOpenSimulato
         <button
           type="button"
           onClick={() => {
-            onOpenSimulator();
-            if (onCloseMobile) onCloseMobile();
+            if (typeof onOpenSimulator === 'function') onOpenSimulator();
+            if (typeof onCloseMobile === 'function') onCloseMobile();
           }}
           className="w-full p-2.5 rounded-xl bg-gradient-to-r from-cyan-950/60 to-purple-950/60 border border-cyan-500/30 hover:border-cyan-400/60 text-left transition-all group cursor-pointer shadow-sm"
         >

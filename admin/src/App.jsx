@@ -24,19 +24,52 @@ import { getGames, getDashboardStats } from './services/api';
 
 function getLegalTab(pathname) {
   const p = (pathname || '').toLowerCase();
-  if (p.includes('terms') || p.includes('tos')) return 'terms';
-  if (p.includes('privacy')) return 'privacy';
+  if (p.startsWith('/terms') || p.startsWith('/tos')) return 'terms';
+  if (p.startsWith('/privacy')) return 'privacy';
   return null;
 }
 
+const VALID_ADMIN_TABS = [
+  'dashboard', 'games', 'notifications', 'quizzes',
+  'surf', 'surveys', 'ads', 'users', 'redemptions',
+  'categories', 'fraud', 'settings'
+];
+
 function MainLayout() {
   const { admin, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
+
+  const getInitialTab = () => {
+    if (typeof window !== 'undefined') {
+      const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+      if (VALID_ADMIN_TABS.includes(hash)) return hash;
+    }
+    return 'dashboard';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [simulatorGame, setSimulatorGame] = useState(null);
   const [allGames, setAllGames] = useState([]);
   const [counts, setCounts] = useState({ pending_redemptions: 0, unreviewed_fraud: 0 });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+      if (VALID_ADMIN_TABS.includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  const handleSelectTab = (tab) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      window.location.hash = tab;
+    }
+  };
 
   useEffect(() => {
     if (admin) {
@@ -119,11 +152,13 @@ function MainLayout() {
         onClose={() => setNotificationsOpen(false)}
       />
 
-      {/* Sidebar */}
+      {/* Sidebar with resilient navigation handler */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        onSelectTab={handleSelectTab}
+        setActiveTab={handleSelectTab}
         counts={counts}
+        onOpenSimulator={handleOpenSimulator}
         isMobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
       />
@@ -140,7 +175,7 @@ function MainLayout() {
         <main className="flex-1 overflow-y-auto">
           {activeTab === 'dashboard' && (
             <DashboardView
-              onSelectTab={setActiveTab}
+              onSelectTab={handleSelectTab}
               onTestGame={handleOpenSimulator}
             />
           )}
