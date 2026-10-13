@@ -78,7 +78,10 @@ async function setupFrontend() {
   if (process.env.NODE_ENV === 'production' && fs.existsSync(adminDist)) {
     console.log('📦 Serving production Admin build from admin/dist');
     app.use(express.static(adminDist));
-    app.get('*', (req, res) => {
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' || req.path.startsWith('/api')) {
+        return next();
+      }
       res.sendFile(path.join(adminDist, 'index.html'));
     });
   } else {
@@ -98,7 +101,12 @@ async function setupFrontend() {
       console.warn('⚠️ Vite middleware initialization notice:', viteErr.message);
       if (fs.existsSync(adminDist)) {
         app.use(express.static(adminDist));
-        app.get('*', (req, res) => res.sendFile(path.join(adminDist, 'index.html')));
+        app.use((req, res, next) => {
+          if (req.method !== 'GET' || req.path.startsWith('/api')) {
+            return next();
+          }
+          res.sendFile(path.join(adminDist, 'index.html'));
+        });
       }
     }
   }
@@ -123,12 +131,12 @@ async function startServer() {
     await setupFrontend();
 
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`\n=============================================================`);
+      console.log('\n=============================================================');
       console.log(`🚀 GAMELOOT FULLSTACK ENGINE ONLINE ON SINGLE PORT ${PORT}`);
       console.log(`🌐 Admin Panel:   http://localhost:${PORT}`);
       console.log(`⚡ API Health:     http://localhost:${PORT}/api/health`);
       console.log(`🔌 WebSockets:     ws://localhost:${PORT} (Instant Notifications)`);
-      console.log(`=============================================================\n`);
+      console.log('=============================================================\n');
     });
   } catch (err) {
     console.error('❌ Failed to launch GameLoot server:', err);
