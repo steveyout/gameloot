@@ -48,17 +48,39 @@ export default function GamePlayerModal({
       try {
         setLoading(true);
         const data = await startPlaySession(token, game.id);
-        if (active && data.success) {
-          const sessionObj = data.session || {
-            session_id: data.session_token,
-            session_token: data.session_token,
-            ping_interval_seconds: 45
+        if (active) {
+          const sToken =
+            data?.session?.session_token ||
+            data?.session?.session_id ||
+            data?.session_token ||
+            data?.session_id ||
+            ('gses_' + Date.now().toString(36));
+
+          const pingInterval =
+            data?.session?.ping_interval_seconds ||
+            data?.ping_interval_seconds ||
+            45;
+
+          const sessionObj = {
+            session_id: sToken,
+            session_token: sToken,
+            ping_interval_seconds: Number(pingInterval) || 45
           };
           setSession(sessionObj);
-          setPingCountdown(sessionObj.ping_interval_seconds || 45);
+          setPingCountdown(sessionObj.ping_interval_seconds);
         }
       } catch (err) {
-        console.warn('Could not start play session:', err.message);
+        console.warn('Could not start play session:', err?.message || err);
+        // Fallback session so player is never blocked from playing
+        if (active) {
+          const fallbackObj = {
+            session_id: 'gses_' + Date.now(),
+            session_token: 'gses_' + Date.now(),
+            ping_interval_seconds: 45
+          };
+          setSession(fallbackObj);
+          setPingCountdown(45);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -83,7 +105,7 @@ export default function GamePlayerModal({
         if (prev <= 1) {
           // Send proof of play ping to backend
           sendPing();
-          return session.ping_interval_seconds || 45;
+          return (session?.ping_interval_seconds) || 45;
         }
         return prev - 1;
       });
@@ -100,11 +122,11 @@ export default function GamePlayerModal({
       const pingHash = 'ping_' + Date.now();
       const sId = session.session_id || session.session_token;
       const res = await pingPlaySession(token, sId, pingHash);
-      if (res.success) {
+      if (res?.success) {
         setClaimablePoints(res.current_reward || res.current_points_earned || (claimablePoints + 1));
       }
     } catch (err) {
-      console.warn('Ping failed:', err.message);
+      console.warn('Ping failed:', err?.message || err);
     }
   };
 
@@ -118,20 +140,22 @@ export default function GamePlayerModal({
       setIsClaiming(true);
       const sId = session.session_id || session.session_token;
       const res = await claimPlaySession(token, sId);
-      const earned = res.reward_earned !== undefined ? res.reward_earned : (res.points_earned || 0);
+      const earned = res?.reward_earned !== undefined ? res.reward_earned : (res?.points_earned || 0);
 
-      if (res.success && earned > 0) {
+      if (res?.success && earned > 0) {
         setClaimResult({ ...res, reward_earned: earned });
-        onRewardClaimed({
-          points: earned,
-          newBalance: res.new_balance,
-          gameTitle: game.title
-        });
+        if (onRewardClaimed) {
+          onRewardClaimed({
+            points: earned,
+            newBalance: res.new_balance,
+            gameTitle: game.title
+          });
+        }
       } else {
         onClose();
       }
     } catch (err) {
-      console.warn('Claim error:', err.message);
+      console.warn('Claim error:', err?.message || err);
       onClose();
     } finally {
       setIsClaiming(false);
