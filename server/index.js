@@ -19,6 +19,9 @@ const { apiLimiter } = require('./middleware/security');
 const app = express();
 const server = http.createServer(app);
 
+// Trust first proxy (Nginx / Cloudflare / Reverse Proxy) for accurate IP resolution & rate limiting
+app.set('trust proxy', 1);
+
 // Socket.io for Real-time Instant Notifications
 const io = new Server(server, {
   cors: {

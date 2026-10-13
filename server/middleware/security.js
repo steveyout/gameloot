@@ -6,6 +6,7 @@ const authLimiter = rateLimit({
   max: 30, // max 30 attempts per window
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   message: {
     success: false,
     message: 'Too many authentication attempts from this IP. Please try again after 15 minutes.'
@@ -18,6 +19,7 @@ const sessionPingLimiter = rateLimit({
   max: 10, // max 10 pings per minute per IP (heartbeats are every ~30s normally)
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   message: {
     success: false,
     message: 'Ping rate limit exceeded. Unnatural game heartbeat frequency detected.'
@@ -29,7 +31,8 @@ const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 300, // max 300 requests per minute
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false }
 });
 
 module.exports = {
