@@ -20,11 +20,15 @@ router.get('/quizzes', clientController.getQuizzes);
 router.get('/surf-tasks', clientController.getSurfTasks);
 router.get('/surveys', clientController.getSurveys);
 
-// Legal & Compliance (JSON & HTML)
+// Legal & Compliance (JSON & HTML) - 100% Public, No Login Required
 router.get('/privacy', legalController.getPrivacyPolicy);
+router.get('/privacy-policy', legalController.getPrivacyPolicy);
 router.get('/terms', legalController.getTermsOfService);
+router.get('/terms-of-service', legalController.getTermsOfService);
+router.get('/tos', legalController.getTermsOfService);
 router.get('/legal/privacy', legalController.getPrivacyPolicy);
 router.get('/legal/terms', legalController.getTermsOfService);
+router.get('/legal/tos', legalController.getTermsOfService);
 
 // AdMob Configuration & Verification
 router.get('/ads/config', adController.getClientAdConfig);

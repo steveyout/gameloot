@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { AlertProvider } from './context/AlertContext';
 import LoginView from './views/LoginView';
+import PublicLegalView from './views/PublicLegalView';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './views/DashboardView';
@@ -20,6 +21,13 @@ import NotificationsView from './views/NotificationsView';
 import GameSimulatorModal from './components/GameSimulatorModal';
 import { NotificationToast, NotificationDrawer } from './components/NotificationToast';
 import { getGames, getDashboardStats } from './services/api';
+
+function getLegalTab(pathname) {
+  const p = (pathname || '').toLowerCase();
+  if (p.includes('terms') || p.includes('tos')) return 'terms';
+  if (p.includes('privacy')) return 'privacy';
+  return null;
+}
 
 function MainLayout() {
   const { admin, loading } = useAuth();
@@ -111,12 +119,11 @@ function MainLayout() {
         onClose={() => setNotificationsOpen(false)}
       />
 
-      {/* Sidebar Navigation */}
+      {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        setActiveTab={setActiveTab}
         counts={counts}
-        onOpenSimulator={() => handleOpenSimulator()}
         isMobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
       />
@@ -165,6 +172,26 @@ function MainLayout() {
 }
 
 export default function App() {
+  const [currentPath, setCurrentPath] = useState(
+    typeof window !== 'undefined' ? window.location.pathname : '/'
+  );
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const legalTab = getLegalTab(currentPath);
+
+  // If visiting public legal paths (/privacy, /terms, /tos, /privacy-policy),
+  // render the public legal document immediately without requiring user or admin login.
+  if (legalTab) {
+    return <PublicLegalView initialTab={legalTab} />;
+  }
+
   return (
     <AuthProvider>
       <SocketProvider>

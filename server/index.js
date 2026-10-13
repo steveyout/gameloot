@@ -23,7 +23,12 @@ const server = http.createServer(app);
 app.set('trust proxy', 1);
 
 // Socket.io for Real-time Instant Notifications
-const io = new Server(server, {\n  cors: {\n    origin: '*',\n    methods: ['GET', 'POST']\n  }\n});
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
 initSocket(io);
 
 const PORT = parseInt(process.env.PORT || '5000', 10);
@@ -54,14 +59,15 @@ const adminRoutes = require('./routes/admin');
 const clientRoutes = require('./routes/client');
 const legalRoutes = require('./routes/legal');
 
-// Public Privacy Policy & Terms of Service (Root URLs for Google Play Console & Web Reviewers)
-// e.g. https://gameloot.youplex.cc/privacy and https://gameloot.youplex.cc/terms
+// Public Privacy Policy & Terms of Service (Root URLs & API endpoints - 100% Public, No Login Required)
+// e.g. https://gameloot.youplex.cc/privacy, /terms, /tos, /api/privacy, /api/terms
 app.use('/', legalRoutes);
+app.use('/api', legalRoutes);
+app.use('/api/legal', legalRoutes);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
-app.use('/api/legal', legalRoutes);
 
 // Static Uploads Storage (Game thumbnails, banners, assets)
 const uploadsDir = path.resolve(__dirname, 'uploads');

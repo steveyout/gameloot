@@ -12,8 +12,9 @@ import {
   Modal
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gamepad2, Sparkles, Lock, Mail, User, ShieldCheck, X, Check } from 'lucide-react-native';
+import { Gamepad2, Sparkles, Lock, Mail, User, ShieldCheck, X, Check, Shield, FileText } from 'lucide-react-native';
 import { userLogin, userRegister, userGoogleLogin } from '../api/clientApi';
+import LegalModal from '../components/LegalModal';
 
 export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -27,6 +28,15 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
   const [googleEmail, setGoogleEmail] = useState('');
   const [googleName, setGoogleName] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Public Legal modal state - No Login Required
+  const [legalModalVisible, setLegalModalVisible] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState('privacy');
+
+  const handleOpenLegal = (tab = 'privacy') => {
+    setLegalModalTab(tab);
+    setLegalModalVisible(true);
+  };
 
   const handleSubmit = async () => {
     if (loading) return;
@@ -55,35 +65,32 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
         onErrorAlert(res?.message || 'Authentication failed. Please check credentials.');
       }
     } catch (err) {
-      onErrorAlert(err.message || 'Cannot reach GameLoot server. Verify your internet connection.');
+      onErrorAlert(err.message || 'Network error during authentication');
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignInPrompt = () => {
-    setGoogleEmail('');
-    setGoogleName('');
+    // Open one-tap simulated OAuth modal
+    setGoogleEmail(username.includes('@') ? username : 'player@gmail.com');
+    setGoogleName(username || 'Loyal Player');
     setGoogleModalVisible(true);
   };
 
   const executeGoogleAuth = async (targetEmail, targetName) => {
-    const finalEmail = (targetEmail || googleEmail).trim();
-    const finalName = (targetName || googleName).trim();
-
-    if (!finalEmail || !finalEmail.includes('@')) {
-      onErrorAlert('Valid Google email address required');
+    if (!targetEmail.trim()) {
+      onErrorAlert('Please provide a Google account email');
       return;
     }
 
     setGoogleLoading(true);
     try {
-      const googleId = 'gid_' + Math.abs(finalEmail.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0));
       const res = await userGoogleLogin({
-        email: finalEmail,
-        name: finalName || 'Google User',
-        google_id: googleId,
-        avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=' + encodeURIComponent(finalEmail)
+        email: targetEmail.trim(),
+        name: targetName.trim() || 'GameLoot Player',
+        googleId: 'g_' + Math.abs(targetEmail.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(36),
+        avatar: `https://api.dicebear.com/7.x/bottts/png?seed=${encodeURIComponent(targetEmail)}`
       });
 
       if (res && res.success && res.token) {
@@ -93,7 +100,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
         onErrorAlert(res?.message || 'Google authentication failed.');
       }
     } catch (err) {
-      onErrorAlert(err.message || 'Google sign-in request failed.');
+      onErrorAlert(err.message || 'Google OAuth failed');
     } finally {
       setGoogleLoading(false);
     }
@@ -101,55 +108,53 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Brand Header */}
         <View style={styles.brandContainer}>
           <LinearGradient
             colors={['#06b6d4', '#3b82f6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={styles.logoBadge}
           >
             <Gamepad2 size={36} color="#ffffff" />
           </LinearGradient>
-          <Text style={styles.brandTitle}>GameLoot</Text>
-          <Text style={styles.brandSubtitle}>Play HTML5 Games • Earn Rewards</Text>
-
+          <Text style={styles.brandTitle}>GAMELOOT</Text>
+          <Text style={styles.brandSubtitle}>Play HTML5 Games • Earn Real Cash</Text>
           <View style={styles.bonusBanner}>
             <Sparkles size={14} color="#fbbf24" />
-            <Text style={styles.bonusText}>
-              Fair Play Value: 1,000 PTS = $1.00 USD
-            </Text>
+            <Text style={styles.bonusText}>NEW PLAYERS: 100 PTS SIGNUP BONUS</Text>
           </View>
         </View>
 
         {/* Auth Card */}
         <View style={styles.card}>
-          {/* Tab Switcher */}
+          {/* Tabs */}
           <View style={styles.tabBar}>
             <TouchableOpacity
               style={[styles.tabBtn, isLogin && styles.tabBtnActive]}
-              onPress={() => { if (!loading) setIsLogin(true); }}
+              onPress={() => setIsLogin(true)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.tabBtnText, isLogin && styles.tabBtnTextActive]}>
-                Sign In
-              </Text>
+              <Text style={[styles.tabBtnText, isLogin && styles.tabBtnTextActive]}>Sign In</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={[styles.tabBtn, !isLogin && styles.tabBtnActive]}
-              onPress={() => { if (!loading) setIsLogin(false); }}
+              onPress={() => setIsLogin(false)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.tabBtnText, !isLogin && styles.tabBtnTextActive]}>
-                Create Account
-              </Text>
+              <Text style={[styles.tabBtnText, !isLogin && styles.tabBtnTextActive]}>Register</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Input Fields */}
+          {/* Form */}
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Username</Text>
@@ -245,6 +250,26 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
               </View>
               <Text style={styles.googleBtnText}>Continue with Google</Text>
             </TouchableOpacity>
+
+            {/* Terms of Service & Privacy Policy Acceptance notice */}
+            <View style={styles.legalNoticeWrap}>
+              <Text style={styles.legalNoticeText}>
+                By continuing, you agree to GameLoot's{' '}
+                <Text
+                  style={styles.legalNoticeLink}
+                  onPress={() => handleOpenLegal('terms')}
+                >
+                  Terms of Service
+                </Text>
+                {' '}and{' '}
+                <Text
+                  style={styles.legalNoticeLink}
+                  onPress={() => handleOpenLegal('privacy')}
+                >
+                  Privacy Policy
+                </Text>.
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -254,6 +279,27 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
           <Text style={styles.complianceText}>
             Advertiser-funded loyalty rewards. Low payout threshold ($1.00 min). No in-app purchases required to play or earn.
           </Text>
+        </View>
+
+        {/* Public Legal Access Row - 100% accessible without login */}
+        <View style={styles.publicLegalRow}>
+          <TouchableOpacity
+            style={styles.publicLegalBtn}
+            onPress={() => handleOpenLegal('privacy')}
+            activeOpacity={0.7}
+          >
+            <Shield size={13} color="#06b6d4" />
+            <Text style={styles.publicLegalBtnText}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <Text style={styles.publicLegalDot}>•</Text>
+          <TouchableOpacity
+            style={styles.publicLegalBtn}
+            onPress={() => handleOpenLegal('terms')}
+            activeOpacity={0.7}
+          >
+            <FileText size={13} color="#06b6d4" />
+            <Text style={styles.publicLegalBtnText}>Terms of Service</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -318,6 +364,14 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
           </View>
         </View>
       </Modal>
+
+      {/* Public In-App Legal Documents Reader Modal - Zero Login Barrier */}
+      <LegalModal
+        visible={legalModalVisible}
+        initialTab={legalModalTab}
+        onClose={() => setLegalModalVisible(false)}
+        isDark={true}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -511,11 +565,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700'
   },
+  legalNoticeWrap: {
+    marginTop: 4,
+    paddingHorizontal: 4
+  },
+  legalNoticeText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 16
+  },
+  legalNoticeLink: {
+    color: '#06b6d4',
+    fontWeight: '700',
+    textDecorationLine: 'underline'
+  },
   complianceBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 20,
+    marginTop: 18,
     backgroundColor: 'rgba(16, 185, 129, 0.08)',
     padding: 12,
     borderRadius: 12,
@@ -527,6 +596,30 @@ const styles = StyleSheet.create({
     color: '#6ee7b7',
     lineHeight: 14,
     flex: 1
+  },
+  publicLegalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 16,
+    paddingVertical: 8
+  },
+  publicLegalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 8
+  },
+  publicLegalBtnText: {
+    color: '#06b6d4',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  publicLegalDot: {
+    color: '#475569',
+    fontSize: 12
   },
   modalBackdrop: {
     flex: 1,
