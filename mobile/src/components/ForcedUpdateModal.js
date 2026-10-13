@@ -17,16 +17,14 @@ import {
   ArrowRight,
   ShieldCheck,
   ExternalLink,
-  X,
-  Play
+  X
 } from 'lucide-react-native';
 
 export default function ForcedUpdateModal({
   visible,
   updateInfo,
   onUpdatePress,
-  onApkDownloadPress,
-  onDismissDev
+  onApkDownloadPress
 }) {
   // Prevent Android hardware back button from closing mandatory update modal
   useEffect(() => {
@@ -44,7 +42,11 @@ export default function ForcedUpdateModal({
 
   const currentVer = updateInfo?.client_version || '1.0.0';
   const latestVer = updateInfo?.latest_version || '1.1.0';
-  const notes = updateInfo?.release_notes || '• Performance enhancements and security fixes\n• New HTML5 games added to library\n• Faster wallet payout processing';
+  const notes = updateInfo?.release_notes || [
+    '• Performance enhancements and security fixes',
+    '• New HTML5 games added to library',
+    '• Faster wallet payout processing'
+  ].join('\n');
 
   return (
     <Modal
@@ -143,17 +145,6 @@ export default function ForcedUpdateModal({
               <Download size={16} color="#94a3b8" style={{ marginRight: 6 }} />
               <Text style={styles.secondaryButtonText}>Download Direct APK</Text>
             </TouchableOpacity>
-
-            {/* Dev Mode Testing Bypass */}
-            {onDismissDev ? (
-              <TouchableOpacity
-                style={styles.devBypassButton}
-                activeOpacity={0.7}
-                onPress={onDismissDev}
-              >
-                <Text style={styles.devBypassText}>⚡ Continue Testing (Dev Bypass)</Text>
-              </TouchableOpacity>
-            ) : null}
           </View>
         </View>
       </View>
@@ -377,20 +368,6 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 13,
     fontWeight: '600'
-  },
-  devBypassButton: {
-    marginTop: 10,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)'
-  },
-  devBypassText: {
-    color: '#34d399',
-    fontSize: 12,
-    fontWeight: '700'
   },
   // Optional Banner Styles
   bannerContainer: {

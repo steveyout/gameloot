@@ -96,10 +96,6 @@ export function useAppUpdate() {
     setShowOptionalBanner(false);
   };
 
-  const dismissForcedModal = () => {
-    setShowForcedModal(false);
-  };
-
   return {
     updateInfo,
     isChecking,
@@ -110,7 +106,6 @@ export function useAppUpdate() {
     openUpdateUrl,
     openApkDownloadUrl,
     dismissOptionalBanner,
-    dismissForcedModal,
     currentVersion: CURRENT_APP_VERSION,
     currentVersionCode: CURRENT_VERSION_CODE
   };

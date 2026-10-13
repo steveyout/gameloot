@@ -1,6 +1,6 @@
-﻿import { API_BASE_URL, CURRENT_APP_VERSION, CURRENT_VERSION_CODE, PRODUCTION_HOST } from './config';
+﻿import { API_BASE_URL, CURRENT_APP_VERSION, CURRENT_VERSION_CODE } from './config';
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -26,38 +26,15 @@ async function request(endpoint, options = {}, token = null) {
     headers['Authorization'] = 'Bearer ' + token;
   }
 
-  const primaryUrl = API_BASE_URL + endpoint;
-  const candidateUrls = [primaryUrl];
+  const targetUrl = API_BASE_URL + endpoint;
 
-  // Ensure production API is always in candidate list
-  const prodUrl = PRODUCTION_HOST + '/api' + endpoint;
-  if (!candidateUrls.includes(prodUrl)) {
-    candidateUrls.push(prodUrl);
+  try {
+    const res = await fetchWithTimeout(targetUrl, { ...options, headers }, 10000);
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    throw new Error(err.message || 'Network request failed to GameLoot server.');
   }
-
-  // Dev fallbacks if debugging locally
-  if (__DEV__) {
-    if (!primaryUrl.includes('10.0.2.2')) {
-      candidateUrls.push('http://10.0.2.2:5000/api' + endpoint);
-    }
-    if (!primaryUrl.includes('localhost') && !primaryUrl.includes('127.0.0.1')) {
-      candidateUrls.push('http://localhost:5000/api' + endpoint);
-    }
-  }
-
-  let lastError = null;
-  for (const url of candidateUrls) {
-    try {
-      const res = await fetchWithTimeout(url, { ...options, headers }, 6500);
-      const data = await res.json();
-      return data;
-    } catch (err) {
-      lastError = err;
-      // Try next candidate URL
-    }
-  }
-
-  throw new Error(lastError ? lastError.message : 'Network request failed to GameLoot server.');
 }
 
 // 1. App Version & Forced Update Checker

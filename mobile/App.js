@@ -71,7 +71,6 @@ export default function App() {
     openUpdateUrl,
     openApkDownloadUrl,
     dismissOptionalBanner,
-    dismissForcedModal,
     currentVersion
   } = useAppUpdate();
 
@@ -282,7 +281,7 @@ export default function App() {
     if (newBalance !== undefined && user) {
       setUser((prev) => ({ ...prev, points_balance: newBalance }));
     }
-    triggerCelebration(points, 'Bonus Drop \ud83c\udf81');
+    triggerCelebration(points, 'Bonus Drop 🎁');
     showAlert(
       `Bonus drop claimed: +${points} PTS added to your wallet!`,
       'points',
@@ -495,13 +494,12 @@ export default function App() {
           onRewardWon={handleWheelWon}
         />
 
-        {/* CRITICAL: Forced Update Screen (Non-Dismissible in Prod, Bypassable in Dev) */}
+        {/* CRITICAL: Forced Update Screen (Non-Dismissible in Production) */}
         <ForcedUpdateModal
           visible={showForcedModal}
           updateInfo={updateInfo}
           onUpdatePress={openUpdateUrl}
           onApkDownloadPress={openApkDownloadUrl}
-          onDismissDev={dismissForcedModal}
         />
 
         {/* Animated Startup Splash Screen */}

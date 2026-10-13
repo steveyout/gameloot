@@ -17,9 +17,9 @@ import { userLogin, userRegister, userGoogleLogin } from '../api/clientApi';
 
 export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState('demo_player');
-  const [email, setEmail] = useState('player@gameloot.com');
-  const [password, setPassword] = useState('player123');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Google Login modal state
@@ -55,15 +55,15 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
         onErrorAlert(res?.message || 'Authentication failed. Please check credentials.');
       }
     } catch (err) {
-      onErrorAlert(err.message || 'Cannot reach GameLoot server. Verify your internet/WiFi connection.');
+      onErrorAlert(err.message || 'Cannot reach GameLoot server. Verify your internet connection.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignInPrompt = () => {
-    setGoogleEmail('gamer_' + Math.floor(100 + Math.random() * 900) + '@gmail.com');
-    setGoogleName('Gamer Player');
+    setGoogleEmail('');
+    setGoogleName('');
     setGoogleModalVisible(true);
   };
 
@@ -96,30 +96,6 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
       onErrorAlert(err.message || 'Google sign-in request failed.');
     } finally {
       setGoogleLoading(false);
-    }
-  };
-
-  const handleQuickDemo = async () => {
-    if (loading) return;
-    setUsername('demo_player');
-    setPassword('player123');
-    setLoading(true);
-    try {
-      const res = await userLogin('demo_player', 'player123');
-      if (res && res.success && res.token) {
-        onAuthSuccess(res.user, res.token);
-      } else {
-        const regRes = await userRegister('demo_player', 'demo@gameloot.com', 'player123');
-        if (regRes && regRes.success) {
-          onAuthSuccess(regRes.user, regRes.token);
-        } else {
-          onErrorAlert(regRes?.message || 'Quick demo login failed.');
-        }
-      }
-    } catch (err) {
-      onErrorAlert('Demo login error: ' + err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -269,16 +245,6 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
               </View>
               <Text style={styles.googleBtnText}>Continue with Google</Text>
             </TouchableOpacity>
-
-            {/* 1-Tap Quick Demo Button */}
-            <TouchableOpacity
-              style={[styles.demoBtn, loading && styles.demoBtnDisabled]}
-              onPress={handleQuickDemo}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.demoBtnText}>⚡ 1-Tap Quick Demo Login (demo_player)</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -313,33 +279,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
               </TouchableOpacity>
             </View>
 
-            {/* Quick 1-Tap Google Account Tile */}
-            <TouchableOpacity
-              style={styles.googleAccountTile}
-              onPress={() => executeGoogleAuth(googleEmail, googleName)}
-              disabled={googleLoading}
-              activeOpacity={0.75}
-            >
-              <View style={styles.googleAvatarBadge}>
-                <Text style={styles.googleAvatarInitial}>
-                  {(googleName || 'G').charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.googleAccountName}>{googleName || 'Google Account'}</Text>
-                <Text style={styles.googleAccountEmail}>{googleEmail}</Text>
-              </View>
-              <View style={styles.oneTapArrow}>
-                <Check size={14} color="#34d399" />
-              </View>
-            </TouchableOpacity>
-
-            <View style={styles.dividerRowSmall}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerTextSmall}>OR USE ANOTHER EMAIL</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
+            {/* Enter Google Account Details */}
             <View style={{ gap: 10, marginTop: 8 }}>
               <TextInput
                 style={styles.modalInput}
@@ -352,7 +292,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
               />
               <TextInput
                 style={styles.modalInput}
-                placeholder="Full Name"
+                placeholder="Full Name (optional)"
                 placeholderTextColor="#64748b"
                 value={googleName}
                 onChangeText={setGoogleName}
@@ -571,22 +511,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700'
   },
-  demoBtn: {
-    paddingVertical: 11,
-    alignItems: 'center',
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155'
-  },
-  demoBtnDisabled: {
-    opacity: 0.6
-  },
-  demoBtnText: {
-    color: '#38bdf8',
-    fontSize: 12,
-    fontWeight: '700'
-  },
   complianceBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -655,56 +579,6 @@ const styles = StyleSheet.create({
   },
   modalCloseBtn: {
     padding: 6
-  },
-  googleAccountTile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1e293b',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#38bdf8'
-  },
-  googleAvatarBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#0284c7',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  googleAvatarInitial: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '900'
-  },
-  googleAccountName: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700'
-  },
-  googleAccountEmail: {
-    color: '#94a3b8',
-    fontSize: 11
-  },
-  oneTapArrow: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(52, 211, 153, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  dividerRowSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 14
-  },
-  dividerTextSmall: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#64748b',
-    paddingHorizontal: 8
   },
   modalInput: {
     backgroundColor: '#1e293b',
