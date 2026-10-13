@@ -21,6 +21,7 @@ import {
   RefreshCw
 } from 'lucide-react-native';
 import { getUserProfile } from '../api/clientApi';
+import { useTheme } from '../context/ThemeContext';
 
 export default function WalletScreen({
   user,
@@ -30,6 +31,7 @@ export default function WalletScreen({
   isCheckingUpdate,
   updateInfo
 }) {
+  const { colors, isDark } = useTheme();
   const [profile, setProfile] = useState(user);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -66,22 +68,22 @@ export default function WalletScreen({
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.scroll}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#06b6d4" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
       showsVerticalScrollIndicator={false}
     >
       {/* Wallet Card */}
       <LinearGradient
-        colors={['#0f172a', '#1e293b']}
-        style={styles.walletCard}
+        colors={isDark ? ['#0f172a', '#1e293b'] : ['#ffffff', '#f1f5f9']}
+        style={[styles.walletCard, { borderColor: colors.border }]}
       >
         <View style={styles.walletHeader}>
           <View style={styles.walletTitleRow}>
-            <Wallet size={18} color="#06b6d4" />
-            <Text style={styles.walletTitle}>Loyalty Vault</Text>
+            <Wallet size={18} color={colors.primary} />
+            <Text style={[styles.walletTitle, { color: colors.text }]}>Loyalty Vault</Text>
           </View>
           <View style={styles.statusPill}>
             <View style={styles.statusDot} />
@@ -90,45 +92,45 @@ export default function WalletScreen({
         </View>
 
         <Text style={styles.balanceBig}>{balance.toLocaleString()} PTS</Text>
-        <Text style={styles.balanceUsd}>
+        <Text style={[styles.balanceUsd, { color: colors.textSecondary }]}>
           Cash Value: ${(balance * 0.001).toFixed(3)} USD (1,000 PTS = $1.00 USD)
         </Text>
 
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Lifetime Earned</Text>
-            <Text style={styles.statVal}>+{totalEarned.toLocaleString()}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Lifetime Earned</Text>
+            <Text style={[styles.statVal, { color: colors.text }]}>+{totalEarned.toLocaleString()}</Text>
           </View>
 
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Total Withdrawn</Text>
-            <Text style={styles.statVal}>${Number(totalWithdrawn).toFixed(2)}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total Withdrawn</Text>
+            <Text style={[styles.statVal, { color: colors.text }]}>${Number(totalWithdrawn).toFixed(2)}</Text>
           </View>
         </View>
       </LinearGradient>
 
       {/* App Build & Version Checker Section */}
-      <View style={styles.versionBox}>
-        <View style={styles.verHeader}>
-          <Smartphone size={16} color="#06b6d4" />
-          <Text style={styles.verTitle}>Client Build & Update System</Text>
+      <View style={[styles.versionBox, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
+        <View style={[styles.verHeader, { borderBottomColor: colors.border }]}>
+          <Smartphone size={16} color={colors.primary} />
+          <Text style={[styles.verTitle, { color: colors.text }]}>Client Build & Update System</Text>
         </View>
 
         <View style={styles.verRow}>
-          <Text style={styles.verKey}>Current Client Version:</Text>
-          <Text style={styles.verVal}>v{updateInfo?.client_version || '1.0.0'}</Text>
+          <Text style={[styles.verKey, { color: colors.textSecondary }]}>Current Client Version:</Text>
+          <Text style={[styles.verVal, { color: colors.text }]}>v{updateInfo?.client_version || '1.0.0'}</Text>
         </View>
         <View style={styles.verRow}>
-          <Text style={styles.verKey}>Latest Release Target:</Text>
-          <Text style={[styles.verVal, { color: updateInfo?.has_update ? '#fbbf24' : '#4ade80' }]}>
+          <Text style={[styles.verKey, { color: colors.textSecondary }]}>Latest Release Target:</Text>
+          <Text style={[styles.verVal, { color: updateInfo?.has_update ? '#fbbf24' : '#10b981' }]}>
             v{updateInfo?.latest_version || '1.1.0'} {updateInfo?.has_update ? '(New Version)' : '(Latest)'}
           </Text>
         </View>
         <View style={styles.verRow}>
-          <Text style={styles.verKey}>Forced Update Policy:</Text>
-          <Text style={[styles.verVal, { color: updateInfo?.force_update ? '#f87171' : '#94a3b8' }]}>
+          <Text style={[styles.verKey, { color: colors.textSecondary }]}>Forced Update Policy:</Text>
+          <Text style={[styles.verVal, { color: updateInfo?.force_update ? '#ef4444' : colors.textSecondary }]}>
             {updateInfo?.force_update ? 'Active (Forced On Outdated)' : 'Optional'}
           </Text>
         </View>
@@ -147,11 +149,11 @@ export default function WalletScreen({
       </View>
 
       {/* Loyalty Reward Transparency Notice */}
-      <View style={styles.securityCard}>
+      <View style={[styles.securityCard, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.25)' }]}>
         <ShieldCheck size={20} color="#10b981" />
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={styles.securityTitle}>Loyalty Reward Transparency</Text>
-          <Text style={styles.securityDesc}>
+          <Text style={[styles.securityDesc, { color: isDark ? '#a7f3d0' : '#065f46' }]}>
             GameLoot provides verified advertising revenue sharing from HTML5 game sponsorships and rewarded drops. Micro-rewards reflect genuine activity without real-money purchase requirements.
           </Text>
         </View>
@@ -162,8 +164,7 @@ export default function WalletScreen({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#090d16'
+    flex: 1
   },
   scroll: {
     padding: 16,
@@ -173,7 +174,6 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#334155',
     marginBottom: 16
   },
   walletHeader: {
@@ -188,7 +188,6 @@ const styles = StyleSheet.create({
     gap: 8
   },
   walletTitle: {
-    color: '#cbd5e1',
     fontSize: 13,
     fontWeight: '700'
   },
@@ -208,7 +207,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#10b981'
   },
   statusText: {
-    color: '#6ee7b7',
+    color: '#10b981',
     fontSize: 10,
     fontWeight: '700'
   },
@@ -219,7 +218,6 @@ const styles = StyleSheet.create({
     letterSpacing: -1
   },
   balanceUsd: {
-    color: '#94a3b8',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 2
@@ -229,18 +227,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
     paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#334155'
+    borderTopWidth: 1
   },
   statBox: {
     flex: 1
   },
   statLabel: {
-    color: '#64748b',
     fontSize: 11
   },
   statVal: {
-    color: '#ffffff',
     fontSize: 15,
     fontWeight: '800',
     marginTop: 2
@@ -248,15 +243,12 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 30,
-    backgroundColor: '#334155',
     marginHorizontal: 16
   },
   versionBox: {
-    backgroundColor: '#0f172a',
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1e293b',
     marginBottom: 16
   },
   verHeader: {
@@ -265,11 +257,9 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
     paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e293b'
+    borderBottomWidth: 1
   },
   verTitle: {
-    color: '#ffffff',
     fontSize: 13,
     fontWeight: '800'
   },
@@ -279,11 +269,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4
   },
   verKey: {
-    color: '#94a3b8',
     fontSize: 12
   },
   verVal: {
-    color: '#ffffff',
     fontSize: 12,
     fontWeight: '700'
   },
@@ -304,19 +292,16 @@ const styles = StyleSheet.create({
   securityCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
     borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)'
+    borderWidth: 1
   },
   securityTitle: {
-    color: '#6ee7b7',
+    color: '#10b981',
     fontSize: 12,
     fontWeight: '800'
   },
   securityDesc: {
-    color: '#a7f3d0',
     fontSize: 11,
     marginTop: 3,
     lineHeight: 16

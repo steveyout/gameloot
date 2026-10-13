@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Platform, Animated } from 'react-native';
+import { View, StyleSheet, Platform, Animated, StatusBar as NativeStatusBar } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import io from 'socket.io-client';
@@ -36,7 +36,8 @@ import RewardsScreen from './src/screens/RewardsScreen';
 import WalletScreen from './src/screens/WalletScreen';
 
 function MainApp() {
-  const { theme, isDark } = useTheme();
+  const { theme, colors, isDark } = useTheme();
+  const activeColors = colors || theme || {};
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [activeTab, setActiveTab] = useState('lobby');
@@ -76,6 +77,14 @@ function MainApp() {
     currentVersion
   } = useAppUpdate();
 
+  // Explicit Native Status Bar Sync
+  useEffect(() => {
+    NativeStatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content', true);
+    if (Platform.OS === 'android') {
+      NativeStatusBar.setBackgroundColor(activeColors.background || (isDark ? '#090d16' : '#f8fafc'), true);
+    }
+  }, [isDark, activeColors.background]);
+
   // Android Immersive Sticky Mode:
   // Hides bottom system navigation bar buttons so they don't obstruct or hinder the app navbar.
   useEffect(() => {
@@ -89,7 +98,7 @@ function MainApp() {
             await NavigationBar.setBehaviorAsync('overlay-swipe');
           }
           if (NavigationBar?.setBackgroundColorAsync) {
-            await NavigationBar.setBackgroundColorAsync(theme.background || '#090d16');
+            await NavigationBar.setBackgroundColorAsync(activeColors.background || '#090d16');
           }
           if (NavigationBar?.setButtonStyleAsync) {
             await NavigationBar.setButtonStyleAsync(isDark ? 'light' : 'dark');
@@ -124,7 +133,7 @@ function MainApp() {
         } catch (e) {}
       };
     }
-  }, [theme.background, isDark]);
+  }, [activeColors.background, isDark]);
 
   // Smooth screen tab transition animation
   useEffect(() => {
@@ -319,8 +328,16 @@ function MainApp() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'left', 'right']}>
-      <ExpoStatusBar style={isDark ? 'light' : 'dark'} backgroundColor={theme.background} />
+    <SafeAreaView style={[styles.container, { backgroundColor: activeColors.background || '#090d16' }]} edges={['top', 'left', 'right']}>
+      <NativeStatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={activeColors.background || (isDark ? '#090d16' : '#f8fafc')}
+        translucent={false}
+      />
+      <ExpoStatusBar
+        style={isDark ? 'light' : 'dark'}
+        backgroundColor={activeColors.background || (isDark ? '#090d16' : '#f8fafc')}
+      />
 
       {/* Non-blocking Optional Update Banner */}
       <OptionalUpdateBanner
@@ -348,7 +365,7 @@ function MainApp() {
           onErrorAlert={(msg) => showAlert(msg, 'error', 'Error')}
         />
       ) : (
-        <View style={styles.contentWrap}>
+        <View style={[styles.contentWrap, { backgroundColor: activeColors.background || '#090d16' }]}>
           {/* Top Status Header with Bell & Settings icons */}
           <Header
             user={user}
@@ -362,7 +379,7 @@ function MainApp() {
           />
 
           {/* Active Screen Tab with smooth animated transition */}
-          <View style={styles.screenContainer}>
+          <View style={[styles.screenContainer, { backgroundColor: activeColors.background || '#090d16' }]}>
             <Animated.View
               style={[
                 styles.animatedScreenWrap,

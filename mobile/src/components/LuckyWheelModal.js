@@ -16,13 +16,25 @@ import { getWheelStatus, spinLuckyWheel } from '../api/clientApi';
 import { playSound, triggerHaptic } from '../services/soundEffects';
 import { useTheme } from '../context/ThemeContext';
 
+// 8 Segments matching the server's exact probability model (45 degrees per sector)
+const WHEEL_SEGMENTS = [
+  { id: 0, label: 'TRY AGAIN', points: 0, isTryAgain: true, isJackpot: false, color: '#64748b' },
+  { id: 1, label: '5 PTS', points: 5, isTryAgain: false, isJackpot: false, color: '#06b6d4' },
+  { id: 2, label: '10 PTS', points: 10, isTryAgain: false, isJackpot: false, color: '#3b82f6' },
+  { id: 3, label: 'TRY AGAIN', points: 0, isTryAgain: true, isJackpot: false, color: '#475569' },
+  { id: 4, label: '25 PTS', points: 25, isTryAgain: false, isJackpot: false, color: '#8b5cf6' },
+  { id: 5, label: '50 PTS', points: 50, isTryAgain: false, isJackpot: false, color: '#ec4899' },
+  { id: 6, label: '100 PTS', points: 100, isTryAgain: false, isJackpot: false, color: '#f59e0b' },
+  { id: 7, label: '500 PTS 👑', points: 500, isTryAgain: false, isJackpot: true, color: '#10b981' }
+];
+
 export default function LuckyWheelModal({
   visible,
   token,
   onClose,
   onRewardWon
 }) {
-  const { theme, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const [wheelData, setWheelData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [spinning, setSpinning] = useState(false);
@@ -31,6 +43,9 @@ export default function LuckyWheelModal({
   const spinAnim = useRef(new Animated.Value(0)).current;
   const needleAnim = useRef(new Animated.Value(0)).current;
   const prizeScaleAnim = useRef(new Animated.Value(0)).current;
+
+  // Track the current rotation degrees so spins accumulate smoothly
+  const currentRotationRef = useRef(0);
 
   const fetchWheel = async () => {
     if (!token) return;
@@ -56,7 +71,7 @@ export default function LuckyWheelModal({
   }, [visible, token]);
 
   const handleSpin = async () => {
-    if (spinning || !wheelData?.can_spin) return;
+    if (spinning || !wheelData?.can_spin || !token) return;
 
     try {
       setSpinning(true);
@@ -66,16 +81,36 @@ export default function LuckyWheelModal({
       playSound('spin');
       triggerHaptic('medium');
 
-      // Start animation
-      spinAnim.setValue(0);
-      const fullRotations = 6;
-      const randomOffset = Math.floor(Math.random() * 360);
-      const targetDeg = fullRotations * 360 + randomOffset;
+      // Call server first to determine winning segment
+      const res = await spinLuckyWheel(token);
+      if (!res.success) {
+        setSpinning(false);
+        return;
+      }
 
-      // Realistic mechanical wheel ticks that decelerate
+      // Exact Pointer Matching Geometry:
+      // Pointer is at the TOP (0 deg / 12 o'clock).
+      // Each segment i is at angle (i * 45) deg from the top.
+      // To bring segment wonId right under the top pointer:
+      // Required final angular position = (360 - wonAngle) % 360
+      const wonSegment = res.won_segment || WHEEL_SEGMENTS[0];
+      const wonId = (wonSegment.id !== undefined && wonSegment.id >= 0 && wonSegment.id <= 7)
+        ? wonSegment.id
+        : 0;
+
+      const wonSegmentAngle = wonId * 45;
+      const targetOffset = (360 - wonSegmentAngle) % 360;
+
+      // Spin 7 full rotations plus exact offset to align target under top pointer
+      const fullRotations = 7;
+      const startDeg = currentRotationRef.current % 360;
+      const targetDeg = currentRotationRef.current + (fullRotations * 360) + ((targetOffset - startDeg + 360) % 360);
+      currentRotationRef.current = targetDeg;
+
+      // Realistic mechanical wheel ticks that decelerate with the wheel
       const tickIntervals = [
-        100, 200, 300, 400, 500, 600, 720, 840, 980, 1120,
-        1280, 1460, 1660, 1900, 2180, 2500, 2850, 3200, 3450
+        120, 240, 360, 480, 610, 750, 900, 1060, 1230, 1420,
+        1630, 1860, 2120, 2410, 2730, 3080, 3450, 3750
       ];
 
       tickIntervals.forEach((time) => {
@@ -85,52 +120,52 @@ export default function LuckyWheelModal({
 
           // Needle deflection flick
           Animated.sequence([
-            Animated.timing(needleAnim, { toValue: -15, duration: 40, useNativeDriver: true }),
+            Animated.timing(needleAnim, { toValue: -16, duration: 45, useNativeDriver: true }),
             Animated.spring(needleAnim, { toValue: 0, friction: 3, tension: 90, useNativeDriver: true })
           ]).start();
         }, time);
       });
 
+      // Smooth deceleration cubic curve
       Animated.timing(spinAnim, {
         toValue: targetDeg,
-        duration: 3600,
+        duration: 4000,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
-      }).start();
+      }).start(() => {
+        // Needle final settle snap
+        Animated.sequence([
+          Animated.timing(needleAnim, { toValue: -6, duration: 50, useNativeDriver: true }),
+          Animated.spring(needleAnim, { toValue: 0, friction: 4, tension: 120, useNativeDriver: true })
+        ]).start();
 
-      const res = await spinLuckyWheel(token);
-      if (res.success) {
-        setTimeout(() => {
-          setWonPrize(res.won_segment);
-          setWheelData((prev) => ({ ...prev, can_spin: false, seconds_remaining: 8 * 3600 }));
-          setSpinning(false);
-
-          if (res.won_segment.isTryAgain || res.won_segment.points === 0) {
-            playSound('tap');
-            triggerHaptic('light');
-          } else {
-            playSound('win');
-            triggerHaptic('success');
-          }
-
-          Animated.spring(prizeScaleAnim, {
-            toValue: 1,
-            friction: 4,
-            tension: 80,
-            useNativeDriver: true
-          }).start();
-
-          if (onRewardWon) {
-            onRewardWon({
-              points: res.won_segment.points || 0,
-              newBalance: res.new_balance,
-              label: res.won_segment.label
-            });
-          }
-        }, 3650);
-      } else {
+        setWonPrize(wonSegment);
+        setWheelData((prev) => ({ ...prev, can_spin: false, seconds_remaining: 8 * 3600 }));
         setSpinning(false);
-      }
+
+        if (wonSegment.isTryAgain || wonSegment.points === 0) {
+          playSound('tap');
+          triggerHaptic('light');
+        } else {
+          playSound('win');
+          triggerHaptic('success');
+        }
+
+        Animated.spring(prizeScaleAnim, {
+          toValue: 1,
+          friction: 4,
+          tension: 80,
+          useNativeDriver: true
+        }).start();
+
+        if (onRewardWon) {
+          onRewardWon({
+            points: wonSegment.points || 0,
+            newBalance: res.new_balance,
+            label: wonSegment.label
+          });
+        }
+      });
     } catch (err) {
       setSpinning(false);
       console.warn('Spin error:', err);
@@ -171,14 +206,14 @@ export default function LuckyWheelModal({
         <View style={[
           styles.modalSheet,
           {
-            backgroundColor: theme.card,
-            borderColor: theme.border
+            backgroundColor: colors.surface,
+            borderColor: colors.border
           }
         ]}>
           <View style={[styles.sheetHandle, { backgroundColor: isDark ? '#334155' : '#cbd5e1' }]} />
 
           {/* Header */}
-          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
             <View style={styles.headerLeft}>
               <LinearGradient
                 colors={['#8b5cf6', '#6366f1']}
@@ -187,30 +222,30 @@ export default function LuckyWheelModal({
                 <Disc size={20} color="#ffffff" />
               </LinearGradient>
               <View>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Daily Lucky Wheel</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Daily Lucky Wheel</Text>
                 <Text style={styles.modalSubtitle}>Spin & Win up to 500 PTS Jackpot!</Text>
               </View>
             </View>
 
             <TouchableOpacity
-              style={[styles.closeBtn, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}
+              style={[styles.closeBtn, { backgroundColor: colors.surfaceSubtle }]}
               onPress={onClose}
               activeOpacity={0.7}
             >
-              <X size={18} color={theme.subtext} />
+              <X size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           {loading ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator size="small" color="#8b5cf6" />
-              <Text style={[styles.loadingText, { color: theme.subtext }]}>Loading wheel rewards...</Text>
+              <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading wheel rewards...</Text>
             </View>
           ) : (
             <View style={styles.content}>
               {/* Wheel Graphic Container */}
               <View style={styles.wheelContainer}>
-                {/* Mechanical Deflecting Needle Pointer */}
+                {/* Mechanical Deflecting Needle Pointer (Fixed at Top Center 0°) */}
                 <Animated.View
                   style={[
                     styles.needlePointerContainer,
@@ -221,7 +256,7 @@ export default function LuckyWheelModal({
                   <View style={styles.needlePin} />
                 </Animated.View>
 
-                {/* Animated Rotating Disc with 8 Carnival Segments */}
+                {/* Animated Rotating Disc with mathematically accurate radial segments */}
                 <Animated.View
                   style={[
                     styles.wheelDisc,
@@ -232,47 +267,37 @@ export default function LuckyWheelModal({
                     colors={['#1e1b4b', '#312e81', '#1e1b4b']}
                     style={styles.wheelDiscGradient}
                   >
-                    {/* Segment 1 (Top): Jackpot 500 */}
-                    <View style={[styles.segmentLabel, { top: 18 }]}>
-                      <Text style={styles.segTextGold}>500 PTS 👑</Text>
-                    </View>
+                    {/* Radially positioned segment labels (45° sectors) */}
+                    {WHEEL_SEGMENTS.map((seg, idx) => {
+                      const angle = idx * 45;
+                      return (
+                        <View
+                          key={seg.id}
+                          style={[
+                            styles.segmentSlice,
+                            {
+                              transform: [
+                                { rotate: `${angle}deg` },
+                                { translateY: -68 }
+                              ]
+                            }
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.segLabelText,
+                              seg.isJackpot && styles.segLabelJackpot,
+                              seg.isTryAgain && styles.segLabelTryAgain
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {seg.label}
+                          </Text>
+                        </View>
+                      );
+                    })}
 
-                    {/* Segment 2 (Top Right): 5 PTS */}
-                    <View style={[styles.segmentLabel, { top: 40, right: 28 }]}>
-                      <Text style={styles.segText}>5 PTS</Text>
-                    </View>
-
-                    {/* Segment 3 (Right): Try Again */}
-                    <View style={[styles.segmentLabel, { right: 14 }]}>
-                      <Text style={styles.segTextTry}>TRY AGAIN</Text>
-                    </View>
-
-                    {/* Segment 4 (Bottom Right): 10 PTS */}
-                    <View style={[styles.segmentLabel, { bottom: 40, right: 28 }]}>
-                      <Text style={styles.segText}>10 PTS</Text>
-                    </View>
-
-                    {/* Segment 5 (Bottom): 25 PTS */}
-                    <View style={[styles.segmentLabel, { bottom: 18 }]}>
-                      <Text style={styles.segText}>25 PTS</Text>
-                    </View>
-
-                    {/* Segment 6 (Bottom Left): Try Again */}
-                    <View style={[styles.segmentLabel, { bottom: 40, left: 24 }]}>
-                      <Text style={styles.segTextTry}>TRY AGAIN</Text>
-                    </View>
-
-                    {/* Segment 7 (Left): 50 PTS */}
-                    <View style={[styles.segmentLabel, { left: 16 }]}>
-                      <Text style={styles.segText}>50 PTS</Text>
-                    </View>
-
-                    {/* Segment 8 (Top Left): 100 PTS */}
-                    <View style={[styles.segmentLabel, { top: 40, left: 24 }]}>
-                      <Text style={styles.segText}>100 PTS</Text>
-                    </View>
-
-                    {/* Perimeter Carnival Pegs */}
+                    {/* Perimeter Carnival Pegs dividing the segments (at +22.5° offset) */}
                     {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
                       <View
                         key={deg}
@@ -280,7 +305,7 @@ export default function LuckyWheelModal({
                           styles.peg,
                           {
                             transform: [
-                              { rotate: `${deg}deg` },
+                              { rotate: `${deg + 22.5}deg` },
                               { translateY: -94 }
                             ]
                           }
@@ -351,9 +376,9 @@ export default function LuckyWheelModal({
                   </LinearGradient>
                 </TouchableOpacity>
               ) : (
-                <View style={[styles.cooldownBanner, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderColor: theme.border }]}>
-                  <Clock size={16} color={theme.subtext} style={{ marginRight: 6 }} />
-                  <Text style={[styles.cooldownText, { color: theme.subtext }]}>
+                <View style={[styles.cooldownBanner, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
+                  <Clock size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
+                  <Text style={[styles.cooldownText, { color: colors.textSecondary }]}>
                     Next free spin in {hoursLeft}h {minsLeft}m
                   </Text>
                 </View>
@@ -485,32 +510,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative'
   },
+  segmentSlice: {
+    position: 'absolute',
+    width: 76,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  segLabelText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#e2e8f0',
+    textAlign: 'center'
+  },
+  segLabelJackpot: {
+    color: '#fbbf24',
+    fontSize: 10.5
+  },
+  segLabelTryAgain: {
+    color: '#94a3b8',
+    fontSize: 8.5
+  },
   peg: {
     position: 'absolute',
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#fbbf24'
-  },
-  segmentLabel: {
-    position: 'absolute',
-    alignItems: 'center'
-  },
-  segText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#e2e8f0'
-  },
-  segTextGold: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#fbbf24'
-  },
-  segTextTry: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#94a3b8',
-    letterSpacing: -0.2
   },
   wheelCenterHub: {
     width: 48,

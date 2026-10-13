@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { getCategories, getGames } from '../api/clientApi';
 import AnimatedCard from '../components/AnimatedCard';
+import { useTheme } from '../context/ThemeContext';
 
 export default function LobbyScreen({
   onSelectGame,
@@ -38,6 +39,7 @@ export default function LobbyScreen({
   isCheckingUpdate,
   updateInfo
 }) {
+  const { colors, isDark } = useTheme();
   const [categories, setCategories] = useState([]);
   const [games, setGames] = useState([]);
   const [selectedCat, setSelectedCat] = useState(null);
@@ -77,10 +79,10 @@ export default function LobbyScreen({
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.scroll}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#06b6d4" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
       showsVerticalScrollIndicator={false}
     >
@@ -192,14 +194,14 @@ export default function LobbyScreen({
           style={styles.heroCardWrapper}
           onPress={() => onSelectGame(featuredGame)}
         >
-          <View style={styles.heroCard}>
+          <View style={[styles.heroCard, { borderColor: colors.border }]}>
             <Image
               source={{ uri: featuredGame.banner_url || featuredGame.thumbnail_url }}
               style={styles.heroImage}
               resizeMode="cover"
             />
             <LinearGradient
-              colors={['transparent', 'rgba(15, 23, 42, 0.75)', '#090d16']}
+              colors={['transparent', 'rgba(15, 23, 42, 0.75)', isDark ? '#090d16' : '#0f172a']}
               locations={[0, 0.45, 1]}
               style={styles.heroOverlay}
             >
@@ -248,19 +250,19 @@ export default function LobbyScreen({
       ) : null}
 
       {/* Search Bar with glowing focus */}
-      <View style={styles.searchBar}>
-        <Search size={16} color="#06b6d4" style={styles.searchIcon} />
+      <View style={[styles.searchBar, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
+        <Search size={16} color={colors.primary} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: colors.text }]}
           placeholder="Search games, arcade, puzzles..."
-          placeholderTextColor="#64748b"
+          placeholderTextColor={colors.textMuted}
           value={search}
           onChangeText={setSearch}
           onSubmitEditing={loadData}
         />
         {search ? (
           <TouchableOpacity onPress={() => { setSearch(''); loadData(); }}>
-            <Text style={{ color: '#94a3b8', fontSize: 12, paddingHorizontal: 6 }}>Clear</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, paddingHorizontal: 6 }}>Clear</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -272,21 +274,41 @@ export default function LobbyScreen({
         contentContainerStyle={styles.catScroll}
       >
         <TouchableOpacity
-          style={[styles.catPill, !selectedCat && !filterFeatured && styles.catPillActive]}
+          style={[
+            styles.catPill,
+            { backgroundColor: colors.surfaceCard, borderColor: colors.border },
+            !selectedCat && !filterFeatured && styles.catPillActive
+          ]}
           onPress={() => { setSelectedCat(null); setFilterFeatured(false); }}
           activeOpacity={0.75}
         >
-          <Text style={[styles.catPillText, !selectedCat && !filterFeatured && styles.catPillTextActive]}>
+          <Text
+            style={[
+              styles.catPillText,
+              { color: colors.textSecondary },
+              !selectedCat && !filterFeatured && styles.catPillTextActive
+            ]}
+          >
             🎮 All Games
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.catPill, filterFeatured && styles.catPillFeaturedActive]}
+          style={[
+            styles.catPill,
+            { backgroundColor: colors.surfaceCard, borderColor: colors.border },
+            filterFeatured && styles.catPillFeaturedActive
+          ]}
           onPress={() => { setFilterFeatured(!filterFeatured); setSelectedCat(null); }}
           activeOpacity={0.75}
         >
-          <Text style={[styles.catPillText, filterFeatured && styles.catPillFeaturedTextActive]}>
+          <Text
+            style={[
+              styles.catPillText,
+              { color: colors.textSecondary },
+              filterFeatured && styles.catPillFeaturedTextActive
+            ]}
+          >
             ⭐ Featured
           </Text>
         </TouchableOpacity>
@@ -296,11 +318,21 @@ export default function LobbyScreen({
           return (
             <TouchableOpacity
               key={c.id}
-              style={[styles.catPill, isActive && styles.catPillActive]}
+              style={[
+                styles.catPill,
+                { backgroundColor: colors.surfaceCard, borderColor: colors.border },
+                isActive && styles.catPillActive
+              ]}
               onPress={() => { setSelectedCat(c.id); setFilterFeatured(false); }}
               activeOpacity={0.75}
             >
-              <Text style={[styles.catPillText, isActive && styles.catPillTextActive]}>
+              <Text
+                style={[
+                  styles.catPillText,
+                  { color: colors.textSecondary },
+                  isActive && styles.catPillTextActive
+                ]}
+              >
                 {c.name}
               </Text>
             </TouchableOpacity>
@@ -311,16 +343,16 @@ export default function LobbyScreen({
       {/* Games Catalog Section */}
       <View style={styles.sectionHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Gamepad2 size={18} color="#06b6d4" />
-          <Text style={styles.sectionTitle}>HTML5 Instant Games</Text>
+          <Gamepad2 size={18} color={colors.primary} />
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>HTML5 Instant Games</Text>
         </View>
-        <Text style={styles.sectionCount}>{displayedGames.length} Verified Titles</Text>
+        <Text style={[styles.sectionCount, { color: colors.textMuted }]}>{displayedGames.length} Verified Titles</Text>
       </View>
 
       {loading ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="small" color="#06b6d4" />
-          <Text style={styles.loadingText}>Syncing games catalog...</Text>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textMuted }]}>Syncing games catalog...</Text>
         </View>
       ) : (
         <View style={styles.gamesGrid}>
@@ -330,10 +362,10 @@ export default function LobbyScreen({
               style={styles.gameCardWrapper}
               onPress={() => onSelectGame(game)}
             >
-              <View style={styles.gameCard}>
+              <View style={[styles.gameCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
                 <Image
                   source={{ uri: game.thumbnail_url }}
-                  style={styles.gameThumb}
+                  style={[styles.gameThumb, { backgroundColor: colors.surfaceSubtle }]}
                   resizeMode="cover"
                 />
 
@@ -360,8 +392,8 @@ export default function LobbyScreen({
                     ) : null}
                   </View>
 
-                  <Text style={styles.gameCardTitle} numberOfLines={1}>{game.title}</Text>
-                  <Text style={styles.gameCategory} numberOfLines={1}>
+                  <Text style={[styles.gameCardTitle, { color: colors.text }]} numberOfLines={1}>{game.title}</Text>
+                  <Text style={[styles.gameCategory, { color: colors.textSecondary }]} numberOfLines={1}>
                     {game.category_name || 'Arcade'} • {(game.play_count || 1200).toLocaleString()} plays
                   </Text>
                 </View>
@@ -376,11 +408,11 @@ export default function LobbyScreen({
       )}
 
       {/* App Version Info & Update Checker Box */}
-      <View style={styles.updateStatusCard}>
+      <View style={[styles.updateStatusCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
         <View style={styles.updateStatusTop}>
           <View style={styles.verInfo}>
-            <Text style={styles.verTitle}>App Version Guard</Text>
-            <Text style={styles.verSub}>
+            <Text style={[styles.verTitle, { color: colors.text }]}>App Version Guard</Text>
+            <Text style={[styles.verSub, { color: colors.textSecondary }]}>
               Installed: v{updateInfo?.client_version || '1.0.0'} (Code {updateInfo?.client_version_code || 1})
             </Text>
           </View>
@@ -398,8 +430,8 @@ export default function LobbyScreen({
           </TouchableOpacity>
         </View>
 
-        <View style={styles.updateStatusDetails}>
-          <Text style={styles.serverVerText}>
+        <View style={[styles.updateStatusDetails, { borderTopColor: colors.border }]}>
+          <Text style={[styles.serverVerText, { color: colors.textSecondary }]}>
             Latest Server Target: v{updateInfo?.latest_version || '1.1.0'} | Forced: {updateInfo?.force_update ? 'ENABLED' : 'DISABLED'}
           </Text>
         </View>
@@ -410,8 +442,7 @@ export default function LobbyScreen({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#090d16'
+    flex: 1
   },
   scroll: {
     padding: 16,
@@ -588,8 +619,7 @@ const styles = StyleSheet.create({
     height: 230,
     borderRadius: 22,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: '#1e293b'
+    borderWidth: 1.5
   },
   heroImage: {
     width: '100%',
@@ -706,20 +736,17 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 44,
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#1e293b'
+    borderWidth: 1
   },
   searchIcon: {
     marginRight: 10
   },
   searchInput: {
     flex: 1,
-    color: '#ffffff',
     fontSize: 13,
     fontWeight: '500'
   },
@@ -732,21 +759,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#0f172a',
-    borderWidth: 1,
-    borderColor: '#1e293b'
+    borderWidth: 1
   },
   catPillActive: {
     backgroundColor: 'rgba(6, 182, 212, 0.2)',
     borderColor: '#06b6d4'
   },
   catPillText: {
-    color: '#94a3b8',
     fontSize: 12,
     fontWeight: '600'
   },
   catPillTextActive: {
-    color: '#38bdf8',
+    color: '#06b6d4',
     fontWeight: '800'
   },
   sectionHeader: {
@@ -757,13 +781,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2
   },
   sectionTitle: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: -0.3
   },
   sectionCount: {
-    color: '#64748b',
     fontSize: 11.5,
     fontWeight: '600'
   },
@@ -773,7 +795,6 @@ const styles = StyleSheet.create({
     gap: 10
   },
   loadingText: {
-    color: '#64748b',
     fontSize: 12
   },
   gamesGrid: {
@@ -785,24 +806,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 4
   },
   gameCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
     borderRadius: 16,
     padding: 10,
-    borderWidth: 1,
-    borderColor: '#1e293b'
+    borderWidth: 1
   },
   gameThumb: {
     width: 68,
     height: 68,
-    borderRadius: 12,
-    backgroundColor: '#1e293b'
+    borderRadius: 12
   },
   gameInfo: {
     flex: 1,
@@ -841,12 +859,10 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   gameCardTitle: {
-    color: '#ffffff',
     fontSize: 14,
     fontWeight: '800'
   },
   gameCategory: {
-    color: '#64748b',
     fontSize: 11,
     marginTop: 2
   },
@@ -864,11 +880,9 @@ const styles = StyleSheet.create({
     elevation: 3
   },
   updateStatusCard: {
-    backgroundColor: '#0f172a',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#1e293b',
     marginTop: 8
   },
   updateStatusTop: {
@@ -880,12 +894,10 @@ const styles = StyleSheet.create({
     flex: 1
   },
   verTitle: {
-    color: '#ffffff',
     fontSize: 13,
     fontWeight: '800'
   },
   verSub: {
-    color: '#64748b',
     fontSize: 11,
     marginTop: 2
   },
@@ -905,11 +917,9 @@ const styles = StyleSheet.create({
   updateStatusDetails: {
     marginTop: 8,
     paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#1e293b'
+    borderTopWidth: 1
   },
   serverVerText: {
-    color: '#475569',
     fontSize: 10,
     fontWeight: '600'
   },
@@ -918,7 +928,7 @@ const styles = StyleSheet.create({
     borderColor: '#f59e0b'
   },
   catPillFeaturedTextActive: {
-    color: '#fbbf24',
+    color: '#f59e0b',
     fontWeight: '800'
   },
   cardFeaturedBadge: {

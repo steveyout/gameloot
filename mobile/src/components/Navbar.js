@@ -2,8 +2,11 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
 import { Gamepad2, Sparkles, Gift, WalletCards } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Navbar({ activeTab, onTabSelect }) {
+  const { colors, isDark } = useTheme();
+
   const tabs = [
     { id: 'lobby', label: 'Games', icon: Gamepad2, glow: '#06b6d4' },
     { id: 'earn', label: 'Earn Hub', icon: Sparkles, glow: '#a855f7' },
@@ -12,7 +15,16 @@ export default function Navbar({ activeTab, onTabSelect }) {
   ];
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isDark ? '#090d16' : (colors.surfaceCard || '#ffffff'),
+          borderTopColor: colors.border || (isDark ? '#1e293b' : '#e2e8f0'),
+          shadowColor: isDark ? '#000000' : '#64748b'
+        }
+      ]}
+    >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         const IconComponent = tab.icon;
@@ -24,6 +36,8 @@ export default function Navbar({ activeTab, onTabSelect }) {
             isActive={isActive}
             onPress={() => onTabSelect(tab.id)}
             IconComponent={IconComponent}
+            colors={colors}
+            isDark={isDark}
           />
         );
       })}
@@ -31,7 +45,7 @@ export default function Navbar({ activeTab, onTabSelect }) {
   );
 }
 
-function NavTabButton({ tab, isActive, onPress, IconComponent }) {
+function NavTabButton({ tab, isActive, onPress, IconComponent, colors, isDark }) {
   const scale = useRef(new Animated.Value(1)).current;
   const iconTranslate = useRef(new Animated.Value(0)).current;
 
@@ -59,6 +73,8 @@ function NavTabButton({ tab, isActive, onPress, IconComponent }) {
   const handlePressOut = () => {
     Animated.spring(scale, { toValue: isActive ? 1.05 : 1, friction: 5, useNativeDriver: true }).start();
   };
+
+  const idleColor = colors?.textSecondary || (isDark ? '#64748b' : '#64748b');
 
   return (
     <TouchableOpacity
@@ -88,7 +104,7 @@ function NavTabButton({ tab, isActive, onPress, IconComponent }) {
           </LinearGradient>
         ) : (
           <View style={styles.idleBadge}>
-            <IconComponent size={20} color="#64748b" />
+            <IconComponent size={20} color={idleColor} />
           </View>
         )}
       </Animated.View>
@@ -96,6 +112,7 @@ function NavTabButton({ tab, isActive, onPress, IconComponent }) {
       <Text
         style={[
           styles.tabLabel,
+          { color: idleColor },
           isActive && { color: tab.glow, fontWeight: '800' }
         ]}
       >
@@ -114,15 +131,12 @@ const styles = StyleSheet.create({
     height: Platform.OS === 'android' ? 68 : 78,
     paddingBottom: Platform.OS === 'android' ? 8 : 18,
     paddingHorizontal: 12,
-    backgroundColor: '#090d16',
     borderTopWidth: 1,
-    borderTopColor: '#1e293b',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    shadowColor: '#000000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 20
   },
@@ -153,7 +167,6 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 10.5,
     fontWeight: '600',
-    color: '#64748b',
     marginTop: 3
   },
   activeDot: {

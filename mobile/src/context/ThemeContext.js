@@ -13,10 +13,12 @@ export const themes = {
     surface: '#0f172a',
     surfaceSubtle: '#1e293b',
     surfaceCard: '#0f172a',
+    card: '#0f172a',
     border: '#1e293b',
     borderStrong: '#334155',
     text: '#ffffff',
     textSecondary: '#94a3b8',
+    subtext: '#94a3b8',
     textMuted: '#64748b',
     primary: '#06b6d4',
     accent: '#3b82f6',
@@ -33,10 +35,12 @@ export const themes = {
     surface: '#ffffff',
     surfaceSubtle: '#f1f5f9',
     surfaceCard: '#ffffff',
+    card: '#ffffff',
     border: '#e2e8f0',
     borderStrong: '#cbd5e1',
     text: '#0f172a',
     textSecondary: '#475569',
+    subtext: '#475569',
     textMuted: '#64748b',
     primary: '#0891b2',
     accent: '#2563eb',
@@ -47,7 +51,8 @@ export const themes = {
 };
 
 const ThemeContext = createContext({
-  theme: 'dark',
+  theme: themes.dark,
+  themeMode: 'dark',
   isDark: true,
   colors: themes.dark,
   toggleTheme: () => {},
@@ -78,14 +83,15 @@ export function ThemeProvider({ children }) {
     }
   };
 
-  const colors = themes[currentTheme] || themes.dark;
+  const activeColors = themes[currentTheme] || themes.dark;
 
   return (
     <ThemeContext.Provider
       value={{
-        theme: currentTheme,
+        theme: activeColors,
+        themeMode: currentTheme,
         isDark: currentTheme === 'dark',
-        colors,
+        colors: activeColors,
         toggleTheme,
         setTheme
       }}

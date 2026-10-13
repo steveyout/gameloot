@@ -27,6 +27,7 @@ import {
 import { getQuizzes, getSurfTasks, getSurveys } from '../api/clientApi';
 import AnimatedCard from '../components/AnimatedCard';
 import { playSound, triggerHaptic } from '../services/soundEffects';
+import { useTheme } from '../context/ThemeContext';
 
 export default function EarnHubScreen({
   onSelectQuiz,
@@ -36,6 +37,7 @@ export default function EarnHubScreen({
   onOpenDailyStreak,
   onOpenLuckyWheel
 }) {
+  const { colors, isDark } = useTheme();
   const [quizzes, setQuizzes] = useState([]);
   const [surfTasks, setSurfTasks] = useState([]);
   const [surveys, setSurveys] = useState([]);
@@ -90,10 +92,10 @@ export default function EarnHubScreen({
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.scroll}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#06b6d4" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
       showsVerticalScrollIndicator={false}
     >
@@ -168,7 +170,7 @@ export default function EarnHubScreen({
         onPress={handleAdRewardPress}
       >
         <LinearGradient
-          colors={['#312e81', '#1e1b4b', '#0f172a']}
+          colors={['#312e81', '#1e1b4b', isDark ? '#0f172a' : '#1e1b4b']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.adHeroCard}
@@ -207,9 +209,9 @@ export default function EarnHubScreen({
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
           <Brain size={18} color="#a855f7" />
-          <Text style={styles.sectionTitle}>Trivia Quizzes</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Trivia Quizzes</Text>
         </View>
-        <Text style={styles.sectionSub}>Answer 3 questions</Text>
+        <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Answer 3 questions</Text>
       </View>
 
       <View style={styles.taskList}>
@@ -222,7 +224,7 @@ export default function EarnHubScreen({
               onSelectQuiz(quiz);
             }}
           >
-            <View style={[styles.taskCard, { borderColor: '#581c87' }]}>
+            <View style={[styles.taskCard, { backgroundColor: colors.surfaceCard, borderColor: isDark ? '#581c87' : colors.border }]}>
               <View style={styles.taskLeft}>
                 <LinearGradient
                   colors={['#9333ea', '#6b21a8']}
@@ -231,10 +233,10 @@ export default function EarnHubScreen({
                   <Brain size={20} color="#ffffff" />
                 </LinearGradient>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.taskTitle}>{quiz.title}</Text>
+                  <Text style={[styles.taskTitle, { color: colors.text }]}>{quiz.title}</Text>
                   <View style={styles.metaRow}>
-                    <Clock size={11} color="#94a3b8" />
-                    <Text style={styles.taskMeta}>
+                    <Clock size={11} color={colors.textSecondary} />
+                    <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>
                       {quiz.category} • {quiz.time_limit_seconds || 60}s timer
                     </Text>
                   </View>
@@ -246,7 +248,7 @@ export default function EarnHubScreen({
                 style={[styles.taskRewardBadge, { borderColor: '#a855f7' }]}
               >
                 <Sparkles size={11} color="#c084fc" />
-                <Text style={[styles.taskRewardText, { color: '#e9d5ff' }]}>
+                <Text style={[styles.taskRewardText, { color: isDark ? '#e9d5ff' : '#7e22ce' }]}>
                   +{quiz.reward_points} PTS
                 </Text>
               </LinearGradient>
@@ -259,9 +261,9 @@ export default function EarnHubScreen({
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
           <Globe size={18} color="#06b6d4" />
-          <Text style={styles.sectionTitle}>Web Surfing Tasks</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Web Surfing Tasks</Text>
         </View>
-        <Text style={styles.sectionSub}>Browse for 30s</Text>
+        <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Browse for 30s</Text>
       </View>
 
       <View style={styles.taskList}>
@@ -274,7 +276,7 @@ export default function EarnHubScreen({
               onSelectSurf(surf);
             }}
           >
-            <View style={[styles.taskCard, { borderColor: '#0e7490' }]}>
+            <View style={[styles.taskCard, { backgroundColor: colors.surfaceCard, borderColor: isDark ? '#0e7490' : colors.border }]}>
               <View style={styles.taskLeft}>
                 <LinearGradient
                   colors={['#06b6d4', '#0284c7']}
@@ -283,10 +285,10 @@ export default function EarnHubScreen({
                   <Globe size={20} color="#ffffff" />
                 </LinearGradient>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.taskTitle}>{surf.title}</Text>
+                  <Text style={[styles.taskTitle, { color: colors.text }]}>{surf.title}</Text>
                   <View style={styles.metaRow}>
-                    <Clock size={11} color="#94a3b8" />
-                    <Text style={styles.taskMeta}>
+                    <Clock size={11} color={colors.textSecondary} />
+                    <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>
                       Browse sponsor page for {surf.duration_seconds || 30}s
                     </Text>
                   </View>
@@ -298,7 +300,7 @@ export default function EarnHubScreen({
                 style={[styles.taskRewardBadge, { borderColor: '#06b6d4' }]}
               >
                 <Sparkles size={11} color="#38bdf8" />
-                <Text style={[styles.taskRewardText, { color: '#bae6fd' }]}>
+                <Text style={[styles.taskRewardText, { color: isDark ? '#bae6fd' : '#0284c7' }]}>
                   +{surf.reward_points} PTS
                 </Text>
               </LinearGradient>
@@ -311,9 +313,9 @@ export default function EarnHubScreen({
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
           <ClipboardList size={18} color="#f59e0b" />
-          <Text style={styles.sectionTitle}>Sponsored Surveys</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Sponsored Surveys</Text>
         </View>
-        <Text style={styles.sectionSub}>Higher payout pool</Text>
+        <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Higher payout pool</Text>
       </View>
 
       <View style={styles.taskList}>
@@ -326,7 +328,7 @@ export default function EarnHubScreen({
               onSelectSurvey(survey);
             }}
           >
-            <View style={[styles.taskCard, { borderColor: '#b45309' }]}>
+            <View style={[styles.taskCard, { backgroundColor: colors.surfaceCard, borderColor: isDark ? '#b45309' : colors.border }]}>
               <View style={styles.taskLeft}>
                 <LinearGradient
                   colors={['#f59e0b', '#d97706']}
@@ -335,10 +337,10 @@ export default function EarnHubScreen({
                   <ClipboardList size={20} color="#ffffff" />
                 </LinearGradient>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.taskTitle}>{survey.title}</Text>
+                  <Text style={[styles.taskTitle, { color: colors.text }]}>{survey.title}</Text>
                   <View style={styles.metaRow}>
-                    <Clock size={11} color="#94a3b8" />
-                    <Text style={styles.taskMeta}>
+                    <Clock size={11} color={colors.textSecondary} />
+                    <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>
                       {survey.provider || 'Research Partner'} • ~{survey.estimated_minutes || 2} min
                     </Text>
                   </View>
@@ -350,7 +352,7 @@ export default function EarnHubScreen({
                 style={[styles.taskRewardBadge, { borderColor: '#f59e0b' }]}
               >
                 <Sparkles size={11} color="#fbbf24" />
-                <Text style={[styles.taskRewardText, { color: '#fef3c7' }]}>
+                <Text style={[styles.taskRewardText, { color: isDark ? '#fef3c7' : '#b45309' }]}>
                   +{survey.reward_points} PTS
                 </Text>
               </LinearGradient>
@@ -360,11 +362,11 @@ export default function EarnHubScreen({
       </View>
 
       {/* Fair Play Reward Transparency Box */}
-      <View style={styles.transparencyCard}>
+      <View style={[styles.transparencyCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
         <ShieldCheck size={20} color="#10b981" />
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.transparencyTitle}>Sponsor-Funded Economics</Text>
-          <Text style={styles.transparencyDesc}>
+          <Text style={[styles.transparencyDesc, { color: colors.textSecondary }]}>
             All points awarded are backed by verified advertiser ad impressions. We operate a sustainable loyalty revenue share so all cashouts are 100% honored and prompt.
           </Text>
         </View>
@@ -375,8 +377,7 @@ export default function EarnHubScreen({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#090d16'
+    flex: 1
   },
   scroll: {
     padding: 16,
@@ -393,7 +394,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 6
   },
@@ -464,7 +465,7 @@ const styles = StyleSheet.create({
     marginBottom: 22,
     shadowColor: '#4f46e5',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 6
   },
@@ -563,13 +564,11 @@ const styles = StyleSheet.create({
     gap: 7
   },
   sectionTitle: {
-    color: '#ffffff',
     fontSize: 15.5,
     fontWeight: '800',
     letterSpacing: -0.2
   },
   sectionSub: {
-    color: '#64748b',
     fontSize: 11,
     fontWeight: '600'
   },
@@ -582,7 +581,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 5,
     elevation: 3
   },
@@ -590,7 +589,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0f172a',
     borderRadius: 16,
     padding: 12,
     borderWidth: 1.2
@@ -610,7 +608,6 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   taskTitle: {
-    color: '#ffffff',
     fontSize: 13.5,
     fontWeight: '800'
   },
@@ -621,7 +618,6 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   taskMeta: {
-    color: '#94a3b8',
     fontSize: 11
   },
   taskRewardBadge: {
@@ -640,11 +636,9 @@ const styles = StyleSheet.create({
   transparencyCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
     padding: 14,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1e293b',
     marginTop: 10
   },
   transparencyTitle: {
@@ -654,7 +648,6 @@ const styles = StyleSheet.create({
     marginBottom: 2
   },
   transparencyDesc: {
-    color: '#94a3b8',
     fontSize: 10.5,
     lineHeight: 15
   }

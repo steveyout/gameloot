@@ -15,8 +15,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Gift, Sparkles, CheckCircle2, X, AlertCircle, ShieldCheck, ArrowRight, Wallet } from 'lucide-react-native';
 import { getRewards, redeemReward } from '../api/clientApi';
 import AnimatedCard from '../components/AnimatedCard';
+import { useTheme } from '../context/ThemeContext';
 
 export default function RewardsScreen({ user, token, onRedemptionSuccess, onErrorAlert }) {
+  const { colors, isDark } = useTheme();
   const [rewards, setRewards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,20 +90,20 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.scroll}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#06b6d4" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
       showsVerticalScrollIndicator={false}
     >
       {/* Balance Summary Header with Glowing Border */}
       <LinearGradient
-        colors={['#1e293b', '#0f172a', '#090d16']}
-        style={styles.summaryCard}
+        colors={isDark ? ['#1e293b', '#0f172a', '#090d16'] : ['#e2e8f0', '#f1f5f9', '#ffffff']}
+        style={[styles.summaryCard, { borderColor: colors.border }]}
       >
         <View style={styles.summaryLeft}>
-          <Text style={styles.summaryLabel}>Available for Cashout</Text>
+          <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Available for Cashout</Text>
           <Text style={styles.summaryPoints}>{userBalance.toLocaleString()} PTS</Text>
           <Text style={styles.summaryUsd}>≈ ${(userBalance * 0.001).toFixed(2)} USD</Text>
         </View>
@@ -116,15 +118,15 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
       <View style={styles.sectionHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Gift size={18} color="#f59e0b" />
-          <Text style={styles.sectionTitle}>Select Cashout Method</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Cashout Method</Text>
         </View>
-        <Text style={styles.sectionSub}>Honored within 24h</Text>
+        <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Honored within 24h</Text>
       </View>
 
       {loading ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="small" color="#06b6d4" />
-          <Text style={styles.loadingText}>Syncing rewards catalog...</Text>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textMuted }]}>Syncing rewards catalog...</Text>
         </View>
       ) : (
         <View style={styles.rewardGrid}>
@@ -139,7 +141,11 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
                 style={styles.rewardWrapper}
                 onPress={() => handleOpenRedeem(item)}
               >
-                <View style={[styles.rewardCard, canAfford && styles.rewardCardAffordable]}>
+                <View style={[
+                  styles.rewardCard,
+                  { backgroundColor: colors.surfaceCard, borderColor: colors.border },
+                  canAfford && styles.rewardCardAffordable
+                ]}>
                   <View style={styles.rewardHeader}>
                     <Image
                       source={{ uri: item.icon_url }}
@@ -154,30 +160,30 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
                     </LinearGradient>
                   </View>
 
-                  <Text style={styles.rewardTitle}>{item.title}</Text>
-                  <Text style={styles.rewardDesc} numberOfLines={2}>
+                  <Text style={[styles.rewardTitle, { color: colors.text }]}>{item.title}</Text>
+                  <Text style={[styles.rewardDesc, { color: colors.textSecondary }]} numberOfLines={2}>
                     {item.description}
                   </Text>
 
                   {/* Progress towards target */}
                   <View style={styles.progressContainer}>
-                    <View style={styles.progressBarBg}>
+                    <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceSubtle }]}>
                       <View
                         style={[
                           styles.progressBarFill,
                           {
                             width: `${pct}%`,
-                            backgroundColor: canAfford ? '#10b981' : '#06b6d4'
+                            backgroundColor: canAfford ? '#10b981' : colors.primary
                           }
                         ]}
                       />
                     </View>
-                    <Text style={styles.progressText}>
+                    <Text style={[styles.progressText, { color: colors.textSecondary }]}>
                       {canAfford ? '✓ Ready to Claim!' : `${pct}% (${(item.cost_points - userBalance).toLocaleString()} PTS needed)`}
                     </Text>
                   </View>
 
-                  <View style={styles.rewardFooter}>
+                  <View style={[styles.rewardFooter, { borderTopColor: colors.border }]}>
                     <View style={styles.costBadge}>
                       <Sparkles size={12} color="#fbbf24" />
                       <Text style={styles.costText}>{item.cost_points.toLocaleString()} PTS</Text>
@@ -192,8 +198,8 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
                         <ArrowRight size={12} color="#ffffff" />
                       </LinearGradient>
                     ) : (
-                      <View style={styles.redeemBtnDisabled}>
-                        <Text style={styles.redeemBtnTextDisabled}>Need PTS</Text>
+                      <View style={[styles.redeemBtnDisabled, { backgroundColor: colors.surfaceSubtle }]}>
+                        <Text style={[styles.redeemBtnTextDisabled, { color: colors.textMuted }]}>Need PTS</Text>
                       </View>
                     )}
                   </View>
@@ -213,18 +219,18 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
           onRequestClose={() => setSelectedReward(null)}
         >
           <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
+            <View style={[styles.modalCard, { backgroundColor: colors.surfaceCard, borderColor: colors.borderStrong }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Confirm Redemption</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Confirm Redemption</Text>
                 <TouchableOpacity onPress={() => setSelectedReward(null)} style={styles.modalClose}>
-                  <X size={18} color="#94a3b8" />
+                  <X size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.modalItemBox}>
+              <View style={[styles.modalItemBox, { backgroundColor: colors.surfaceSubtle }]}>
                 <Image source={{ uri: selectedReward.icon_url }} style={styles.modalIcon} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.modalItemTitle}>{selectedReward.title}</Text>
+                  <Text style={[styles.modalItemTitle, { color: colors.text }]}>{selectedReward.title}</Text>
                   <Text style={styles.modalItemCost}>
                     Cost: {selectedReward.cost_points.toLocaleString()} PTS (${Number(selectedReward.cash_value_usd).toFixed(2)} USD)
                   </Text>
@@ -232,15 +238,15 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
                   {selectedReward.type === 'crypto'
                     ? 'BEP20 or Polygon Wallet Address'
                     : 'Recipient PayPal / Email Address'}
                 </Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border, color: colors.text }]}
                   placeholder="e.g. user@paypal.com or 0x..."
-                  placeholderTextColor="#475569"
+                  placeholderTextColor={colors.textMuted}
                   value={payoutDetails}
                   onChangeText={setPayoutDetails}
                   autoCapitalize="none"
@@ -281,8 +287,7 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#090d16'
+    flex: 1
   },
   scroll: {
     padding: 16,
@@ -295,11 +300,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1.5,
-    borderColor: '#334155',
     marginBottom: 20,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5
   },
@@ -307,7 +311,6 @@ const styles = StyleSheet.create({
     flex: 1
   },
   summaryLabel: {
-    color: '#94a3b8',
     fontSize: 11,
     fontWeight: '600'
   },
@@ -335,7 +338,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(16, 185, 129, 0.3)'
   },
   thresholdText: {
-    color: '#6ee7b7',
+    color: '#10b981',
     fontSize: 10,
     fontWeight: '700'
   },
@@ -346,12 +349,10 @@ const styles = StyleSheet.create({
     marginBottom: 12
   },
   sectionTitle: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: '800'
   },
   sectionSub: {
-    color: '#64748b',
     fontSize: 11,
     fontWeight: '600'
   },
@@ -360,7 +361,6 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   loadingText: {
-    color: '#64748b',
     fontSize: 12,
     marginTop: 8
   },
@@ -372,16 +372,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 4
   },
   rewardCard: {
-    backgroundColor: '#0f172a',
     borderRadius: 18,
     padding: 16,
-    borderWidth: 1.5,
-    borderColor: '#1e293b'
+    borderWidth: 1.5
   },
   rewardCardAffordable: {
     borderColor: 'rgba(16, 185, 129, 0.4)'
@@ -407,12 +405,10 @@ const styles = StyleSheet.create({
     fontWeight: '900'
   },
   rewardTitle: {
-    color: '#ffffff',
     fontSize: 15,
     fontWeight: '800'
   },
   rewardDesc: {
-    color: '#94a3b8',
     fontSize: 11.5,
     marginTop: 3,
     lineHeight: 16
@@ -423,7 +419,6 @@ const styles = StyleSheet.create({
   },
   progressBarBg: {
     height: 4,
-    backgroundColor: '#1e293b',
     borderRadius: 2,
     overflow: 'hidden'
   },
@@ -432,7 +427,6 @@ const styles = StyleSheet.create({
     borderRadius: 2
   },
   progressText: {
-    color: '#64748b',
     fontSize: 10,
     fontWeight: '600'
   },
@@ -442,8 +436,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 12,
     paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#1e293b'
+    borderTopWidth: 1
   },
   costBadge: {
     flexDirection: 'row',
@@ -474,28 +467,24 @@ const styles = StyleSheet.create({
     fontWeight: '900'
   },
   redeemBtnDisabled: {
-    backgroundColor: '#1e293b',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10
   },
   redeemBtnTextDisabled: {
-    color: '#64748b',
     fontSize: 11.5,
     fontWeight: '700'
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(5, 7, 15, 0.85)',
+    backgroundColor: 'rgba(5, 7, 15, 0.75)',
     justifyContent: 'center',
     padding: 20
   },
   modalCard: {
-    backgroundColor: '#0f172a',
     borderRadius: 24,
     padding: 20,
-    borderWidth: 1,
-    borderColor: '#334155'
+    borderWidth: 1
   },
   modalHeader: {
     flexDirection: 'row',
@@ -504,7 +493,6 @@ const styles = StyleSheet.create({
     marginBottom: 16
   },
   modalTitle: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: '800'
   },
@@ -514,7 +502,6 @@ const styles = StyleSheet.create({
   modalItemBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
     padding: 12,
     borderRadius: 14,
     marginBottom: 16
@@ -524,7 +511,6 @@ const styles = StyleSheet.create({
     height: 36
   },
   modalItemTitle: {
-    color: '#ffffff',
     fontSize: 14,
     fontWeight: '800'
   },
@@ -538,19 +524,15 @@ const styles = StyleSheet.create({
     marginBottom: 14
   },
   inputLabel: {
-    color: '#94a3b8',
     fontSize: 11,
     fontWeight: '600',
     marginBottom: 6
   },
   input: {
-    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 12,
-    color: '#ffffff',
     fontSize: 13,
-    borderWidth: 1,
-    borderColor: '#334155'
+    borderWidth: 1
   },
   noticeBox: {
     flexDirection: 'row',
@@ -562,7 +544,7 @@ const styles = StyleSheet.create({
     marginBottom: 16
   },
   noticeText: {
-    color: '#6ee7b7',
+    color: '#10b981',
     fontSize: 11,
     flex: 1
   },
