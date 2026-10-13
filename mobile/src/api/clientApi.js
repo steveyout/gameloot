@@ -28,13 +28,53 @@ async function request(endpoint, options = {}, token = null) {
 
   const targetUrl = API_BASE_URL + endpoint;
 
+  let res;
   try {
-    const res = await fetchWithTimeout(targetUrl, { ...options, headers }, 10000);
-    const data = await res.json();
-    return data;
+    res = await fetchWithTimeout(targetUrl, { ...options, headers }, 10000);
   } catch (err) {
     throw new Error(err.message || 'Network request failed to GameLoot server.');
   }
+
+  // Safely parse response text. Protects against BunkerWeb WAF or reverse proxy HTML error pages.
+  const rawText = await res.text();
+  let data = null;
+  try {
+    data = rawText ? JSON.parse(rawText) : null;
+  } catch (_jsonErr) {
+    data = null;
+  }
+
+  if (!res.ok) {
+    // If server provided a structured JSON error message, surface it directly
+    if (data && (data.message || data.error)) {
+      throw new Error(data.message || data.error);
+    }
+
+    // Otherwise translate status code into clean, human-readable error (preventing raw HTML/JSON parse crashes)
+    if (res.status === 400) {
+      throw new Error('Invalid input. Please check your credentials and try again.');
+    } else if (res.status === 401) {
+      throw new Error('Invalid username or password. Please verify your credentials.');
+    } else if (res.status === 403) {
+      throw new Error('Access denied. Your account is restricted or suspended.');
+    } else if (res.status === 404) {
+      throw new Error('GameLoot service endpoint not found (404).');
+    } else if (res.status === 409) {
+      throw new Error('Username or email is already registered.');
+    } else if (res.status === 429) {
+      throw new Error('Too many requests. Please wait a moment before trying again.');
+    } else if (res.status >= 500) {
+      throw new Error('Server error (' + res.status + '). Please try again in a few moments.');
+    }
+    throw new Error('Server returned error status ' + res.status);
+  }
+
+  // Fallback for non-JSON 200 responses
+  if (data === null) {
+    return { success: true, text: rawText };
+  }
+
+  return data;
 }
 
 // 1. App Version & Forced Update Checker

@@ -24,14 +24,21 @@ export async function apiRequest(endpoint, method = 'GET', body = null) {
   }
 
   const response = await fetch(`${API_BASE}${endpoint}`, config);
-  const data = await response.json();
+  const text = await response.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch (_e) {
+    data = null;
+  }
 
   if (!response.ok) {
     if (response.status === 401) {
       removeAuthToken();
       window.dispatchEvent(new Event('auth_expired'));
     }
-    throw new Error(data.message || `Request failed with status ${response.status}`);
+    const errMsg = data?.message || data?.error || (response.status >= 500 ? `Server error (${response.status})` : `Request failed with status ${response.status}`);
+    throw new Error(errMsg);
   }
 
   return data;

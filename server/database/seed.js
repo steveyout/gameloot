@@ -37,6 +37,23 @@ async function seed() {
       console.log('👑 Superadmin seeded: admin@gameloot.com / admin123');
     }
 
+    // 1b. Default Player
+    const playerEmail = 'player@gameloot.com';
+    const existingPlayer = await User.findOne({ where: { email: playerEmail } });
+    if (!existingPlayer) {
+      const playerPass = await bcrypt.hash('player123', 10);
+      await User.create({
+        username: 'player',
+        email: playerEmail,
+        password_hash: playerPass,
+        points_balance: 1000,
+        tickets_balance: 10,
+        total_earned: 1000,
+        status: 'active'
+      });
+      console.log('🎮 Player account seeded: player / player123 (1,000 PTS)');
+    }
+
     // 2. Categories
     const categoriesData = [
       { name: 'Arcade & Retro', slug: 'arcade', icon: 'Gamepad2', description: 'Fast-paced classic reflex arcade challenges', display_order: 1 },

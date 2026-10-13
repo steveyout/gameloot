@@ -5,6 +5,11 @@ const { Admin, User } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'gameloot_super_secret_jwt_key_2026_cyberloot';
 
+function getClientIp(req) {
+  const rawIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1';
+  return String(rawIp).split(',')[0].trim().slice(0, 45);
+}
+
 // Admin Login
 async function adminLogin(req, res) {
   try {
@@ -80,7 +85,7 @@ async function userRegister(req, res) {
     }
 
     const hash = await bcrypt.hash(password, 10);
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const ip = getClientIp(req);
 
     const newUser = await User.create({
       username: username.trim(),
@@ -183,7 +188,7 @@ async function userGoogleLogin(req, res) {
       } : { email: cleanEmail }
     });
 
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const ip = getClientIp(req);
 
     if (user) {
       if (user.status === 'banned') {
