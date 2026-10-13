@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Image, Animated, Dimensions } from 'react-native';
+import { View, StyleSheet, Image, Animated, Dimensions } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -10,48 +10,55 @@ export default function SplashScreen({ isReady, onFinish }) {
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Pulse animation for the glow effect
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0.6,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+    let timer = null;
+    try {
+      // Pulse animation for the glow effect
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 0.6,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
 
-    // Subtle progress bar
-    Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: 1600,
-      useNativeDriver: false,
-    }).start();
+      // Subtle progress bar
+      Animated.timing(progressAnim, {
+        toValue: 1,
+        duration: 1400,
+        useNativeDriver: false,
+      }).start();
 
-    // Auto transition after loading delay
-    const timer = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 450,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1.05,
-          duration: 450,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        if (onFinish) onFinish();
-      });
-    }, 1800);
+      // Auto transition after loading delay
+      timer = setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1.04,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          if (onFinish) onFinish();
+        });
+      }, 1600);
+    } catch (e) {
+      if (onFinish) onFinish();
+    }
 
-    return () => clearTimeout(timer);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   return (
@@ -69,9 +76,10 @@ export default function SplashScreen({ isReady, onFinish }) {
         source={require('../../assets/splash.png')}
         style={styles.splashBg}
         resizeMode="cover"
+        fadeDuration={0}
       />
 
-      {/* Cyberpunk subtle gradient overlay & loader */}
+      {/* Cyberpunk subtle progress bar & loader */}
       <View style={styles.loaderContainer}>
         <View style={styles.progressBarTrack}>
           <Animated.View

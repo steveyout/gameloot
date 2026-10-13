@@ -82,10 +82,18 @@ export default function App() {
     if (Platform.OS === 'android') {
       const configureStickyImmersiveNav = async () => {
         try {
-          await NavigationBar.setVisibilityAsync('hidden');
-          await NavigationBar.setBehaviorAsync('overlay-swipe');
-          await NavigationBar.setBackgroundColorAsync('#090d16');
-          await NavigationBar.setButtonStyleAsync('light');
+          if (NavigationBar?.setVisibilityAsync) {
+            await NavigationBar.setVisibilityAsync('hidden');
+          }
+          if (NavigationBar?.setBehaviorAsync) {
+            await NavigationBar.setBehaviorAsync('overlay-swipe');
+          }
+          if (NavigationBar?.setBackgroundColorAsync) {
+            await NavigationBar.setBackgroundColorAsync('#090d16');
+          }
+          if (NavigationBar?.setButtonStyleAsync) {
+            await NavigationBar.setButtonStyleAsync('light');
+          }
         } catch (e) {
           // Gracefully continue on unsupported environments
         }
@@ -95,19 +103,25 @@ export default function App() {
 
       let listener = null;
       try {
-        listener = NavigationBar.addVisibilityListener(({ visibility }) => {
-          if (visibility === 'visible') {
-            setTimeout(() => {
-              NavigationBar.setVisibilityAsync('hidden').catch(() => {});
-            }, 3000);
-          }
-        });
+        if (typeof NavigationBar?.addVisibilityListener === 'function') {
+          listener = NavigationBar.addVisibilityListener(({ visibility }) => {
+            if (visibility === 'visible') {
+              setTimeout(() => {
+                try {
+                  NavigationBar?.setVisibilityAsync?.('hidden').catch(() => {});
+                } catch (_) {}
+              }, 3000);
+            }
+          });
+        }
       } catch (e) {}
 
       return () => {
-        if (listener && listener.remove) {
-          listener.remove();
-        }
+        try {
+          if (listener && typeof listener.remove === 'function') {
+            listener.remove();
+          }
+        } catch (e) {}
       };
     }
   }, []);
@@ -164,30 +178,37 @@ export default function App() {
       .catch(() => {});
 
     // Listen for live broadcasts
-    const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      reconnection: true
-    });
+    let socket = null;
+    try {
+      socket = io(SOCKET_URL, {
+        transports: ['websocket', 'polling'],
+        reconnection: true
+      });
 
-    socket.on('connect', () => {
-      socket.emit('join_client', { userId: user.id });
-    });
+      socket.on('connect', () => {
+        socket.emit('join_client', { userId: user.id });
+      });
 
-    socket.on('client_notification', (notif) => {
-      setUnreadNotificationsCount((prev) => prev + 1);
-      showAlert(
-        notif.message,
-        notif.type === 'bonus' ? 'points' : notif.type === 'alert' ? 'error' : 'info',
-        notif.title,
-        notif.bonus_points > 0 ? notif.bonus_points : null
-      );
-      if (notif.bonus_points > 0) {
-        triggerCelebration(notif.bonus_points, notif.title);
-      }
-    });
+      socket.on('client_notification', (notif) => {
+        setUnreadNotificationsCount((prev) => prev + 1);
+        showAlert(
+          notif.message,
+          notif.type === 'bonus' ? 'points' : notif.type === 'alert' ? 'error' : 'info',
+          notif.title,
+          notif.bonus_points > 0 ? notif.bonus_points : null
+        );
+        if (notif.bonus_points > 0) {
+          triggerCelebration(notif.bonus_points, notif.title);
+        }
+      });
+    } catch (e) {
+      // Gracefully ignore socket failures
+    }
 
     return () => {
-      socket.disconnect();
+      try {
+        if (socket) socket.disconnect();
+      } catch (_) {}
     };
   }, [token, user?.id]);
 
@@ -261,7 +282,7 @@ export default function App() {
     if (newBalance !== undefined && user) {
       setUser((prev) => ({ ...prev, points_balance: newBalance }));
     }
-    triggerCelebration(points, 'Bonus Drop 🎁');
+    triggerCelebration(points, 'Bonus Drop \ud83c\udf81');
     showAlert(
       `Bonus drop claimed: +${points} PTS added to your wallet!`,
       'points',

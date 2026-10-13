@@ -28,11 +28,16 @@
         "VIBRATE"
       ]
     },
-    "androidNavigationBar": {
-      "visible": "sticky-immersive",
-      "backgroundColor": "#090d16",
-      "barStyle": "light-content"
-    },
+    "plugins": [
+      [
+        "expo-navigation-bar",
+        {
+          "hidden": true,
+          "style": "light",
+          "enforceContrast": false
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     },
