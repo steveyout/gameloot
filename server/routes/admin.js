@@ -10,15 +10,14 @@ const { verifyAdmin } = require('../middleware/auth');
 router.use(verifyAdmin);
 
 // 1. Dashboard Metrics & Analytics
-router.get('/dashboard', adminController.getDashboardStats);
+router.get('/dashboard', adminController.getDashboard);
 
 // 2. Games CRUD & Asset Management
 router.get('/games', adminController.getGames);
-router.get('/games/:id', adminController.getGameById);
 router.post('/games', adminController.createGame);
 router.put('/games/:id', adminController.updateGame);
 router.delete('/games/:id', adminController.deleteGame);
-router.post('/games/bulk-action', adminController.bulkGamesAction);
+router.post('/games/bulk-action', adminController.bulkActionGames);
 router.post('/upload-image', adminController.uploadImage);
 
 // 3. Categories CRUD
@@ -32,12 +31,12 @@ router.get('/users', adminController.getUsers);
 router.get('/users/:id', adminController.getUserDetails);
 router.patch('/users/:id/status', adminController.updateUserStatus);
 router.post('/users/:id/adjust-points', adminController.adjustUserPoints);
-router.post('/users/bulk-action', adminController.bulkUsersAction);
+router.post('/users/bulk-action', adminController.bulkActionUsers);
 
 // 5. Reward Redemptions & Payout Approval Processing
 router.get('/redemptions', adminController.getRedemptions);
 router.patch('/redemptions/:id', adminController.updateRedemptionStatus);
-router.post('/redemptions/bulk-action', adminController.bulkRedemptionsAction);
+router.post('/redemptions/bulk-action', adminController.bulkActionRedemptions);
 
 // 6. Fraud Detection & Anti-Cheat Review
 router.get('/fraud', adminController.getFraudLogs);

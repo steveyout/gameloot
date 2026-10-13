@@ -846,6 +846,10 @@ async function updateSettings(req, res) {
 
 module.exports = {
   getDashboard,
+  getDashboardStats: getDashboard,
+  bulkGamesAction: bulkActionGames,
+  bulkUsersAction: bulkActionUsers,
+  bulkRedemptionsAction: bulkActionRedemptions,
   getGames,
   createGame,
   updateGame,
