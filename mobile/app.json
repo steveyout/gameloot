@@ -5,6 +5,12 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#090d16"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gameloot.app"
@@ -13,6 +19,7 @@
       "package": "com.gameloot.app",
       "versionCode": 1,
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#090d16"
       },
       "permissions": [
@@ -25,6 +32,9 @@
       "visible": "sticky-immersive",
       "backgroundColor": "#090d16",
       "barStyle": "light-content"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
     "extra": {
       "apiUrl": "https://gameloot.youplex.cc/api",

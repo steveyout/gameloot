@@ -25,6 +25,7 @@ import NotificationModal from './src/components/NotificationModal';
 import SettingsModal from './src/components/SettingsModal';
 import DailyStreakModal from './src/components/DailyStreakModal';
 import LuckyWheelModal from './src/components/LuckyWheelModal';
+import SplashScreen from './src/components/SplashScreen';
 
 // Screens
 import AuthScreen from './src/screens/AuthScreen';
@@ -39,6 +40,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('lobby');
   const [alert, setAlert] = useState(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [showSplash, setShowSplash] = useState(true);
 
   // Screen transition animations
   const screenFade = useRef(new Animated.Value(1)).current;
@@ -480,6 +482,11 @@ export default function App() {
           onApkDownloadPress={openApkDownloadUrl}
           onDismissDev={dismissForcedModal}
         />
+
+        {/* Animated Startup Splash Screen */}
+        {showSplash && (
+          <SplashScreen onFinish={() => setShowSplash(false)} />
+        )}
       </SafeAreaView>
     </SafeAreaProvider>
   );
