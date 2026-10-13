@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+mobile/node_modules/
+admin/node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Expo & Mobile builds
+.expo/
+mobile/.expo/
+mobile/dist/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Build outputs
+dist/
+admin/dist/
+build/
+web-build/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

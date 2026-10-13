@@ -1,0 +1,331 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ClipboardList, X, Sparkles, Trophy } from 'lucide-react-native';
+import { claimSurveyReward } from '../api/clientApi';
+
+export default function SurveyModal({ visible, survey, token, onClose, onRewardClaimed }) {
+  const [answers, setAnswers] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [completed, setCompleted] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setAnswers({});
+      setIsSubmitting(false);
+      setCompleted(false);
+    }
+  }, [visible]);
+
+  if (!visible || !survey) return null;
+
+  const questions = Array.isArray(survey.questions_json)
+    ? survey.questions_json
+    : (typeof survey.questions_json === 'string' ? JSON.parse(survey.questions_json) : []);
+
+  const handleSelect = (qId, option) => {
+    if (completed) return;
+    setAnswers(prev => ({ ...prev, [qId]: option }));
+  };
+
+  const allAnswered = questions.length > 0 && Object.keys(answers).length === questions.length;
+
+  const handleSubmit = async () => {
+    if (!token || !allAnswered) return;
+    try {
+      setIsSubmitting(true);
+      const res = await claimSurveyReward(token, survey.id, answers);
+      if (res.success) {
+        setCompleted(true);
+        onRewardClaimed({
+          points: res.reward_earned || survey.reward_points,
+          newBalance: res.new_balance,
+          title: survey.title
+        });
+      }
+    } catch (err) {
+      console.warn('Survey failed:', err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <View style={styles.backdrop}>
+        <View style={styles.card}>
+          {/* Header */}
+          <LinearGradient colors={['#0284c7', '#0369a1']} style={styles.header}>
+            <View style={styles.headerTop}>
+              <View style={styles.badge}>
+                <ClipboardList size={14} color="#ffffff" style={{ marginRight: 4 }} />
+                <Text style={styles.badgeText}>SPONSORED SURVEY</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <X size={18} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.title}>{survey.title}</Text>
+            <View style={styles.rewardPill}>
+              <Sparkles size={12} color="#fbbf24" />
+              <Text style={styles.rewardPillText}>+{survey.reward_points} PTS ($0.001/pt)</Text>
+            </View>
+          </LinearGradient>
+
+          {/* Questions */}
+          <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+            {completed ? (
+              <View style={styles.successBox}>
+                <Trophy size={48} color="#fbbf24" style={{ marginBottom: 12 }} />
+                <Text style={styles.successTitle}>Survey Submitted!</Text>
+                <Text style={styles.successSub}>Thank you for your valuable feedback.</Text>
+                <View style={styles.ptsAward}>
+                  <Text style={styles.ptsAwardText}>+{survey.reward_points} PTS Credited</Text>
+                </View>
+                <TouchableOpacity style={styles.doneBtn} onPress={onClose}>
+                  <Text style={styles.doneBtnText}>Continue</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              questions.map((q, idx) => (
+                <View key={q.id || idx} style={styles.qBox}>
+                  <Text style={styles.qText}>{idx + 1}. {q.question}</Text>
+                  <View style={styles.optCol}>
+                    {(q.options || []).map((opt, optIdx) => {
+                      const isSel = answers[q.id || idx] === opt;
+                      return (
+                        <TouchableOpacity
+                          key={optIdx}
+                          style={[styles.optBtn, isSel && styles.optBtnSel]}
+                          onPress={() => handleSelect(q.id || idx, opt)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[styles.circle, isSel && styles.circleSel]}>
+                            {isSel ? <View style={styles.circleInner} /> : null}
+                          </View>
+                          <Text style={[styles.optTxt, isSel && styles.optTxtSel]}>{opt}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))
+            )}
+          </ScrollView>
+
+          {!completed ? (
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[styles.submitBtn, (!allAnswered || isSubmitting) && styles.submitDisabled]}
+                disabled={!allAnswered || isSubmitting}
+                onPress={handleSubmit}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.submitBtnText}>
+                    {allAnswered ? 'Complete & Earn' : `Complete all (${Object.keys(answers).length}/${questions.length})`}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 7, 15, 0.85)',
+    justifyContent: 'center',
+    padding: 16
+  },
+  card: {
+    backgroundColor: '#0f172a',
+    borderRadius: 24,
+    overflow: 'hidden',
+    maxHeight: '85%',
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  header: {
+    padding: 20
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800'
+  },
+  closeBtn: {
+    padding: 4
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#ffffff'
+  },
+  rewardPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 8
+  },
+  rewardPillText: {
+    color: '#fbbf24',
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  body: {
+    padding: 16
+  },
+  qBox: {
+    backgroundColor: '#1e293b',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  qText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 10
+  },
+  optCol: {
+    gap: 8
+  },
+  optBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  optBtnSel: {
+    borderColor: '#0284c7',
+    backgroundColor: 'rgba(2, 132, 199, 0.15)'
+  },
+  circle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#64748b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10
+  },
+  circleSel: {
+    borderColor: '#0284c7'
+  },
+  circleInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#0284c7'
+  },
+  optTxt: {
+    fontSize: 12,
+    color: '#94a3b8',
+    flex: 1
+  },
+  optTxtSel: {
+    color: '#ffffff',
+    fontWeight: '600'
+  },
+  footer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#1e293b',
+    backgroundColor: '#0f172a'
+  },
+  submitBtn: {
+    backgroundColor: '#0284c7',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center'
+  },
+  submitDisabled: {
+    opacity: 0.5
+  },
+  submitBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  successBox: {
+    alignItems: 'center',
+    paddingVertical: 30
+  },
+  successTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#ffffff'
+  },
+  successSub: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 4
+  },
+  ptsAward: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+    marginTop: 16,
+    marginBottom: 20
+  },
+  ptsAwardText: {
+    color: '#fbbf24',
+    fontSize: 16,
+    fontWeight: '800'
+  },
+  doneBtn: {
+    width: '100%',
+    backgroundColor: '#06b6d4',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center'
+  },
+  doneBtnText: {
+    color: '#090d16',
+    fontSize: 14,
+    fontWeight: '800'
+  }
+});

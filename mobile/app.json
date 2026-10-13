@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "GameLoot - Play & Earn",
+    "slug": "gameloot",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gameloot.app"
+    },
+    "android": {
+      "package": "com.gameloot.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#090d16"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "VIBRATE"
+      ]
+    },
+    "androidNavigationBar": {
+      "visible": "sticky-immersive",
+      "backgroundColor": "#090d16",
+      "barStyle": "light-content"
+    },
+    "extra": {
+      "apiUrl": "http://10.0.2.2:5000/api",
+      "socketUrl": "http://10.0.2.2:5000",
+      "localApiUrl": "http://localhost:5000/api",
+      "localSocketUrl": "http://localhost:5000"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "gameloot-fullstack",
+  "version": "1.0.0",
+  "description": "GameLoot - Play to Earn HTML5 Games Platform (API, ORM, Admin Panel, Mobile App)",
+  "private": true,
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "db:migrate": "node server/database/migrate.js",
+    "db:seed": "node server/database/seed.js",
+    "db:setup": "node server/database/migrate.js && node server/database/seed.js",
+    "build:admin": "vite build --config admin/vite.config.js admin",
+    "mobile:start": "npm --prefix mobile start",
+    "mobile:android": "npm --prefix mobile run android",
+    "mobile:web": "npm --prefix mobile run web"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "canvas-confetti": "^1.9.4",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0",
+    "express-rate-limit": "^7.5.0",
+    "framer-motion": "latest",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1.55.0",
+    "morgan": "^1.12.1",
+    "mysql2": "^3.24.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "recharts": "^3.10.1",
+    "sequelize": "^6.37.7",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.4"
+  }
+}

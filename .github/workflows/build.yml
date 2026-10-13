@@ -1,0 +1,100 @@
+name: Build & Verify GameLoot
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build-server-and-admin:
+    name: Build Server & Admin Panel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Root Dependencies
+        run: npm install
+
+      - name: Build Vite Admin Dashboard
+        run: npm run build:admin
+
+      - name: Verify Server Startup & Syntax
+        run: node -c server/index.js
+
+      - name: Upload Admin Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-dist
+          path: admin/dist/
+          retention-days: 7
+
+  build-mobile-app:
+    name: Build Mobile App (Expo Android)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java (for Android tooling)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 17
+
+      - name: Install Mobile Dependencies
+        working-directory: ./mobile
+        run: npm install --legacy-peer-deps
+
+      - name: Validate Babel & React Native Compilation
+        working-directory: ./mobile
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const babel = require('@babel/core');
+            function walk(dir) {
+              let files = [];
+              fs.readdirSync(dir).forEach(f => {
+                const p = path.join(dir, f);
+                if (fs.statSync(p).isDirectory()) files = files.concat(walk(p));
+                else if (f.endsWith('.js')) files.push(p);
+              });
+              return files;
+            }
+            const all = walk('src').concat(['App.js', 'index.js']);
+            all.forEach(file => {
+              babel.transformFileSync(file, { configFile: './babel.config.js' });
+              console.log('PASS:', file);
+            });
+          "
+
+      - name: Setup Expo CLI
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          packager: npm
+
+      - name: Bundle Expo Mobile App
+        working-directory: ./mobile
+        run: npx expo export --platform android
+
+      - name: Upload Exported Mobile Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-android-bundle
+          path: mobile/dist/
+          retention-days: 7

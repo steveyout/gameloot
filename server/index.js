@@ -1,0 +1,139 @@
+const http = require('http');
+const path = require('path');
+const fs = require('fs');
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const dotenv = require('dotenv');
+const { Server } = require('socket.io');
+
+// Load environment variables
+dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+const { sequelize } = require('./models');
+const { initSocket } = require('./services/socket');
+const { apiLimiter } = require('./middleware/security');
+
+const app = express();
+const server = http.createServer(app);
+
+// Socket.io for Real-time Instant Notifications
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+initSocket(io);
+
+const PORT = parseInt(process.env.PORT || '5000', 10);
+
+// Security Headers & Middlewares
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false // Allows iframe embeds for HTML5 game testing
+}));
+
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
+
+// General Rate Limiter on API
+app.use('/api', apiLimiter);
+
+// API Routes
+const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
+const clientRoutes = require('./routes/client');
+
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/client', clientRoutes);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    service: 'GameLoot Fullstack API & WebSocket Engine',
+    port: PORT,
+    db: 'MySQL Connected (Sequelize ORM)'
+  });
+});
+
+// Single-Port: Mount Vite Admin Panel (Dev middleware or Static Dist)
+async function setupFrontend() {
+  const adminDist = path.resolve(__dirname, '../admin/dist');
+  const adminRoot = path.resolve(__dirname, '../admin');
+
+  if (process.env.NODE_ENV === 'production' && fs.existsSync(adminDist)) {
+    console.log('📦 Serving production Admin build from admin/dist');
+    app.use(express.static(adminDist));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(adminDist, 'index.html'));
+    });
+  } else {
+    try {
+      console.log('⚡ Mounting Vite Development Middleware in Express on port ' + PORT);
+      const { createServer: createViteServer } = require('vite');
+      const vite = await createViteServer({
+        root: adminRoot,
+        configFile: path.join(adminRoot, 'vite.config.js'),
+        server: {
+          middlewareMode: true
+        },
+        appType: 'spa'
+      });
+      app.use(vite.middlewares);
+    } catch (viteErr) {
+      console.warn('⚠️ Vite middleware initialization notice:', viteErr.message);
+      if (fs.existsSync(adminDist)) {
+        app.use(express.static(adminDist));
+        app.get('*', (req, res) => res.sendFile(path.join(adminDist, 'index.html')));
+      }
+    }
+  }
+}
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled server exception:', err);
+  res.status(500).json({ success: false, message: 'Internal Server Error', error: err.message });
+});
+
+// Boot Fullstack Server
+async function startServer() {
+  try {
+    await sequelize.authenticate();
+    console.log('✅ Sequelize ORM connected to MySQL (gameloot).');
+
+    // Run migrations sync if needed
+    await sequelize.sync({ alter: false });
+
+    // Setup Single-Port Vite Frontend
+    await setupFrontend();
+
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n=============================================================`);
+      console.log(`🚀 GAMELOOT FULLSTACK ENGINE ONLINE ON SINGLE PORT ${PORT}`);
+      console.log(`🌐 Admin Panel:   http://localhost:${PORT}`);
+      console.log(`⚡ API Health:     http://localhost:${PORT}/api/health`);
+      console.log(`🔌 WebSockets:     ws://localhost:${PORT} (Instant Notifications)`);
+      console.log(`=============================================================\n`);
+    });
+  } catch (err) {
+    console.error('❌ Failed to launch GameLoot server:', err);
+    process.exit(1);
+  }
+}
+
+startServer();
