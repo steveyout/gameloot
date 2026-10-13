@@ -69,7 +69,7 @@ export const createCategory = (data) => apiRequest('/admin/categories', 'POST', 
 export const updateCategory = (id, data) => apiRequest(`/admin/categories/${id}`, 'PUT', data);
 export const deleteCategory = (id) => apiRequest(`/admin/categories/${id}`, 'DELETE');
 
-// Users
+// Players / Users management & Ledger
 export const getUsers = (params = {}) => {
   const cleanParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== '' && v !== null && v !== undefined));
   const query = new URLSearchParams(cleanParams).toString();
@@ -80,7 +80,7 @@ export const updateUserStatus = (id, status) => apiRequest(`/admin/users/${id}/s
 export const adjustUserPoints = (id, amount, reason) => apiRequest(`/admin/users/${id}/adjust-points`, 'POST', { amount, reason });
 export const bulkUsersAction = (ids, action, amount = 100, reason = '') => apiRequest('/admin/users/bulk-action', 'POST', { ids, action, amount, reason });
 
-// Redemptions
+// Rewards Redemptions
 export const getRedemptions = (params = {}) => {
   const cleanParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== '' && v !== null && v !== undefined));
   const query = new URLSearchParams(cleanParams).toString();
@@ -89,15 +89,15 @@ export const getRedemptions = (params = {}) => {
 export const updateRedemptionStatus = (id, status, admin_notes) => apiRequest(`/admin/redemptions/${id}`, 'PATCH', { status, admin_notes });
 export const bulkRedemptionsAction = (ids, action, admin_notes = '') => apiRequest('/admin/redemptions/bulk-action', 'POST', { ids, action, admin_notes });
 
-// Security / Fraud
+// Anti-Cheat & Fraud logs
 export const getFraudLogs = () => apiRequest('/admin/fraud');
 export const updateFraudStatus = (id, status) => apiRequest(`/admin/fraud/${id}`, 'PATCH', { status });
 
-// Settings
+// System Settings & Sustainable Economics
 export const getSettings = () => apiRequest('/admin/settings');
 export const updateSettings = (settings) => apiRequest('/admin/settings', 'PUT', { settings });
 
-// Quizzes CRUD
+// Trivia Quizzes CRUD
 export const getQuizzes = () => apiRequest('/admin/quizzes');
 export const createQuiz = (data) => apiRequest('/admin/quizzes', 'POST', data);
 export const updateQuiz = (id, data) => apiRequest(`/admin/quizzes/${id}`, 'PUT', data);
@@ -115,9 +115,14 @@ export const createSurvey = (data) => apiRequest('/admin/surveys', 'POST', data)
 export const updateSurvey = (id, data) => apiRequest(`/admin/surveys/${id}`, 'PUT', data);
 export const deleteSurvey = (id) => apiRequest(`/admin/surveys/${id}`, 'DELETE');
 
-// Ad Placements & Economics
+// Comprehensive Ad Placements, Multi-Provider Configuration & Economics
 export const getAdPlacements = () => apiRequest('/admin/ads');
-export const updateAdPlacement = (id, data) => apiRequest(`/admin/ads/${id}`, 'PUT', data);
+export const getAdminAdConfig = () => apiRequest('/admin/ads/config');
+export const updateAdminAdConfig = (config) => apiRequest('/admin/ads/config', 'PUT', { config });
+export const toggleGlobalAds = (enabled) => apiRequest('/admin/ads/toggle', 'POST', { enabled });
+export const createAdPlacement = (data) => apiRequest('/admin/ads/placement', 'POST', data);
+export const updateAdPlacement = (id, data) => apiRequest(`/admin/ads/placement/${id}`, 'PUT', data);
+export const deleteAdPlacement = (id) => apiRequest(`/admin/ads/placement/${id}`, 'DELETE');
 
 // Push & In-App Broadcast Notifications
 export const getAdminNotifications = () => apiRequest('/admin/notifications');

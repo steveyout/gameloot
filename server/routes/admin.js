@@ -6,18 +6,19 @@ const adController = require('../controllers/adController');
 const notificationController = require('../controllers/notificationController');
 const { verifyAdmin } = require('../middleware/auth');
 
-// All endpoints require admin authorization
+// Protect all admin endpoints with JWT authentication & admin privileges
 router.use(verifyAdmin);
 
-// 1. Dashboard Overview
-router.get('/dashboard', adminController.getDashboard);
+// 1. Dashboard Metrics & Analytics
+router.get('/dashboard', adminController.getDashboardStats);
 
-// 2. Games CRUD & Featured & Bulk & Image Upload
+// 2. Games CRUD & Asset Management
 router.get('/games', adminController.getGames);
+router.get('/games/:id', adminController.getGameById);
 router.post('/games', adminController.createGame);
 router.put('/games/:id', adminController.updateGame);
 router.delete('/games/:id', adminController.deleteGame);
-router.post('/games/bulk-action', adminController.bulkActionGames);
+router.post('/games/bulk-action', adminController.bulkGamesAction);
 router.post('/upload-image', adminController.uploadImage);
 
 // 3. Categories CRUD
@@ -26,27 +27,27 @@ router.post('/categories', adminController.createCategory);
 router.put('/categories/:id', adminController.updateCategory);
 router.delete('/categories/:id', adminController.deleteCategory);
 
-// 4. Users Management & Points Adjustment & Bulk
+// 4. Users / Players Management & Economy Ledger
 router.get('/users', adminController.getUsers);
 router.get('/users/:id', adminController.getUserDetails);
 router.patch('/users/:id/status', adminController.updateUserStatus);
 router.post('/users/:id/adjust-points', adminController.adjustUserPoints);
-router.post('/users/bulk-action', adminController.bulkActionUsers);
+router.post('/users/bulk-action', adminController.bulkUsersAction);
 
-// 5. Redemptions Fulfillment & Bulk
+// 5. Reward Redemptions & Payout Approval Processing
 router.get('/redemptions', adminController.getRedemptions);
 router.patch('/redemptions/:id', adminController.updateRedemptionStatus);
-router.post('/redemptions/bulk-action', adminController.bulkActionRedemptions);
+router.post('/redemptions/bulk-action', adminController.bulkRedemptionsAction);
 
-// 6. Anti-Cheat & Fraud Logs
+// 6. Fraud Detection & Anti-Cheat Review
 router.get('/fraud', adminController.getFraudLogs);
 router.patch('/fraud/:id', adminController.updateFraudStatus);
 
-// 7. System Settings
+// 7. System Settings & Sustainable Economics
 router.get('/settings', adminController.getSettings);
 router.put('/settings', adminController.updateSettings);
 
-// 8. Quizzes & Trivia CRUD
+// 8. Trivia Quizzes CRUD
 router.get('/quizzes', earningController.getQuizzes);
 router.post('/quizzes', earningController.createQuiz);
 router.put('/quizzes/:id', earningController.updateQuiz);
@@ -64,8 +65,14 @@ router.post('/surveys', earningController.createSurvey);
 router.put('/surveys/:id', earningController.updateSurvey);
 router.delete('/surveys/:id', earningController.deleteSurvey);
 
-// 11. Google AdMob Placements & Revenue Economics
+// 11. Comprehensive Ad Management, Multi-Network Configuration & Economics
 router.get('/ads', adController.getAdPlacements);
+router.get('/ads/config', adController.getAdminAdConfig);
+router.put('/ads/config', adController.updateAdminAdConfig);
+router.post('/ads/toggle', adController.toggleGlobalAds);
+router.post('/ads/placement', adController.createAdPlacement);
+router.put('/ads/placement/:id', adController.updateAdPlacement);
+router.delete('/ads/placement/:id', adController.deleteAdPlacement);
 router.put('/ads/:id', adController.updateAdPlacement);
 
 // 12. Push & In-App Broadcast Notifications Engine
