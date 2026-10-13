@@ -23,12 +23,7 @@ const server = http.createServer(app);
 app.set('trust proxy', 1);
 
 // Socket.io for Real-time Instant Notifications
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
-});
+const io = new Server(server, {\n  cors: {\n    origin: '*',\n    methods: ['GET', 'POST']\n  }\n});
 initSocket(io);
 
 const PORT = parseInt(process.env.PORT || '5000', 10);
@@ -57,10 +52,16 @@ app.use('/api', apiLimiter);
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const clientRoutes = require('./routes/client');
+const legalRoutes = require('./routes/legal');
+
+// Public Privacy Policy & Terms of Service (Root URLs for Google Play Console & Web Reviewers)
+// e.g. https://gameloot.youplex.cc/privacy and https://gameloot.youplex.cc/terms
+app.use('/', legalRoutes);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
+app.use('/api/legal', legalRoutes);
 
 // Static Uploads Storage (Game thumbnails, banners, assets)
 const uploadsDir = path.resolve(__dirname, 'uploads');
@@ -85,11 +86,15 @@ async function setupFrontend() {
   const adminDist = path.resolve(__dirname, '../admin/dist');
   const adminRoot = path.resolve(__dirname, '../admin');
 
+  const isLegalPath = (p) => {
+    return p.startsWith('/privacy') || p.startsWith('/terms') || p.startsWith('/tos') || p.startsWith('/api');
+  };
+
   if (process.env.NODE_ENV === 'production' && fs.existsSync(adminDist)) {
     console.log('📦 Serving production Admin build from admin/dist');
     app.use(express.static(adminDist));
     app.use((req, res, next) => {
-      if (req.method !== 'GET' || req.path.startsWith('/api')) {
+      if (req.method !== 'GET' || isLegalPath(req.path)) {
         return next();
       }
       res.sendFile(path.join(adminDist, 'index.html'));
@@ -112,7 +117,7 @@ async function setupFrontend() {
       if (fs.existsSync(adminDist)) {
         app.use(express.static(adminDist));
         app.use((req, res, next) => {
-          if (req.method !== 'GET' || req.path.startsWith('/api')) {
+          if (req.method !== 'GET' || isLegalPath(req.path)) {
             return next();
           }
           res.sendFile(path.join(adminDist, 'index.html'));
@@ -147,9 +152,11 @@ async function startServer() {
     server.listen(PORT, '0.0.0.0', () => {
       console.log('\n=============================================================');
       console.log(`🚀 GAMELOOT FULLSTACK ENGINE ONLINE ON SINGLE PORT ${PORT}`);
-      console.log(`🌐 Admin Panel:   http://localhost:${PORT}`);
-      console.log(`⚡ API Health:     http://localhost:${PORT}/api/health`);
-      console.log(`🔌 WebSockets:     ws://localhost:${PORT} (Instant Notifications)`);
+      console.log(`🌐 Admin Panel:     http://localhost:${PORT}`);
+      console.log(`📜 Privacy Policy:  http://localhost:${PORT}/privacy`);
+      console.log(`📜 Terms:           http://localhost:${PORT}/terms`);
+      console.log(`⚡ API Health:       http://localhost:${PORT}/api/health`);
+      console.log(`🔌 WebSockets:       ws://localhost:${PORT} (Instant Notifications)`);
       console.log('=============================================================\n');
     });
   } catch (err) {
@@ -159,3 +166,5 @@ async function startServer() {
 }
 
 startServer();
+
+module.exports = { app, server };

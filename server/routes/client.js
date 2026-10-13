@@ -4,6 +4,7 @@ const clientController = require('../controllers/clientController');
 const adController = require('../controllers/adController');
 const notificationController = require('../controllers/notificationController');
 const engagementController = require('../controllers/engagementController');
+const legalController = require('../controllers/legalController');
 const { verifyUser } = require('../middleware/auth');
 const { sessionPingLimiter } = require('../middleware/security');
 
@@ -18,6 +19,12 @@ router.get('/rewards', clientController.getRewards);
 router.get('/quizzes', clientController.getQuizzes);
 router.get('/surf-tasks', clientController.getSurfTasks);
 router.get('/surveys', clientController.getSurveys);
+
+// Legal & Compliance (JSON & HTML)
+router.get('/privacy', legalController.getPrivacyPolicy);
+router.get('/terms', legalController.getTermsOfService);
+router.get('/legal/privacy', legalController.getPrivacyPolicy);
+router.get('/legal/terms', legalController.getTermsOfService);
 
 // AdMob Configuration & Verification
 router.get('/ads/config', adController.getClientAdConfig);
