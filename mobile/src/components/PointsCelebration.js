@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, Modal } from 'react-native';
 import { Sparkles, Coins } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { playSound, triggerHaptic } from '../services/soundEffects';
@@ -62,41 +62,50 @@ export default function PointsCelebration({ points, title, visible, onComplete }
   });
 
   return (
-    <View pointerEvents="none" style={styles.container}>
-      <Animated.View
-        style={[
-          styles.badgeWrapper,
-          {
-            opacity,
-            transform: [
-              { translateY },
-              { scale },
-              { rotate: spin }
-            ]
-          }
-        ]}
-      >
-        <LinearGradient
-          colors={['#f59e0b', '#d97706', '#b45309']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.pill}
+    <Modal
+      visible={visible && points > 0}
+      transparent={true}
+      animationType="none"
+      statusBarTranslucent={true}
+      onRequestClose={onComplete}
+    >
+      <View pointerEvents="none" style={styles.container}>
+        <Animated.View
+          style={[
+            styles.badgeWrapper,
+            {
+              opacity,
+              transform: [
+                { translateY },
+                { scale },
+                { rotate: spin }
+              ]
+            }
+          ]}
         >
-          <Coins size={22} color="#ffffff" style={styles.coinIcon} />
-          <View>
-            <Text style={styles.ptsText}>+{points} PTS!</Text>
-            {title ? <Text style={styles.subText}>{title}</Text> : null}
-          </View>
-          <Sparkles size={18} color="#fef08a" style={styles.sparkleIcon} />
-        </LinearGradient>
-      </Animated.View>
-    </View>
+          <LinearGradient
+            colors={['#f59e0b', '#d97706', '#b45309']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.pill}
+          >
+            <Coins size={22} color="#ffffff" style={styles.coinIcon} />
+            <View>
+              <Text style={styles.ptsText}>+{points} PTS!</Text>
+              {title ? <Text style={styles.subText}>{title}</Text> : null}
+            </View>
+            <Sparkles size={18} color="#fef08a" style={styles.sparkleIcon} />
+          </LinearGradient>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'transparent',
     zIndex: 999999,
     justifyContent: 'center',
     alignItems: 'center'

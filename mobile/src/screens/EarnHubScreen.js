@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,6 +27,7 @@ import { getQuizzes, getSurfTasks, getSurveys } from '../api/clientApi';
 import AnimatedCard from '../components/AnimatedCard';
 import { playSound, triggerHaptic } from '../services/soundEffects';
 import { useTheme } from '../context/ThemeContext';
+import { SkeletonTaskList } from '../components/SkeletonLoader';
 
 export default function EarnHubScreen({
   onSelectQuiz,
@@ -99,7 +99,7 @@ export default function EarnHubScreen({
       }
       showsVerticalScrollIndicator={false}
     >
-      {/* Daily Retentive Bonuses: Streak & Wheel (Enhanced vertical cards that never truncate or squish) */}
+      {/* Daily Retentive Bonuses: Streak & Wheel */}
       <View style={styles.retentionRow}>
         <AnimatedCard
           style={styles.retentionCardWrapper}
@@ -112,7 +112,7 @@ export default function EarnHubScreen({
             style={styles.retentionCard}
           >
             <View style={styles.retentionTopRow}>
-              <View style={styles.retentionIconWrap}>
+              <View style={styles.hookIconWrap}>
                 <Flame size={20} color="#ffffff" />
               </View>
               <View style={styles.retentionBadge}>
@@ -143,7 +143,7 @@ export default function EarnHubScreen({
             style={styles.retentionCard}
           >
             <View style={styles.retentionTopRow}>
-              <View style={[styles.retentionIconWrap, { backgroundColor: 'rgba(192, 132, 252, 0.3)' }]}>
+              <View style={[styles.hookIconWrap, { backgroundColor: 'rgba(192, 132, 252, 0.3)' }]}>
                 <Disc size={20} color="#e9d5ff" />
               </View>
               <View style={[styles.retentionBadge, { backgroundColor: 'rgba(168, 85, 247, 0.4)' }]}>
@@ -214,48 +214,52 @@ export default function EarnHubScreen({
         <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Answer 3 questions</Text>
       </View>
 
-      <View style={styles.taskList}>
-        {quizzes.map((quiz) => (
-          <AnimatedCard
-            key={quiz.id}
-            style={styles.taskWrapper}
-            onPress={() => {
-              triggerHaptic('light');
-              onSelectQuiz(quiz);
-            }}
-          >
-            <View style={[styles.taskCard, { backgroundColor: colors.surfaceCard, borderColor: isDark ? '#581c87' : colors.border }]}>
-              <View style={styles.taskLeft}>
-                <LinearGradient
-                  colors={['#9333ea', '#6b21a8']}
-                  style={styles.taskIconCircle}
-                >
-                  <Brain size={20} color="#ffffff" />
-                </LinearGradient>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.taskTitle, { color: colors.text }]}>{quiz.title}</Text>
-                  <View style={styles.metaRow}>
-                    <Clock size={11} color={colors.textSecondary} />
-                    <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>
-                      {quiz.category} • {quiz.time_limit_seconds || 60}s timer
-                    </Text>
+      {loading ? (
+        <SkeletonTaskList count={2} />
+      ) : (
+        <View style={styles.taskList}>
+          {quizzes.map((quiz) => (
+            <AnimatedCard
+              key={quiz.id}
+              style={styles.taskWrapper}
+              onPress={() => {
+                triggerHaptic('light');
+                onSelectQuiz(quiz);
+              }}
+            >
+              <View style={[styles.taskCard, { backgroundColor: colors.surfaceCard, borderColor: isDark ? '#581c87' : colors.border }]}>
+                <View style={styles.taskLeft}>
+                  <LinearGradient
+                    colors={['#9333ea', '#6b21a8']}
+                    style={styles.taskIconCircle}
+                  >
+                    <Brain size={20} color="#ffffff" />
+                  </LinearGradient>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.taskTitle, { color: colors.text }]}>{quiz.title}</Text>
+                    <View style={styles.metaRow}>
+                      <Clock size={11} color={colors.textSecondary} />
+                      <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>
+                        {quiz.category} • {quiz.time_limit_seconds || 60}s timer
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
 
-              <LinearGradient
-                colors={['rgba(168, 85, 247, 0.25)', 'rgba(126, 34, 206, 0.25)']}
-                style={[styles.taskRewardBadge, { borderColor: '#a855f7' }]}
-              >
-                <Sparkles size={11} color="#c084fc" />
-                <Text style={[styles.taskRewardText, { color: isDark ? '#e9d5ff' : '#7e22ce' }]}>
-                  +{quiz.reward_points} PTS
-                </Text>
-              </LinearGradient>
-            </View>
-          </AnimatedCard>
-        ))}
-      </View>
+                <LinearGradient
+                  colors={['rgba(168, 85, 247, 0.25)', 'rgba(126, 34, 206, 0.25)']}
+                  style={[styles.taskRewardBadge, { borderColor: '#a855f7' }]}
+                >
+                  <Sparkles size={11} color="#c084fc" />
+                  <Text style={[styles.taskRewardText, { color: isDark ? '#e9d5ff' : '#7e22ce' }]}>
+                    +{quiz.reward_points} PTS
+                  </Text>
+                </LinearGradient>
+              </View>
+            </AnimatedCard>
+          ))}
+        </View>
+      )}
 
       {/* Web Surfing Tasks */}
       <View style={styles.sectionHeader}>
@@ -266,48 +270,52 @@ export default function EarnHubScreen({
         <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Browse for 30s</Text>
       </View>
 
-      <View style={styles.taskList}>
-        {surfTasks.map((surf) => (
-          <AnimatedCard
-            key={surf.id}
-            style={styles.taskWrapper}
-            onPress={() => {
-              triggerHaptic('light');
-              onSelectSurf(surf);
-            }}
-          >
-            <View style={[styles.taskCard, { backgroundColor: colors.surfaceCard, borderColor: isDark ? '#0e7490' : colors.border }]}>
-              <View style={styles.taskLeft}>
-                <LinearGradient
-                  colors={['#06b6d4', '#0284c7']}
-                  style={styles.taskIconCircle}
-                >
-                  <Globe size={20} color="#ffffff" />
-                </LinearGradient>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.taskTitle, { color: colors.text }]}>{surf.title}</Text>
-                  <View style={styles.metaRow}>
-                    <Clock size={11} color={colors.textSecondary} />
-                    <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>
-                      Browse sponsor page for {surf.duration_seconds || 30}s
-                    </Text>
+      {loading ? (
+        <SkeletonTaskList count={2} />
+      ) : (
+        <View style={styles.taskList}>
+          {surfTasks.map((surf) => (
+            <AnimatedCard
+              key={surf.id}
+              style={styles.taskWrapper}
+              onPress={() => {
+                triggerHaptic('light');
+                onSelectSurf(surf);
+              }}
+            >
+              <View style={[styles.taskCard, { backgroundColor: colors.surfaceCard, borderColor: isDark ? '#0e7490' : colors.border }]}>
+                <View style={styles.taskLeft}>
+                  <LinearGradient
+                    colors={['#06b6d4', '#0284c7']}
+                    style={styles.taskIconCircle}
+                  >
+                    <Globe size={20} color="#ffffff" />
+                  </LinearGradient>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.taskTitle, { color: colors.text }]}>{surf.title}</Text>
+                    <View style={styles.metaRow}>
+                      <Clock size={11} color={colors.textSecondary} />
+                      <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>
+                        Browse sponsor page for {surf.duration_seconds || 30}s
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
 
-              <LinearGradient
-                colors={['rgba(6, 182, 212, 0.25)', 'rgba(2, 132, 199, 0.25)']}
-                style={[styles.taskRewardBadge, { borderColor: '#06b6d4' }]}
-              >
-                <Sparkles size={11} color="#38bdf8" />
-                <Text style={[styles.taskRewardText, { color: isDark ? '#bae6fd' : '#0284c7' }]}>
-                  +{surf.reward_points} PTS
-                </Text>
-              </LinearGradient>
-            </View>
-          </AnimatedCard>
-        ))}
-      </View>
+                <LinearGradient
+                  colors={['rgba(6, 182, 212, 0.25)', 'rgba(2, 132, 199, 0.25)']}
+                  style={[styles.taskRewardBadge, { borderColor: '#06b6d4' }]}
+                >
+                  <Sparkles size={11} color="#38bdf8" />
+                  <Text style={[styles.taskRewardText, { color: isDark ? '#bae6fd' : '#0284c7' }]}>
+                    +{surf.reward_points} PTS
+                  </Text>
+                </LinearGradient>
+              </View>
+            </AnimatedCard>
+          ))}
+        </View>
+      )}
 
       {/* Market Research Surveys */}
       <View style={styles.sectionHeader}>
@@ -318,48 +326,52 @@ export default function EarnHubScreen({
         <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Higher payout pool</Text>
       </View>
 
-      <View style={styles.taskList}>
-        {surveys.map((survey) => (
-          <AnimatedCard
-            key={survey.id}
-            style={styles.taskWrapper}
-            onPress={() => {
-              triggerHaptic('light');
-              onSelectSurvey(survey);
-            }}
-          >
-            <View style={[styles.taskCard, { backgroundColor: colors.surfaceCard, borderColor: isDark ? '#b45309' : colors.border }]}>
-              <View style={styles.taskLeft}>
-                <LinearGradient
-                  colors={['#f59e0b', '#d97706']}
-                  style={styles.taskIconCircle}
-                >
-                  <ClipboardList size={20} color="#ffffff" />
-                </LinearGradient>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.taskTitle, { color: colors.text }]}>{survey.title}</Text>
-                  <View style={styles.metaRow}>
-                    <Clock size={11} color={colors.textSecondary} />
-                    <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>
-                      {survey.provider || 'Research Partner'} • ~{survey.estimated_minutes || 2} min
-                    </Text>
+      {loading ? (
+        <SkeletonTaskList count={2} />
+      ) : (
+        <View style={styles.taskList}>
+          {surveys.map((survey) => (
+            <AnimatedCard
+              key={survey.id}
+              style={styles.taskWrapper}
+              onPress={() => {
+                triggerHaptic('light');
+                onSelectSurvey(survey);
+              }}
+            >
+              <View style={[styles.taskCard, { backgroundColor: colors.surfaceCard, borderColor: isDark ? '#b45309' : colors.border }]}>
+                <View style={styles.taskLeft}>
+                  <LinearGradient
+                    colors={['#f59e0b', '#d97706']}
+                    style={styles.taskIconCircle}
+                  >
+                    <ClipboardList size={20} color="#ffffff" />
+                  </LinearGradient>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.taskTitle, { color: colors.text }]}>{survey.title}</Text>
+                    <View style={styles.metaRow}>
+                      <Clock size={11} color={colors.textSecondary} />
+                      <Text style={[styles.taskMeta, { color: colors.textSecondary }]}>
+                        {survey.provider || 'Research Partner'} • ~{survey.estimated_minutes || 2} min
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
 
-              <LinearGradient
-                colors={['rgba(245, 158, 11, 0.25)', 'rgba(217, 119, 6, 0.25)']}
-                style={[styles.taskRewardBadge, { borderColor: '#f59e0b' }]}
-              >
-                <Sparkles size={11} color="#fbbf24" />
-                <Text style={[styles.taskRewardText, { color: isDark ? '#fef3c7' : '#b45309' }]}>
-                  +{survey.reward_points} PTS
-                </Text>
-              </LinearGradient>
-            </View>
-          </AnimatedCard>
-        ))}
-      </View>
+                <LinearGradient
+                  colors={['rgba(245, 158, 11, 0.25)', 'rgba(217, 119, 6, 0.25)']}
+                  style={[styles.taskRewardBadge, { borderColor: '#f59e0b' }]}
+                >
+                  <Sparkles size={11} color="#fbbf24" />
+                  <Text style={[styles.taskRewardText, { color: isDark ? '#fef3c7' : '#b45309' }]}>
+                    +{survey.reward_points} PTS
+                  </Text>
+                </LinearGradient>
+              </View>
+            </AnimatedCard>
+          ))}
+        </View>
+      )}
 
       {/* Fair Play Reward Transparency Box */}
       <View style={[styles.transparencyCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
@@ -411,7 +423,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between'
   },
-  retentionIconWrap: {
+  hookIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 11,

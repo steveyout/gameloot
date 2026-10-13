@@ -6,7 +6,6 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   RefreshControl,
   Platform
 } from 'react-native';
@@ -22,7 +21,9 @@ import {
   ChevronRight,
   Coins,
   CheckCheck,
-  Clock
+  Clock,
+  Maximize2,
+  Minimize2
 } from 'lucide-react-native';
 import {
   getNotifications,
@@ -31,6 +32,8 @@ import {
   claimNotificationBonus
 } from '../api/clientApi';
 import { useTheme } from '../context/ThemeContext';
+import { SkeletonNotificationList } from './SkeletonLoader';
+import { playSound, triggerHaptic } from '../services/soundEffects';
 
 export default function NotificationModal({
   visible,
@@ -40,12 +43,15 @@ export default function NotificationModal({
   onNavigateTab,
   onUnreadChange
 }) {
-  const { theme, isDark } = useTheme();
+  const { theme, colors, isDark } = useTheme();
+  const activeColors = colors || theme || {};
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all'); // 'all', 'unread', 'bonus'
   const [claimingId, setClaimingId] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [claimedBanner, setClaimedBanner] = useState(null);
 
   const fetchNotifications = async () => {
     if (!token) return;
@@ -66,6 +72,7 @@ export default function NotificationModal({
 
   useEffect(() => {
     if (visible && token) {
+      setClaimedBanner(null);
       fetchNotifications();
     }
   }, [visible, token]);
@@ -80,6 +87,8 @@ export default function NotificationModal({
       await markAllNotificationsRead(token);
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       if (onUnreadChange) onUnreadChange(0);
+      playSound('tap');
+      triggerHaptic('light');
     } catch (err) {
       console.warn('Mark all read error:', err.message);
     }
@@ -116,6 +125,12 @@ export default function NotificationModal({
         setNotifications(prev =>
           prev.map(n => (n.id === item.id ? { ...n, is_claimed: true, is_read: true } : n))
         );
+        setClaimedBanner({
+          points: res.points_claimed,
+          title: item.title
+        });
+        playSound('coin');
+        triggerHaptic('success');
         if (onBonusClaimed) {
           onBonusClaimed({
             points: res.points_claimed,
@@ -135,48 +150,48 @@ export default function NotificationModal({
     switch (type) {
       case 'bonus':
         return {
-          bg: '#1e1b4b',
+          bg: isDark ? '#2e1065' : '#ede9fe',
           border: '#f59e0b',
-          badgeColor: '#fbbf24',
+          badgeColor: '#f59e0b',
           badgeText: 'Bonus Drop',
           Icon: Sparkles,
           iconColor: '#f59e0b'
         };
       case 'alert':
         return {
-          bg: '#450a0a',
+          bg: isDark ? '#450a0a' : '#fee2e2',
           border: '#ef4444',
-          badgeColor: '#f87171',
+          badgeColor: '#ef4444',
           badgeText: 'Alert',
           Icon: AlertCircle,
           iconColor: '#ef4444'
         };
       case 'reward':
         return {
-          bg: '#064e3b',
+          bg: isDark ? '#064e3b' : '#d1fae5',
           border: '#10b981',
-          badgeColor: '#34d399',
+          badgeColor: '#10b981',
           badgeText: 'Reward',
           Icon: Gift,
           iconColor: '#10b981'
         };
       case 'system':
         return {
-          bg: '#1e1e38',
-          border: '#818cf8',
-          badgeColor: '#a5b4fc',
+          bg: isDark ? '#1e1b4b' : '#e0e7ff',
+          border: '#6366f1',
+          badgeColor: '#6366f1',
           badgeText: 'System',
           Icon: Radio,
-          iconColor: '#818cf8'
+          iconColor: '#6366f1'
         };
       default:
         return {
-          bg: '#082f49',
-          border: '#0ea5e9',
-          badgeColor: '#38bdf8',
+          bg: isDark ? '#083344' : '#e0f2fe',
+          border: '#06b6d4',
+          badgeColor: '#06b6d4',
           badgeText: 'Notice',
           Icon: Bell,
-          iconColor: '#0ea5e9'
+          iconColor: '#06b6d4'
         };
     }
   };
@@ -196,27 +211,53 @@ export default function NotificationModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.backdrop}>
-        {/* Tap outside to dismiss */}
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+      <View style={[styles.backdrop, isFullscreen && styles.backdropFullscreen]}>
+        {/* Tap outside to dismiss (when in drawer mode) */}
+        {!isFullscreen && (
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={onClose}
+          />
+        )}
 
-        <View style={[styles.modalSheet, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          {/* Top handle bar */}
-          <View style={[styles.sheetHandle, { backgroundColor: isDark ? '#334155' : '#cbd5e1' }]} />
+        <View
+          style={[
+            styles.modalSheet,
+            {
+              backgroundColor: isDark ? '#0b1120' : '#ffffff',
+              borderColor: activeColors.border || (isDark ? '#1e293b' : '#e2e8f0')
+            },
+            isFullscreen && styles.modalSheetFullscreen
+          ]}
+        >
+          {/* Top handle bar (only in drawer mode) */}
+          {!isFullscreen && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setIsFullscreen(true)}
+              style={styles.sheetHandleTouch}
+            >
+              <View style={[styles.sheetHandle, { backgroundColor: isDark ? '#334155' : '#cbd5e1' }]} />
+            </TouchableOpacity>
+          )}
 
           {/* Modal Header */}
-          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+          <View
+            style={[
+              styles.modalHeader,
+              { borderBottomColor: activeColors.border || (isDark ? '#1e293b' : '#e2e8f0') }
+            ]}
+          >
             <View style={styles.modalTitleRow}>
               <View style={styles.titleIconBadge}>
                 <Bell size={18} color="#06b6d4" />
               </View>
               <View>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Notifications & Drops</Text>
-                <Text style={[styles.modalSubtitle, { color: theme.subtext }]}>
+                <Text style={[styles.modalTitle, { color: isDark ? '#ffffff' : '#0f172a' }]}>
+                  Notifications & Drops
+                </Text>
+                <Text style={[styles.modalSubtitle, { color: activeColors.textSecondary || '#94a3b8' }]}>
                   {unreadCount > 0 ? `${unreadCount} unread updates` : 'All caught up!'}
                 </Text>
               </View>
@@ -225,7 +266,13 @@ export default function NotificationModal({
             <View style={styles.headerRightActions}>
               {unreadCount > 0 && (
                 <TouchableOpacity
-                  style={[styles.markAllBtn, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderColor: theme.border }]}
+                  style={[
+                    styles.markAllBtn,
+                    {
+                      backgroundColor: isDark ? '#172545' : '#f1f5f9',
+                      borderColor: activeColors.border || (isDark ? '#1e293b' : '#cbd5e1')
+                    }
+                  ]}
                   onPress={handleMarkAllRead}
                   activeOpacity={0.7}
                 >
@@ -234,60 +281,145 @@ export default function NotificationModal({
                 </TouchableOpacity>
               )}
 
+              {/* Fullscreen Drawer Toggle Button */}
               <TouchableOpacity
-                style={[styles.closeBtn, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}
+                style={[
+                  styles.controlBtn,
+                  { backgroundColor: isDark ? '#172545' : '#f1f5f9' }
+                ]}
+                onPress={() => {
+                  triggerHaptic('light');
+                  setIsFullscreen(!isFullscreen);
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+              >
+                {isFullscreen ? (
+                  <Minimize2 size={16} color={activeColors.textSecondary || '#94a3b8'} />
+                ) : (
+                  <Maximize2 size={16} color={activeColors.textSecondary || '#94a3b8'} />
+                )}
+              </TouchableOpacity>
+
+              {/* Close Button */}
+              <TouchableOpacity
+                style={[
+                  styles.controlBtn,
+                  { backgroundColor: isDark ? '#172545' : '#f1f5f9' }
+                ]}
                 onPress={onClose}
                 activeOpacity={0.7}
               >
-                <X size={18} color={theme.subtext} />
+                <X size={18} color={activeColors.textSecondary || '#94a3b8'} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Filter Pills */}
-          <View style={[styles.filtersRow, { borderBottomColor: theme.border }]}>
+          <View
+            style={[
+              styles.filtersRow,
+              { borderBottomColor: activeColors.border || (isDark ? '#1e293b' : '#e2e8f0') }
+            ]}
+          >
             <TouchableOpacity
-              style={[styles.filterPill, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }, filter === 'all' && styles.filterPillActive]}
+              style={[
+                styles.filterPill,
+                { backgroundColor: isDark ? '#172545' : '#f1f5f9' },
+                filter === 'all' && styles.filterPillActive
+              ]}
               onPress={() => setFilter('all')}
               activeOpacity={0.7}
             >
-              <Text style={[styles.filterText, { color: theme.subtext }, filter === 'all' && styles.filterTextActive]}>
+              <Text
+                style={[
+                  styles.filterText,
+                  { color: isDark ? '#94a3b8' : '#64748b' },
+                  filter === 'all' && styles.filterTextActive
+                ]}
+              >
                 All ({notifications.length})
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.filterPill, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }, filter === 'unread' && styles.filterPillActive]}
+              style={[
+                styles.filterPill,
+                { backgroundColor: isDark ? '#172545' : '#f1f5f9' },
+                filter === 'unread' && styles.filterPillActive
+              ]}
               onPress={() => setFilter('unread')}
               activeOpacity={0.7}
             >
-              <Text style={[styles.filterText, { color: theme.subtext }, filter === 'unread' && styles.filterTextActive]}>
+              <Text
+                style={[
+                  styles.filterText,
+                  { color: isDark ? '#94a3b8' : '#64748b' },
+                  filter === 'unread' && styles.filterTextActive
+                ]}
+              >
                 Unread ({unreadCount})
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.filterPill, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }, filter === 'bonus' && styles.filterPillActive]}
+              style={[
+                styles.filterPill,
+                { backgroundColor: isDark ? '#172545' : '#f1f5f9' },
+                filter === 'bonus' && styles.filterPillActive
+              ]}
               onPress={() => setFilter('bonus')}
               activeOpacity={0.7}
             >
-              <Text style={[styles.filterText, { color: theme.subtext }, filter === 'bonus' && styles.filterTextActive]}>
+              <Text
+                style={[
+                  styles.filterText,
+                  { color: isDark ? '#94a3b8' : '#64748b' },
+                  filter === 'bonus' && styles.filterTextActive
+                ]}
+              >
                 🎁 Bonus Drops
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Notifications List */}
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#06b6d4" />
-              <Text style={[styles.loadingText, { color: theme.subtext }]}>Fetching your updates...</Text>
+          {/* In-Modal Claim Success Alert Banner */}
+          {claimedBanner && (
+            <View style={styles.inModalAlertBanner}>
+              <Sparkles size={16} color="#fbbf24" style={{ marginRight: 6 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inModalAlertTitle}>
+                  Claimed +{claimedBanner.points} PTS!
+                </Text>
+                <Text style={styles.inModalAlertSub}>
+                  {claimedBanner.title} added to your vault balance.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setClaimedBanner(null)}
+                style={{ padding: 4 }}
+              >
+                <X size={14} color="#fef08a" />
+              </TouchableOpacity>
             </View>
+          )}
+
+          {/* Notifications List or Skeleton Loader */}
+          {loading ? (
+            <ScrollView
+              style={styles.listScroll}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <SkeletonNotificationList count={4} />
+            </ScrollView>
           ) : filteredNotifications.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Bell size={42} color={theme.subtext} />
-              <Text style={[styles.emptyTitle, { color: theme.text }]}>No Notifications</Text>
-              <Text style={[styles.emptySubtitle, { color: theme.subtext }]}>
+              <Bell size={42} color={activeColors.textSecondary || '#64748b'} />
+              <Text style={[styles.emptyTitle, { color: isDark ? '#ffffff' : '#0f172a' }]}>
+                No Notifications
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: activeColors.textSecondary || '#64748b' }]}>
                 {filter === 'unread'
                   ? 'You have read all your notifications.'
                   : 'New bonus drops, streak rewards, and announcements will appear here.'}
@@ -310,14 +442,18 @@ export default function NotificationModal({
                 const conf = getThemeConfig(item.type);
                 const IconComp = conf.Icon;
                 const isClaiming = claimingId === item.id;
+                const isUnread = !item.is_read;
 
                 return (
                   <TouchableOpacity
                     key={item.id}
                     style={[
                       styles.card,
-                      { backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: theme.border },
-                      !item.is_read && (isDark ? styles.cardUnread : styles.cardUnreadLight)
+                      {
+                        backgroundColor: isDark ? '#111c33' : '#ffffff',
+                        borderColor: isDark ? '#1e293b' : '#e2e8f0'
+                      },
+                      isUnread && (isDark ? styles.cardUnreadDark : styles.cardUnreadLight)
                     ]}
                     onPress={() => handleNotificationPress(item)}
                     activeOpacity={0.85}
@@ -333,8 +469,8 @@ export default function NotificationModal({
                       </View>
 
                       <View style={styles.cardTimeRow}>
-                        {!item.is_read && <View style={styles.unreadDot} />}
-                        <Text style={[styles.cardTimeText, { color: theme.subtext }]}>
+                        {isUnread && <View style={styles.unreadDot} />}
+                        <Text style={[styles.cardTimeText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
                           {item.created_at
                             ? new Date(item.created_at).toLocaleDateString('en-US', {
                                 month: 'short',
@@ -345,16 +481,33 @@ export default function NotificationModal({
                       </View>
                     </View>
 
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>{item.title}</Text>
-                    <Text style={[styles.cardMessage, { color: theme.subtext }]}>{item.message}</Text>
+                    <Text style={[styles.cardTitle, { color: isDark ? '#ffffff' : '#0f172a' }]}>
+                      {item.title}
+                    </Text>
+                    <Text style={[styles.cardMessage, { color: isDark ? '#cbd5e1' : '#334155' }]}>
+                      {item.message}
+                    </Text>
 
-                    {/* Bonus Points Claim Box if present */}
+                    {/* Bonus Points Claim Box (Solid, Opaque, High Contrast) */}
                     {item.bonus_points > 0 && (
-                      <View style={styles.bonusBox}>
+                      <View
+                        style={[
+                          styles.bonusBox,
+                          {
+                            backgroundColor: isDark ? '#261b04' : '#fef3c7',
+                            borderColor: '#f59e0b'
+                          }
+                        ]}
+                      >
                         <View style={styles.bonusLeft}>
                           <Coins size={16} color="#fbbf24" />
-                          <Text style={styles.bonusPointsText}>
-                            +{item.bonus_points} PTS Bonus
+                          <Text
+                            style={[
+                              styles.bonusPointsText,
+                              { color: isDark ? '#fef08a' : '#b45309' }
+                            ]}
+                          >
+                            +{item.bonus_points} PTS Drop
                           </Text>
                         </View>
 
@@ -381,7 +534,12 @@ export default function NotificationModal({
 
                     {/* Action Deep Link if provided */}
                     {item.action_screen && (
-                      <View style={[styles.actionRow, { borderTopColor: theme.border }]}>
+                      <View
+                        style={[
+                          styles.actionRow,
+                          { borderTopColor: isDark ? '#1e293b' : '#e2e8f0' }
+                        ]}
+                      >
                         <Text style={styles.actionText}>
                           Go to {item.action_screen.toUpperCase()}
                         </Text>
@@ -402,24 +560,42 @@ export default function NotificationModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
     justifyContent: 'flex-end'
+  },
+  backdropFullscreen: {
+    justifyContent: 'flex-start'
   },
   modalSheet: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderTopWidth: 1,
+    borderTopWidth: 1.5,
     maxHeight: '85%',
     minHeight: '55%',
-    paddingBottom: Platform.OS === 'android' ? 20 : 34
+    paddingBottom: Platform.OS === 'android' ? 20 : 34,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 25
+  },
+  modalSheetFullscreen: {
+    height: '100%',
+    maxHeight: '100%',
+    minHeight: '100%',
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderTopWidth: 0,
+    paddingTop: Platform.OS === 'android' ? 36 : 48
+  },
+  sheetHandleTouch: {
+    paddingVertical: 8,
+    alignItems: 'center'
   },
   sheetHandle: {
     width: 38,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 8
+    height: 4.5,
+    borderRadius: 2.5
   },
   modalHeader: {
     flexDirection: 'row',
@@ -461,16 +637,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1
   },
   markAllText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '700',
     color: '#06b6d4'
   },
-  closeBtn: {
+  controlBtn: {
     width: 32,
     height: 32,
     borderRadius: 9,
@@ -500,14 +676,27 @@ const styles = StyleSheet.create({
     color: '#090d16',
     fontWeight: '900'
   },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center'
+  inModalAlertBanner: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#14532d',
+    borderWidth: 1.5,
+    borderColor: '#22c55e',
+    flexDirection: 'row',
+    alignItems: 'center'
   },
-  loadingText: {
+  inModalAlertTitle: {
+    color: '#4ade80',
     fontSize: 12,
-    marginTop: 8
+    fontWeight: '900'
+  },
+  inModalAlertSub: {
+    color: '#bbf7d0',
+    fontSize: 10.5,
+    fontWeight: '600'
   },
   emptyContainer: {
     padding: 40,
@@ -536,15 +725,20 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
     padding: 14,
-    borderWidth: 1
+    borderWidth: 1.5,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3
   },
-  cardUnread: {
-    borderColor: 'rgba(6, 182, 212, 0.4)',
-    backgroundColor: '#131e33'
+  cardUnreadDark: {
+    borderColor: '#06b6d4',
+    backgroundColor: '#15243f'
   },
   cardUnreadLight: {
     borderColor: '#06b6d4',
-    backgroundColor: '#e0f2fe'
+    backgroundColor: '#f0f9ff'
   },
   cardHeader: {
     flexDirection: 'row',
@@ -575,30 +769,29 @@ const styles = StyleSheet.create({
     gap: 6
   },
   unreadDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#06b6d4'
   },
   cardTimeText: {
-    fontSize: 10
+    fontSize: 11,
+    fontWeight: '600'
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '800',
     marginBottom: 4
   },
   cardMessage: {
-    fontSize: 12,
-    lineHeight: 17
+    fontSize: 12.5,
+    lineHeight: 18
   },
   bonusBox: {
     marginTop: 10,
     padding: 10,
     borderRadius: 12,
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between'
@@ -609,20 +802,19 @@ const styles = StyleSheet.create({
     gap: 6
   },
   bonusPointsText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#fbbf24'
+    fontSize: 12.5,
+    fontWeight: '800'
   },
   claimBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f59e0b',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8
   },
   claimBtnText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '900',
     color: '#090d16'
   },
@@ -630,14 +822,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: '#064e3b',
+    borderWidth: 1,
+    borderColor: '#10b981',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6
   },
   claimedText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 10.5,
+    fontWeight: '800',
     color: '#34d399'
   },
   actionRow: {

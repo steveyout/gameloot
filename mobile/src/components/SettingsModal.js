@@ -33,9 +33,11 @@ import {
   Coins,
   ChevronRight,
   Sparkles,
-  Lock
+  Lock,
+  Maximize2,
+  Minimize2
 } from 'lucide-react-native';
-import { setSoundEnabled as configureSound } from '../services/soundEffects';
+import { setSoundEnabled as configureSound, triggerHaptic } from '../services/soundEffects';
 import { useTheme } from '../context/ThemeContext';
 import { DEFAULT_HOST } from '../api/config';
 
@@ -50,6 +52,7 @@ export default function SettingsModal({
   onShowAlert
 }) {
   const { theme, isDark, setTheme, colors } = useTheme();
+  const activeColors = colors || theme || {};
 
   // Preferences State
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -59,6 +62,7 @@ export default function SettingsModal({
   const [dataSaver, setDataSaver] = useState(false);
   const [currency, setCurrency] = useState('USD');
   const [cacheSize, setCacheSize] = useState('14.2 MB');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Load persisted user preferences
   useEffect(() => {
@@ -177,47 +181,96 @@ export default function SettingsModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.backdrop}>
-        {/* Click outside to close drawer */}
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+      <View style={[styles.backdrop, isFullscreen && styles.backdropFullscreen]}>
+        {/* Click outside to close drawer (when not fullscreen) */}
+        {!isFullscreen && (
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={onClose}
+          />
+        )}
 
-        <View style={[styles.modalSheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
-          <View style={[styles.sheetHandle, { backgroundColor: isDark ? '#334155' : '#cbd5e1' }]} />
+        <View
+          style={[
+            styles.modalSheet,
+            {
+              backgroundColor: isDark ? '#0b1120' : '#ffffff',
+              borderColor: activeColors.border || (isDark ? '#1e293b' : '#e2e8f0')
+            },
+            isFullscreen && styles.modalSheetFullscreen
+          ]}
+        >
+          {/* Top handle bar (only in drawer mode) */}
+          {!isFullscreen && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setIsFullscreen(true)}
+              style={styles.sheetHandleTouch}
+            >
+              <View style={[styles.sheetHandle, { backgroundColor: isDark ? '#334155' : '#cbd5e1' }]} />
+            </TouchableOpacity>
+          )}
 
           {/* Modal Header */}
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+          <View
+            style={[
+              styles.modalHeader,
+              { borderBottomColor: activeColors.border || (isDark ? '#1e293b' : '#e2e8f0') }
+            ]}
+          >
             <View style={styles.headerLeft}>
-              <View style={[styles.headerIconBadge, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
-                <Settings size={20} color={colors.primary} />
+              <View style={[styles.headerIconBadge, { backgroundColor: activeColors.surfaceSubtle, borderColor: activeColors.border }]}>
+                <Settings size={20} color={activeColors.primary} />
               </View>
               <View>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Settings & Security</Text>
-                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Account preferences & transparency</Text>
+                <Text style={[styles.modalTitle, { color: isDark ? '#ffffff' : '#0f172a' }]}>Settings & Security</Text>
+                <Text style={[styles.modalSubtitle, { color: activeColors.textSecondary }]}>Account preferences & transparency</Text>
               </View>
             </View>
 
-            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: colors.surfaceSubtle }]} onPress={onClose} activeOpacity={0.7}>
-              <X size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
+            <View style={styles.headerRightActions}>
+              {/* Fullscreen Drawer Toggle Button */}
+              <TouchableOpacity
+                style={[styles.controlBtn, { backgroundColor: isDark ? '#172545' : '#f1f5f9' }]}
+                onPress={() => {
+                  triggerHaptic('light');
+                  setIsFullscreen(!isFullscreen);
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+              >
+                {isFullscreen ? (
+                  <Minimize2 size={16} color={activeColors.textSecondary} />
+                ) : (
+                  <Maximize2 size={16} color={activeColors.textSecondary} />
+                )}
+              </TouchableOpacity>
+
+              {/* Close Button */}
+              <TouchableOpacity
+                style={[styles.controlBtn, { backgroundColor: isDark ? '#172545' : '#f1f5f9' }]}
+                onPress={onClose}
+                activeOpacity={0.7}
+              >
+                <X size={18} color={activeColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Account Profile Card */}
             {user ? (
-              <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.profileCard, { backgroundColor: isDark ? '#111c33' : '#f8fafc', borderColor: activeColors.border }]}>
                 <View style={styles.profileRow}>
-                  <View style={[styles.avatarCircle, { backgroundColor: isDark ? '#1e1b4b' : '#e0e7ff', borderColor: colors.primary }]}>
-                    <Text style={[styles.avatarText, { color: colors.primary }]}>
+                  <View style={[styles.avatarCircle, { backgroundColor: isDark ? '#1e1b4b' : '#e0e7ff', borderColor: activeColors.primary }]}>
+                    <Text style={[styles.avatarText, { color: activeColors.primary }]}>
                       {(user.username || 'P').charAt(0).toUpperCase()}
                     </Text>
                   </View>
                   <View style={styles.profileInfo}>
-                    <Text style={[styles.profileUsername, { color: colors.text }]}>{user.username}</Text>
-                    <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{user.email || 'Verified Player'}</Text>
+                    <Text style={[styles.profileUsername, { color: isDark ? '#ffffff' : '#0f172a' }]}>{user.username}</Text>
+                    <Text style={[styles.profileEmail, { color: activeColors.textSecondary }]}>{user.email || 'Verified Player'}</Text>
                     <View style={styles.pointsBadgeWrap}>
                       <Coins size={12} color="#fbbf24" />
                       <Text style={styles.pointsBadgeText}>
@@ -228,10 +281,10 @@ export default function SettingsModal({
                 </View>
 
                 {/* Referral Invite Box */}
-                <View style={[styles.referralBox, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
+                <View style={[styles.referralBox, { backgroundColor: activeColors.surfaceSubtle, borderColor: activeColors.border }]}>
                   <View>
-                    <Text style={[styles.referralLabel, { color: colors.textSecondary }]}>Your Referral Code</Text>
-                    <Text style={[styles.referralCode, { color: colors.primary }]}>{referralCode}</Text>
+                    <Text style={[styles.referralLabel, { color: activeColors.textSecondary }]}>Your Referral Code</Text>
+                    <Text style={[styles.referralCode, { color: activeColors.primary }]}>{referralCode}</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.shareBtn}
@@ -246,24 +299,24 @@ export default function SettingsModal({
             ) : null}
 
             {/* Appearance Theme Selector */}
-            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Appearance & Theme</Text>
+            <View style={[styles.sectionCard, { backgroundColor: isDark ? '#111c33' : '#f8fafc', borderColor: activeColors.border }]}>
+              <Text style={[styles.sectionTitle, { color: activeColors.textSecondary }]}>Appearance & Theme</Text>
 
               <View style={styles.themeSwitcherRow}>
                 <TouchableOpacity
                   style={[
                     styles.themeOptionBtn,
-                    { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
-                    isDark && [styles.themeOptionBtnActive, { borderColor: colors.primary }]
+                    { backgroundColor: activeColors.surfaceSubtle, borderColor: activeColors.border },
+                    isDark && [styles.themeOptionBtnActive, { borderColor: activeColors.primary }]
                   ]}
                   onPress={() => setTheme('dark')}
                   activeOpacity={0.8}
                 >
-                  <Moon size={18} color={isDark ? colors.primary : colors.textSecondary} />
+                  <Moon size={18} color={isDark ? activeColors.primary : activeColors.textSecondary} />
                   <Text style={[
                     styles.themeOptionText,
-                    { color: colors.textSecondary },
-                    isDark && [styles.themeOptionTextActive, { color: colors.primary }]
+                    { color: activeColors.textSecondary },
+                    isDark && [styles.themeOptionTextActive, { color: activeColors.primary }]
                   ]}>
                     Dark Mode
                   </Text>
@@ -272,17 +325,17 @@ export default function SettingsModal({
                 <TouchableOpacity
                   style={[
                     styles.themeOptionBtn,
-                    { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
-                    !isDark && [styles.themeOptionBtnActive, { borderColor: colors.primary }]
+                    { backgroundColor: activeColors.surfaceSubtle, borderColor: activeColors.border },
+                    !isDark && [styles.themeOptionBtnActive, { borderColor: activeColors.primary }]
                   ]}
                   onPress={() => setTheme('light')}
                   activeOpacity={0.8}
                 >
-                  <Sun size={18} color={!isDark ? colors.primary : colors.textSecondary} />
+                  <Sun size={18} color={!isDark ? activeColors.primary : activeColors.textSecondary} />
                   <Text style={[
                     styles.themeOptionText,
-                    { color: colors.textSecondary },
-                    !isDark && [styles.themeOptionTextActive, { color: colors.primary }]
+                    { color: activeColors.textSecondary },
+                    !isDark && [styles.themeOptionTextActive, { color: activeColors.primary }]
                   ]}>
                     Light Mode
                   </Text>
@@ -291,15 +344,15 @@ export default function SettingsModal({
             </View>
 
             {/* Audio & Feedback */}
-            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Audio & Haptics</Text>
+            <View style={[styles.sectionCard, { backgroundColor: isDark ? '#111c33' : '#f8fafc', borderColor: activeColors.border }]}>
+              <Text style={[styles.sectionTitle, { color: activeColors.textSecondary }]}>Audio & Haptics</Text>
 
-              <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
+              <View style={[styles.settingRow, { borderBottomColor: activeColors.border }]}>
                 <View style={styles.settingLeft}>
-                  <Volume2 size={18} color={colors.primary} />
+                  <Volume2 size={18} color={activeColors.primary} />
                   <View style={styles.settingTextWrap}>
-                    <Text style={[styles.settingLabel, { color: colors.text }]}>Sound Effects</Text>
-                    <Text style={[styles.settingSub, { color: colors.textSecondary }]}>Coins, win fanfare, and button audio</Text>
+                    <Text style={[styles.settingLabel, { color: isDark ? '#ffffff' : '#0f172a' }]}>Sound Effects</Text>
+                    <Text style={[styles.settingSub, { color: activeColors.textSecondary }]}>Coins, win fanfare, and button audio</Text>
                   </View>
                 </View>
                 <Switch
@@ -314,8 +367,8 @@ export default function SettingsModal({
                 <View style={styles.settingLeft}>
                   <Vibrate size={18} color="#8b5cf6" />
                   <View style={styles.settingTextWrap}>
-                    <Text style={[styles.settingLabel, { color: colors.text }]}>Vibration Haptics</Text>
-                    <Text style={[styles.settingSub, { color: colors.textSecondary }]}>Tactile clicks and reward vibrations</Text>
+                    <Text style={[styles.settingLabel, { color: isDark ? '#ffffff' : '#0f172a' }]}>Vibration Haptics</Text>
+                    <Text style={[styles.settingSub, { color: activeColors.textSecondary }]}>Tactile clicks and reward vibrations</Text>
                   </View>
                 </View>
                 <Switch
@@ -328,15 +381,15 @@ export default function SettingsModal({
             </View>
 
             {/* Performance & Display */}
-            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Performance & Display</Text>
+            <View style={[styles.sectionCard, { backgroundColor: isDark ? '#111c33' : '#f8fafc', borderColor: activeColors.border }]}>
+              <Text style={[styles.sectionTitle, { color: activeColors.textSecondary }]}>Performance & Display</Text>
 
-              <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
+              <View style={[styles.settingRow, { borderBottomColor: activeColors.border }]}>
                 <View style={styles.settingLeft}>
-                  <Moon size={18} color={colors.textSecondary} />
+                  <Moon size={18} color={activeColors.textSecondary} />
                   <View style={styles.settingTextWrap}>
-                    <Text style={[styles.settingLabel, { color: colors.text }]}>AMOLED Pure Black</Text>
-                    <Text style={[styles.settingSub, { color: colors.textSecondary }]}>Saves battery on OLED phone displays</Text>
+                    <Text style={[styles.settingLabel, { color: isDark ? '#ffffff' : '#0f172a' }]}>AMOLED Pure Black</Text>
+                    <Text style={[styles.settingSub, { color: activeColors.textSecondary }]}>Saves battery on OLED phone displays</Text>
                   </View>
                 </View>
                 <Switch
@@ -351,8 +404,8 @@ export default function SettingsModal({
                 <View style={styles.settingLeft}>
                   <Wifi size={18} color="#10b981" />
                   <View style={styles.settingTextWrap}>
-                    <Text style={[styles.settingLabel, { color: colors.text }]}>Data Saver Mode</Text>
-                    <Text style={[styles.settingSub, { color: colors.textSecondary }]}>Compress game assets for lower data usage</Text>
+                    <Text style={[styles.settingLabel, { color: isDark ? '#ffffff' : '#0f172a' }]}>Data Saver Mode</Text>
+                    <Text style={[styles.settingSub, { color: activeColors.textSecondary }]}>Compress game assets for lower data usage</Text>
                   </View>
                 </View>
                 <Switch
@@ -365,32 +418,32 @@ export default function SettingsModal({
             </View>
 
             {/* Storage & Maintenance */}
-            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Storage & App Integrity</Text>
+            <View style={[styles.sectionCard, { backgroundColor: isDark ? '#111c33' : '#f8fafc', borderColor: activeColors.border }]}>
+              <Text style={[styles.sectionTitle, { color: activeColors.textSecondary }]}>Storage & App Integrity</Text>
 
-              <View style={[styles.actionItemRow, { borderBottomColor: colors.border }]}>
+              <View style={[styles.actionItemRow, { borderBottomColor: activeColors.border }]}>
                 <View style={styles.actionItemLeft}>
-                  <Trash2 size={16} color={colors.textSecondary} />
+                  <Trash2 size={16} color={activeColors.textSecondary} />
                   <View>
-                    <Text style={[styles.actionItemTitle, { color: colors.text }]}>Cached Assets</Text>
-                    <Text style={[styles.actionItemSub, { color: colors.textSecondary }]}>{cacheSize} temporary game data</Text>
+                    <Text style={[styles.actionItemTitle, { color: isDark ? '#ffffff' : '#0f172a' }]}>Cached Assets</Text>
+                    <Text style={[styles.actionItemSub, { color: activeColors.textSecondary }]}>{cacheSize} temporary game data</Text>
                   </View>
                 </View>
                 <TouchableOpacity
-                  style={[styles.clearBtn, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}
+                  style={[styles.clearBtn, { backgroundColor: activeColors.surfaceSubtle, borderColor: activeColors.border }]}
                   onPress={handleClearCache}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.clearBtnText, { color: colors.text }]}>Clear Cache</Text>
+                  <Text style={[styles.clearBtnText, { color: isDark ? '#ffffff' : '#0f172a' }]}>Clear Cache</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={[styles.actionItemRow, { borderBottomWidth: 0 }]}>
                 <View style={styles.actionItemLeft}>
-                  <RefreshCw size={16} color={colors.primary} />
+                  <RefreshCw size={16} color={activeColors.primary} />
                   <View>
-                    <Text style={[styles.actionItemTitle, { color: colors.text }]}>Version Guard</Text>
-                    <Text style={[styles.actionItemSub, { color: colors.textSecondary }]}>
+                    <Text style={[styles.actionItemTitle, { color: isDark ? '#ffffff' : '#0f172a' }]}>Version Guard</Text>
+                    <Text style={[styles.actionItemSub, { color: activeColors.textSecondary }]}>
                       Installed v{updateInfo?.client_version || '1.0.0'}
                     </Text>
                   </View>
@@ -408,23 +461,23 @@ export default function SettingsModal({
               </View>
             </View>
 
-            {/* Legal, Compliance & Privacy (Google Play & AdMob Requirement) */}
-            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Legal & Compliance</Text>
+            {/* Legal, Compliance & Privacy */}
+            <View style={[styles.sectionCard, { backgroundColor: isDark ? '#111c33' : '#f8fafc', borderColor: activeColors.border }]}>
+              <Text style={[styles.sectionTitle, { color: activeColors.textSecondary }]}>Legal & Compliance</Text>
 
               <TouchableOpacity
-                style={[styles.actionItemRow, { borderBottomColor: colors.border }]}
+                style={[styles.actionItemRow, { borderBottomColor: activeColors.border }]}
                 onPress={handleOpenPrivacy}
                 activeOpacity={0.7}
               >
                 <View style={styles.actionItemLeft}>
                   <ShieldCheck size={18} color="#06b6d4" />
                   <View>
-                    <Text style={[styles.actionItemTitle, { color: colors.text }]}>Privacy Policy</Text>
-                    <Text style={[styles.actionItemSub, { color: colors.textSecondary }]}>Google Play & AdMob compliant data handling</Text>
+                    <Text style={[styles.actionItemTitle, { color: isDark ? '#ffffff' : '#0f172a' }]}>Privacy Policy</Text>
+                    <Text style={[styles.actionItemSub, { color: activeColors.textSecondary }]}>Google Play & AdMob compliant data handling</Text>
                   </View>
                 </View>
-                <ChevronRight size={16} color={colors.textSecondary} />
+                <ChevronRight size={16} color={activeColors.textSecondary} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -435,27 +488,27 @@ export default function SettingsModal({
                 <View style={styles.actionItemLeft}>
                   <FileText size={18} color="#3b82f6" />
                   <View>
-                    <Text style={[styles.actionItemTitle, { color: colors.text }]}>Terms of Service</Text>
-                    <Text style={[styles.actionItemSub, { color: colors.textSecondary }]}>Rules of fair play, rewards & redemption terms</Text>
+                    <Text style={[styles.actionItemTitle, { color: isDark ? '#ffffff' : '#0f172a' }]}>Terms of Service</Text>
+                    <Text style={[styles.actionItemSub, { color: activeColors.textSecondary }]}>Rules of fair play, rewards & redemption terms</Text>
                   </View>
                 </View>
-                <ChevronRight size={16} color={colors.textSecondary} />
+                <ChevronRight size={16} color={activeColors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             {/* Trust, Fair Play & Transparency */}
-            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Trust & Fair Play Transparency</Text>
+            <View style={[styles.sectionCard, { backgroundColor: isDark ? '#111c33' : '#f8fafc', borderColor: activeColors.border }]}>
+              <Text style={[styles.sectionTitle, { color: activeColors.textSecondary }]}>Trust & Fair Play Transparency</Text>
               <View style={styles.complianceRow}>
                 <ShieldCheck size={18} color="#10b981" />
-                <Text style={[styles.complianceText, { color: colors.textSecondary }]}>
+                <Text style={[styles.complianceText, { color: activeColors.textSecondary }]}>
                   GameLoot is an ad-funded rewards platform. Points represent loyalty rewards from advertising revenue share. Instant approval queues and transparent payout minimums.
                 </Text>
               </View>
             </View>
 
             {/* Account Danger Zone */}
-            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.sectionCard, { backgroundColor: isDark ? '#111c33' : '#f8fafc', borderColor: activeColors.border }]}>
               <TouchableOpacity
                 style={styles.logoutBtn}
                 onPress={() => {
@@ -478,24 +531,42 @@ export default function SettingsModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
     justifyContent: 'flex-end'
+  },
+  backdropFullscreen: {
+    justifyContent: 'flex-start'
   },
   modalSheet: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderTopWidth: 1,
+    borderTopWidth: 1.5,
     maxHeight: '90%',
     minHeight: '65%',
-    paddingBottom: Platform.OS === 'android' ? 20 : 34
+    paddingBottom: Platform.OS === 'android' ? 20 : 34,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 25
+  },
+  modalSheetFullscreen: {
+    height: '100%',
+    maxHeight: '100%',
+    minHeight: '100%',
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderTopWidth: 0,
+    paddingTop: Platform.OS === 'android' ? 36 : 48
+  },
+  sheetHandleTouch: {
+    paddingVertical: 8,
+    alignItems: 'center'
   },
   sheetHandle: {
     width: 38,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 8
+    height: 4.5,
+    borderRadius: 2.5
   },
   modalHeader: {
     flexDirection: 'row',
@@ -526,7 +597,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 1
   },
-  closeBtn: {
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  controlBtn: {
     width: 32,
     height: 32,
     borderRadius: 9,
@@ -539,8 +615,13 @@ const styles = StyleSheet.create({
   profileCard: {
     borderRadius: 16,
     padding: 16,
-    borderWidth: 1,
-    marginBottom: 14
+    borderWidth: 1.5,
+    marginBottom: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3
   },
   profileRow: {
     flexDirection: 'row',
@@ -620,8 +701,13 @@ const styles = StyleSheet.create({
   sectionCard: {
     borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
-    marginBottom: 14
+    borderWidth: 1.5,
+    marginBottom: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
   },
   sectionTitle: {
     fontSize: 11,

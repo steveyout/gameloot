@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   Animated,
   Platform,
-  StatusBar
+  StatusBar,
+  Modal
 } from 'react-native';
 import { CheckCircle2, AlertCircle, Sparkles, X, Info } from 'lucide-react-native';
 
@@ -114,45 +115,54 @@ export default function AlertBanner({ alert, onDismiss }) {
   const IconComponent = theme.Icon;
 
   return (
-    <Animated.View
-      pointerEvents="box-none"
-      style={[
-        styles.overlayContainer,
-        {
-          transform: [{ translateY }],
-          opacity
-        }
-      ]}
+    <Modal
+      visible={!!alert}
+      transparent={true}
+      animationType="none"
+      statusBarTranslucent={true}
+      onRequestClose={handleDismiss}
     >
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.bg,
-            borderColor: theme.border,
-            shadowColor: theme.shadow
-          }
-        ]}
-      >
-        <View style={styles.iconWrap}>
-          <IconComponent size={20} color={theme.iconColor} />
-        </View>
-
-        <View style={styles.textWrap}>
-          {title ? <Text style={[styles.title, { color: theme.titleColor }]}>{title}</Text> : null}
-          <Text style={[styles.message, { color: theme.textColor }]}>{message}</Text>
-          {pts ? (
-            <View style={styles.ptsBadge}>
-              <Text style={styles.ptsBadgeText}>+{pts} PTS ($0.001 USD/PT)</Text>
+      <View style={styles.modalRoot} pointerEvents="box-none">
+        <Animated.View
+          style={[
+            styles.overlayContainer,
+            {
+              transform: [{ translateY }],
+              opacity
+            }
+          ]}
+        >
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: theme.bg,
+                borderColor: theme.border,
+                shadowColor: theme.shadow
+              }
+            ]}
+          >
+            <View style={styles.iconWrap}>
+              <IconComponent size={20} color={theme.iconColor} />
             </View>
-          ) : null}
-        </View>
 
-        <TouchableOpacity onPress={handleDismiss} style={styles.closeBtn} activeOpacity={0.7}>
-          <X size={16} color={theme.textColor} />
-        </TouchableOpacity>
+            <View style={styles.textWrap}>
+              {title ? <Text style={[styles.title, { color: theme.titleColor }]}>{title}</Text> : null}
+              <Text style={[styles.message, { color: theme.textColor }]}>{message}</Text>
+              {pts ? (
+                <View style={styles.ptsBadge}>
+                  <Text style={styles.ptsBadgeText}>+{pts} PTS ($0.001 USD/PT)</Text>
+                </View>
+              ) : null}
+            </View>
+
+            <TouchableOpacity onPress={handleDismiss} style={styles.closeBtn} activeOpacity={0.7}>
+              <X size={16} color={theme.textColor} />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </View>
-    </Animated.View>
+    </Modal>
   );
 }
 
@@ -161,13 +171,17 @@ const topOffset = Platform.OS === 'android'
   : 52;
 
 const styles = StyleSheet.create({
+  modalRoot: {
+    flex: 1,
+    backgroundColor: 'transparent'
+  },
   overlayContainer: {
     position: 'absolute',
     top: topOffset,
     left: 16,
     right: 16,
-    zIndex: 99999,
-    elevation: 999
+    zIndex: 999999,
+    elevation: 9999
   },
   card: {
     padding: 13,

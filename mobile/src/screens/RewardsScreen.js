@@ -8,7 +8,6 @@ import {
   Image,
   Modal,
   TextInput,
-  ActivityIndicator,
   RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +15,7 @@ import { Gift, Sparkles, CheckCircle2, X, AlertCircle, ShieldCheck, ArrowRight, 
 import { getRewards, redeemReward } from '../api/clientApi';
 import AnimatedCard from '../components/AnimatedCard';
 import { useTheme } from '../context/ThemeContext';
+import { SkeletonRewardList } from '../components/SkeletonLoader';
 
 export default function RewardsScreen({ user, token, onRedemptionSuccess, onErrorAlert }) {
   const { colors, isDark } = useTheme();
@@ -124,10 +124,7 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
       </View>
 
       {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textMuted }]}>Syncing rewards catalog...</Text>
-        </View>
+        <SkeletonRewardList count={4} />
       ) : (
         <View style={styles.rewardGrid}>
           {rewards.map((item) => {
@@ -270,11 +267,9 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
                   colors={['#06b6d4', '#2563eb']}
                   style={styles.confirmGradient}
                 >
-                  {redeeming ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text style={styles.confirmText}>Confirm Cashout Request</Text>
-                  )}
+                  <Text style={styles.confirmText}>
+                    {redeeming ? 'Processing...' : 'Confirm Cashout Request'}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -355,14 +350,6 @@ const styles = StyleSheet.create({
   sectionSub: {
     fontSize: 11,
     fontWeight: '600'
-  },
-  loadingBox: {
-    padding: 30,
-    alignItems: 'center'
-  },
-  loadingText: {
-    fontSize: 12,
-    marginTop: 8
   },
   rewardGrid: {
     gap: 12

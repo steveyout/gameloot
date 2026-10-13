@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
-  ActivityIndicator,
   RefreshControl,
   Platform
 } from 'react-native';
@@ -29,6 +28,7 @@ import {
 import { getCategories, getGames } from '../api/clientApi';
 import AnimatedCard from '../components/AnimatedCard';
 import { useTheme } from '../context/ThemeContext';
+import { SkeletonGameList } from '../components/SkeletonLoader';
 
 export default function LobbyScreen({
   onSelectGame,
@@ -350,10 +350,7 @@ export default function LobbyScreen({
       </View>
 
       {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textMuted }]}>Syncing games catalog...</Text>
-        </View>
+        <SkeletonGameList count={4} />
       ) : (
         <View style={styles.gamesGrid}>
           {displayedGames.map(game => (
@@ -788,14 +785,6 @@ const styles = StyleSheet.create({
   sectionCount: {
     fontSize: 11.5,
     fontWeight: '600'
-  },
-  loadingBox: {
-    padding: 30,
-    alignItems: 'center',
-    gap: 10
-  },
-  loadingText: {
-    fontSize: 12
   },
   gamesGrid: {
     gap: 12,
