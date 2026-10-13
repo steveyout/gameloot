@@ -11,8 +11,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { ClipboardList, X, Sparkles, Trophy } from 'lucide-react-native';
 import { claimSurveyReward } from '../api/clientApi';
+import { useTheme } from '../context/ThemeContext';
 
 export default function SurveyModal({ visible, survey, token, onClose, onRewardClaimed }) {
+  const { theme, isDark } = useTheme();
   const [answers, setAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -61,7 +63,14 @@ export default function SurveyModal({ visible, survey, token, onClose, onRewardC
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.card}>
+        {/* Tap outside to dismiss */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {/* Header */}
           <LinearGradient colors={['#0284c7', '#0369a1']} style={styles.header}>
             <View style={styles.headerTop}>
@@ -86,8 +95,8 @@ export default function SurveyModal({ visible, survey, token, onClose, onRewardC
             {completed ? (
               <View style={styles.successBox}>
                 <Trophy size={48} color="#fbbf24" style={{ marginBottom: 12 }} />
-                <Text style={styles.successTitle}>Survey Submitted!</Text>
-                <Text style={styles.successSub}>Thank you for your valuable feedback.</Text>
+                <Text style={[styles.successTitle, { color: theme.text }]}>Survey Submitted!</Text>
+                <Text style={[styles.successSub, { color: theme.subtext }]}>Thank you for your valuable feedback.</Text>
                 <View style={styles.ptsAward}>
                   <Text style={styles.ptsAwardText}>+{survey.reward_points} PTS Credited</Text>
                 </View>
@@ -97,22 +106,26 @@ export default function SurveyModal({ visible, survey, token, onClose, onRewardC
               </View>
             ) : (
               questions.map((q, idx) => (
-                <View key={q.id || idx} style={styles.qBox}>
-                  <Text style={styles.qText}>{idx + 1}. {q.question}</Text>
+                <View key={q.id || idx} style={[styles.qBox, { backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderColor: theme.border }]}>
+                  <Text style={[styles.qText, { color: theme.text }]}>{idx + 1}. {q.question}</Text>
                   <View style={styles.optCol}>
                     {(q.options || []).map((opt, optIdx) => {
                       const isSel = answers[q.id || idx] === opt;
                       return (
                         <TouchableOpacity
                           key={optIdx}
-                          style={[styles.optBtn, isSel && styles.optBtnSel]}
+                          style={[
+                            styles.optBtn,
+                            { backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: theme.border },
+                            isSel && styles.optBtnSel
+                          ]}
                           onPress={() => handleSelect(q.id || idx, opt)}
                           activeOpacity={0.7}
                         >
                           <View style={[styles.circle, isSel && styles.circleSel]}>
                             {isSel ? <View style={styles.circleInner} /> : null}
                           </View>
-                          <Text style={[styles.optTxt, isSel && styles.optTxtSel]}>{opt}</Text>
+                          <Text style={[styles.optTxt, { color: theme.subtext }, isSel && styles.optTxtSel]}>{opt}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -123,7 +136,7 @@ export default function SurveyModal({ visible, survey, token, onClose, onRewardC
           </ScrollView>
 
           {!completed ? (
-            <View style={styles.footer}>
+            <View style={[styles.footer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
               <TouchableOpacity
                 style={[styles.submitBtn, (!allAnswered || isSubmitting) && styles.submitDisabled]}
                 disabled={!allAnswered || isSubmitting}
@@ -153,12 +166,10 @@ const styles = StyleSheet.create({
     padding: 16
   },
   card: {
-    backgroundColor: '#0f172a',
     borderRadius: 24,
     overflow: 'hidden',
     maxHeight: '85%',
-    borderWidth: 1,
-    borderColor: '#334155'
+    borderWidth: 1
   },
   header: {
     padding: 20
@@ -210,17 +221,14 @@ const styles = StyleSheet.create({
     padding: 16
   },
   qBox: {
-    backgroundColor: '#1e293b',
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#334155'
+    borderWidth: 1
   },
   qText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#ffffff',
     marginBottom: 10
   },
   optCol: {
@@ -229,11 +237,9 @@ const styles = StyleSheet.create({
   optBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
     borderRadius: 10,
     padding: 10,
-    borderWidth: 1,
-    borderColor: '#334155'
+    borderWidth: 1
   },
   optBtnSel: {
     borderColor: '#0284c7',
@@ -260,18 +266,15 @@ const styles = StyleSheet.create({
   },
   optTxt: {
     fontSize: 12,
-    color: '#94a3b8',
     flex: 1
   },
   optTxtSel: {
-    color: '#ffffff',
-    fontWeight: '600'
+    color: '#0284c7',
+    fontWeight: '700'
   },
   footer: {
     padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#1e293b',
-    backgroundColor: '#0f172a'
+    borderTopWidth: 1
   },
   submitBtn: {
     backgroundColor: '#0284c7',
@@ -293,12 +296,10 @@ const styles = StyleSheet.create({
   },
   successTitle: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#ffffff'
+    fontWeight: '800'
   },
   successSub: {
     fontSize: 12,
-    color: '#94a3b8',
     marginTop: 4
   },
   ptsAward: {

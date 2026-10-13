@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Flame, Sparkles, CheckCircle2, X, Gift, Lock, Trophy } from 'lucide-react-native';
 import { getStreakStatus, claimDailyStreak } from '../api/clientApi';
 import { playSound, triggerHaptic } from '../services/soundEffects';
+import { useTheme } from '../context/ThemeContext';
 
 export default function DailyStreakModal({
   visible,
@@ -19,6 +20,7 @@ export default function DailyStreakModal({
   onClose,
   onStreakClaimed
 }) {
+  const { theme, isDark } = useTheme();
   const [streakData, setStreakData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
@@ -99,12 +101,19 @@ export default function DailyStreakModal({
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
-        <View style={styles.modalSheet}>
+        {/* Tap outside sheet to dismiss */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View style={[styles.modalSheet, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {/* Sheet Handle */}
-          <View style={styles.sheetHandle} />
+          <View style={[styles.sheetHandle, { backgroundColor: isDark ? '#334155' : '#cbd5e1' }]} />
 
           {/* Header */}
-          <View style={styles.modalHeader}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
             <View style={styles.headerLeft}>
               <LinearGradient
                 colors={['#f59e0b', '#d97706']}
@@ -113,22 +122,26 @@ export default function DailyStreakModal({
                 <Flame size={20} color="#ffffff" />
               </LinearGradient>
               <View>
-                <Text style={styles.modalTitle}>7-Day Daily Streak</Text>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>7-Day Daily Streak</Text>
                 <Text style={styles.modalSubtitle}>
                   Current: {currentStreak} Consecutive Days Active 🔥
                 </Text>
               </View>
             </View>
 
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-              <X size={18} color="#94a3b8" />
+            <TouchableOpacity
+              style={[styles.closeBtn, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}
+              onPress={onClose}
+              activeOpacity={0.7}
+            >
+              <X size={18} color={theme.subtext} />
             </TouchableOpacity>
           </View>
 
           {loading ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator size="small" color="#f59e0b" />
-              <Text style={styles.loadingText}>Loading streak calendar...</Text>
+              <Text style={[styles.loadingText, { color: theme.subtext }]}>Loading streak calendar...</Text>
             </View>
           ) : (
             <View style={styles.content}>
@@ -144,6 +157,7 @@ export default function DailyStreakModal({
                       key={item.day}
                       style={[
                         styles.dayCard,
+                        { backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: theme.border },
                         isDay7 && styles.dayCard7,
                         isToday && styles.dayCardToday,
                         isPast && styles.dayCardClaimed
@@ -163,7 +177,7 @@ export default function DailyStreakModal({
                         )}
                       </View>
 
-                      <Text style={[styles.pointsVal, isToday && styles.pointsValToday]}>
+                      <Text style={[styles.pointsVal, { color: theme.text }, isToday && styles.pointsValToday]}>
                         +{item.points} PTS
                       </Text>
 
@@ -220,17 +234,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
   modalSheet: {
-    backgroundColor: '#0b111e',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderTopWidth: 1,
-    borderColor: '#1e293b',
     paddingBottom: Platform.OS === 'android' ? 24 : 38
   },
   sheetHandle: {
     width: 38,
     height: 4,
-    backgroundColor: '#334155',
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 10,
@@ -242,8 +253,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 18,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e293b'
+    borderBottomWidth: 1
   },
   headerLeft: {
     flexDirection: 'row',
@@ -259,8 +269,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 16,
-    fontWeight: '900',
-    color: '#ffffff'
+    fontWeight: '900'
   },
   modalSubtitle: {
     fontSize: 11,
@@ -272,7 +281,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 9,
-    backgroundColor: '#1e293b',
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -282,7 +290,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 12,
-    color: '#64748b',
     marginTop: 8
   },
   content: {
@@ -297,12 +304,10 @@ const styles = StyleSheet.create({
   },
   dayCard: {
     width: '31%',
-    backgroundColor: '#0f172a',
     borderRadius: 14,
     padding: 10,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1e293b'
+    borderWidth: 1
   },
   dayCard7: {
     width: '100%',
@@ -336,11 +341,10 @@ const styles = StyleSheet.create({
   },
   pointsVal: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#ffffff'
+    fontWeight: '800'
   },
   pointsValToday: {
-    color: '#fbbf24'
+    color: '#f59e0b'
   },
   claimedSub: {
     fontSize: 9,
@@ -356,7 +360,7 @@ const styles = StyleSheet.create({
   },
   lockSub: {
     fontSize: 9,
-    color: '#475569',
+    color: '#64748b',
     marginTop: 2
   },
   claimActionBtn: {
@@ -386,7 +390,7 @@ const styles = StyleSheet.create({
   },
   claimedBannerText: {
     fontSize: 11,
-    color: '#6ee7b7',
+    color: '#10b981',
     fontWeight: '700',
     textAlign: 'center',
     flex: 1

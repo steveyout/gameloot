@@ -10,13 +10,16 @@ const STREAK_REWARDS = [
   { day: 7, points: 300, tickets: 5, label: 'Day 7 MEGA LOOT' }
 ];
 
+// Authentic Casino Probability Model: High chance of "Try Again", very hard to hit Jackpot (< 0.2%)
 const WHEEL_SEGMENTS = [
-  { id: 0, label: '15 PTS', points: 15, tickets: 0, weight: 35, color: '#06b6d4' },
-  { id: 1, label: '30 PTS', points: 30, tickets: 0, weight: 25, color: '#3b82f6' },
-  { id: 2, label: '50 PTS', points: 50, tickets: 1, weight: 18, color: '#8b5cf6' },
-  { id: 3, label: '100 PTS', points: 100, tickets: 2, weight: 12, color: '#ec4899' },
-  { id: 4, label: '200 PTS', points: 200, tickets: 3, weight: 6, color: '#f59e0b' },
-  { id: 5, label: '500 PTS JACKPOT', points: 500, tickets: 5, weight: 4, color: '#10b981' }
+  { id: 0, label: 'Try Again', points: 0, tickets: 0, weight: 45, color: '#64748b', isTryAgain: true, isJackpot: false },
+  { id: 1, label: '5 PTS', points: 5, tickets: 0, weight: 35, color: '#06b6d4', isTryAgain: false, isJackpot: false },
+  { id: 2, label: '10 PTS', points: 10, tickets: 0, weight: 20, color: '#3b82f6', isTryAgain: false, isJackpot: false },
+  { id: 3, label: 'Try Again', points: 0, tickets: 0, weight: 40, color: '#475569', isTryAgain: true, isJackpot: false },
+  { id: 4, label: '25 PTS', points: 25, tickets: 1, weight: 10, color: '#8b5cf6', isTryAgain: false, isJackpot: false },
+  { id: 5, label: '50 PTS', points: 50, tickets: 1, weight: 4, color: '#ec4899', isTryAgain: false, isJackpot: false },
+  { id: 6, label: '100 PTS', points: 100, tickets: 2, weight: 1.5, color: '#f59e0b', isTryAgain: false, isJackpot: false },
+  { id: 7, label: '500 PTS JACKPOT 👑', points: 500, tickets: 5, weight: 0.2, color: '#10b981', isTryAgain: false, isJackpot: true }
 ];
 
 function getTodayString() {
@@ -210,31 +213,39 @@ async function spinLuckyWheel(req, res) {
     }
 
     const user = await User.findByPk(userId);
-    user.points_balance += selectedSegment.points;
-    user.total_earned += selectedSegment.points;
-    if (selectedSegment.tickets > 0) {
-      user.tickets_balance = (user.tickets_balance || 0) + selectedSegment.tickets;
-    }
-    await user.save();
 
-    await PointTransaction.create({
-      user_id: user.id,
-      type: 'wheel_bonus',
-      amount: selectedSegment.points,
-      balance_after: user.points_balance,
-      description: `Lucky Wheel Spin: ${selectedSegment.label}`
-    });
+    // Only credit points if segment is greater than 0
+    if (selectedSegment.points > 0) {
+      user.points_balance += selectedSegment.points;
+      user.total_earned += selectedSegment.points;
+      if (selectedSegment.tickets > 0) {
+        user.tickets_balance = (user.tickets_balance || 0) + selectedSegment.tickets;
+      }
+      await user.save();
+
+      await PointTransaction.create({
+        user_id: user.id,
+        type: 'wheel_bonus',
+        amount: selectedSegment.points,
+        balance_after: user.points_balance,
+        description: `Lucky Wheel Spin: ${selectedSegment.label}`
+      });
+    }
 
     engagement.last_wheel_spin = now;
     engagement.total_spins = (engagement.total_spins || 0) + 1;
     await engagement.save();
 
+    const winMessage = selectedSegment.points > 0
+      ? (selectedSegment.isJackpot ? `👑 INCREDIBLE! You hit the 500 PTS JACKPOT!` : `You won ${selectedSegment.label}!`)
+      : 'Landed on Try Again! Better luck on your next free spin.';
+
     return res.json({
       success: true,
-      message: `You won ${selectedSegment.label}!`,
+      message: winMessage,
       won_segment: selectedSegment,
       new_balance: user.points_balance,
-      new_tickets: user.tickets_balance
+      new_tickets: user.tickets_balance || 0
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to spin wheel', error: err.message });

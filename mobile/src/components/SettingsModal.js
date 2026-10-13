@@ -20,6 +20,7 @@ import {
   Vibrate,
   Bell,
   Moon,
+  Sun,
   Wifi,
   Trash2,
   RefreshCw,
@@ -34,6 +35,7 @@ import {
   Lock
 } from 'lucide-react-native';
 import { setSoundEnabled as configureSound } from '../services/soundEffects';
+import { useTheme } from '../context/ThemeContext';
 
 export default function SettingsModal({
   visible,
@@ -45,13 +47,15 @@ export default function SettingsModal({
   updateInfo,
   onShowAlert
 }) {
+  const { theme, isDark, setTheme, colors } = useTheme();
+
   // Preferences State
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
   const [pushEnabled, setPushEnabled] = useState(true);
   const [amoledMode, setAmoledMode] = useState(false);
   const [dataSaver, setDataSaver] = useState(false);
-  const [currency, setCurrency] = useState('USD'); // USD, EUR, GBP
+  const [currency, setCurrency] = useState('USD');
   const [cacheSize, setCacheSize] = useState('14.2 MB');
 
   useEffect(() => {
@@ -158,32 +162,75 @@ export default function SettingsModal({
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
-        <View style={styles.modalSheet}>
+        {/* Click outside to close drawer */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View style={[styles.modalSheet, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
           <View style={styles.sheetHandle} />
 
           {/* Header */}
-          <View style={styles.modalHeader}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
             <View style={styles.modalTitleRow}>
               <View style={styles.titleIconBadge}>
-                <Settings size={20} color="#06b6d4" />
+                <Settings size={20} color={colors.primary} />
               </View>
               <View>
-                <Text style={styles.modalTitle}>App Settings</Text>
-                <Text style={styles.modalSubtitle}>Preferences & Account Controls</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>App Settings</Text>
+                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Preferences & Account Controls</Text>
               </View>
             </View>
 
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-              <X size={18} color="#94a3b8" />
+            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: colors.surfaceSubtle }]} onPress={onClose} activeOpacity={0.7}>
+              <X size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.settingsScroll} contentContainerStyle={styles.scrollContent}>
+            {/* Theme & Appearance Switcher */}
+            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Theme & Appearance</Text>
+              <View style={styles.themeRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.themeOptionBtn,
+                    isDark && styles.themeOptionBtnActive,
+                    { borderColor: isDark ? colors.primary : colors.border, backgroundColor: colors.surfaceSubtle }
+                  ]}
+                  onPress={() => setTheme('dark')}
+                  activeOpacity={0.7}
+                >
+                  <Moon size={16} color={isDark ? colors.primary : colors.textSecondary} />
+                  <Text style={[styles.themeOptionText, { color: isDark ? colors.primary : colors.textSecondary }]}>
+                    Dark Mode
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.themeOptionBtn,
+                    !isDark && styles.themeOptionBtnActive,
+                    { borderColor: !isDark ? colors.primary : colors.border, backgroundColor: colors.surfaceSubtle }
+                  ]}
+                  onPress={() => setTheme('light')}
+                  activeOpacity={0.7}
+                >
+                  <Sun size={16} color={!isDark ? '#f59e0b' : colors.textSecondary} />
+                  <Text style={[styles.themeOptionText, { color: !isDark ? '#d97706' : colors.textSecondary }]}>
+                    Light Mode
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* Player Identity Card */}
             {user ? (
               <LinearGradient
-                colors={['#1e293b', '#0f172a']}
-                style={styles.profileCard}
+                colors={isDark ? ['#1e293b', '#0f172a'] : ['#e2e8f0', '#f8fafc']}
+                style={[styles.profileCard, { borderColor: colors.borderStrong }]}
               >
                 <View style={styles.profileRow}>
                   <View style={styles.avatarBadge}>
@@ -192,8 +239,8 @@ export default function SettingsModal({
                     </Text>
                   </View>
                   <View style={styles.profileInfo}>
-                    <Text style={styles.profileUsername}>{user.username}</Text>
-                    <Text style={styles.profileEmail}>{user.email || 'player@gameloot.com'}</Text>
+                    <Text style={[styles.profileUsername, { color: colors.text }]}>{user.username}</Text>
+                    <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{user.email || 'player@gameloot.com'}</Text>
                     <View style={styles.vipTag}>
                       <Sparkles size={11} color="#fbbf24" />
                       <Text style={styles.vipText}>Player ID #{user.id} • VIP Rank 1</Text>
@@ -202,7 +249,7 @@ export default function SettingsModal({
                 </View>
 
                 {/* Referral Code Share Row */}
-                <View style={styles.referralBox}>
+                <View style={[styles.referralBox, { borderTopColor: colors.border }]}>
                   <View>
                     <Text style={styles.referralLabel}>YOUR INVITE CODE</Text>
                     <Text style={styles.referralCode}>{referralCode}</Text>
@@ -212,7 +259,7 @@ export default function SettingsModal({
                     onPress={handleShareReferral}
                     activeOpacity={0.8}
                   >
-                    <Share2 size={13} color="#090d16" style={{ marginRight: 4 }} />
+                    <Share2 size={13} color="#ffffff" style={{ marginRight: 4 }} />
                     <Text style={styles.shareBtnText}>Share & Earn +100</Text>
                   </TouchableOpacity>
                 </View>
@@ -220,17 +267,25 @@ export default function SettingsModal({
             ) : null}
 
             {/* Display Currency */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Display Currency</Text>
+            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Display Currency</Text>
               <View style={styles.currencyRow}>
                 {['USD', 'EUR', 'GBP'].map((c) => (
                   <TouchableOpacity
                     key={c}
-                    style={[styles.currencyBtn, currency === c && styles.currencyBtnActive]}
+                    style={[
+                      styles.currencyBtn,
+                      currency === c && styles.currencyBtnActive,
+                      { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }
+                    ]}
                     onPress={() => handleSelectCurrency(c)}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.currencyBtnText, currency === c && styles.currencyBtnTextActive]}>
+                    <Text style={[
+                      styles.currencyBtnText,
+                      currency === c && styles.currencyBtnTextActive,
+                      { color: currency === c ? colors.primary : colors.textSecondary }
+                    ]}>
                       {c === 'USD' ? '$ USD' : c === 'EUR' ? '€ EUR' : '£ GBP'}
                     </Text>
                   </TouchableOpacity>
@@ -239,31 +294,31 @@ export default function SettingsModal({
             </View>
 
             {/* Experience & Audio */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Experience & Audio</Text>
+            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Experience & Audio</Text>
 
-              <View style={styles.settingRow}>
+              <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
                 <View style={styles.settingLeft}>
-                  <Volume2 size={18} color="#06b6d4" />
+                  <Volume2 size={18} color={colors.primary} />
                   <View style={styles.settingTextWrap}>
-                    <Text style={styles.settingLabel}>In-Game Audio Effects</Text>
-                    <Text style={styles.settingSub}>Sound fx on clicks, wheel spins & loot drops</Text>
+                    <Text style={[styles.settingLabel, { color: colors.text }]}>In-Game Audio Effects</Text>
+                    <Text style={[styles.settingSub, { color: colors.textSecondary }]}>Sound fx on clicks, wheel spins & loot drops</Text>
                   </View>
                 </View>
                 <Switch
                   value={soundEnabled}
                   onValueChange={handleToggleSound}
-                  trackColor={{ false: '#334155', true: '#06b6d4' }}
+                  trackColor={{ false: '#334155', true: colors.primary }}
                   thumbColor="#ffffff"
                 />
               </View>
 
-              <View style={styles.settingRow}>
+              <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
                 <View style={styles.settingLeft}>
                   <Vibrate size={18} color="#8b5cf6" />
                   <View style={styles.settingTextWrap}>
-                    <Text style={styles.settingLabel}>Haptic Feedback</Text>
-                    <Text style={styles.settingSub}>Tactile phone vibrations on rewards</Text>
+                    <Text style={[styles.settingLabel, { color: colors.text }]}>Haptic Feedback</Text>
+                    <Text style={[styles.settingSub, { color: colors.textSecondary }]}>Tactile phone vibrations on rewards</Text>
                   </View>
                 </View>
                 <Switch
@@ -278,8 +333,8 @@ export default function SettingsModal({
                 <View style={styles.settingLeft}>
                   <Bell size={18} color="#f59e0b" />
                   <View style={styles.settingTextWrap}>
-                    <Text style={styles.settingLabel}>Bonus Drop Notifications</Text>
-                    <Text style={styles.settingSub}>Alerts when flash points drops become available</Text>
+                    <Text style={[styles.settingLabel, { color: colors.text }]}>Bonus Drop Notifications</Text>
+                    <Text style={[styles.settingSub, { color: colors.textSecondary }]}>Alerts when flash points drops become available</Text>
                   </View>
                 </View>
                 <Switch
@@ -292,15 +347,15 @@ export default function SettingsModal({
             </View>
 
             {/* Performance & Display */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Performance & Display</Text>
+            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Performance & Display</Text>
 
-              <View style={styles.settingRow}>
+              <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
                 <View style={styles.settingLeft}>
-                  <Moon size={18} color="#cbd5e1" />
+                  <Moon size={18} color={colors.textSecondary} />
                   <View style={styles.settingTextWrap}>
-                    <Text style={styles.settingLabel}>AMOLED Pure Black</Text>
-                    <Text style={styles.settingSub}>Saves battery on OLED phone displays</Text>
+                    <Text style={[styles.settingLabel, { color: colors.text }]}>AMOLED Pure Black</Text>
+                    <Text style={[styles.settingSub, { color: colors.textSecondary }]}>Saves battery on OLED phone displays</Text>
                   </View>
                 </View>
                 <Switch
@@ -315,8 +370,8 @@ export default function SettingsModal({
                 <View style={styles.settingLeft}>
                   <Wifi size={18} color="#10b981" />
                   <View style={styles.settingTextWrap}>
-                    <Text style={styles.settingLabel}>Data Saver Mode</Text>
-                    <Text style={styles.settingSub}>Compress game assets for lower data usage</Text>
+                    <Text style={[styles.settingLabel, { color: colors.text }]}>Data Saver Mode</Text>
+                    <Text style={[styles.settingSub, { color: colors.textSecondary }]}>Compress game assets for lower data usage</Text>
                   </View>
                 </View>
                 <Switch
@@ -329,32 +384,32 @@ export default function SettingsModal({
             </View>
 
             {/* Storage & Maintenance */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Storage & App Integrity</Text>
+            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Storage & App Integrity</Text>
 
-              <View style={styles.actionItemRow}>
+              <View style={[styles.actionItemRow, { borderBottomColor: colors.border }]}>
                 <View style={styles.actionItemLeft}>
-                  <Trash2 size={16} color="#94a3b8" />
+                  <Trash2 size={16} color={colors.textSecondary} />
                   <View>
-                    <Text style={styles.actionItemTitle}>Cached Assets</Text>
-                    <Text style={styles.actionItemSub}>{cacheSize} temporary game data</Text>
+                    <Text style={[styles.actionItemTitle, { color: colors.text }]}>Cached Assets</Text>
+                    <Text style={[styles.actionItemSub, { color: colors.textSecondary }]}>{cacheSize} temporary game data</Text>
                   </View>
                 </View>
                 <TouchableOpacity
-                  style={styles.clearBtn}
+                  style={[styles.clearBtn, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}
                   onPress={handleClearCache}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.clearBtnText}>Clear Cache</Text>
+                  <Text style={[styles.clearBtnText, { color: colors.text }]}>Clear Cache</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={[styles.actionItemRow, { borderBottomWidth: 0 }]}>
                 <View style={styles.actionItemLeft}>
-                  <RefreshCw size={16} color="#06b6d4" />
+                  <RefreshCw size={16} color={colors.primary} />
                   <View>
-                    <Text style={styles.actionItemTitle}>Version Guard</Text>
-                    <Text style={styles.actionItemSub}>
+                    <Text style={[styles.actionItemTitle, { color: colors.text }]}>Version Guard</Text>
+                    <Text style={[styles.actionItemSub, { color: colors.textSecondary }]}>
                       Installed v{updateInfo?.client_version || '1.0.0'}
                     </Text>
                   </View>
@@ -373,18 +428,18 @@ export default function SettingsModal({
             </View>
 
             {/* Trust, Fair Play & Transparency */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Trust & Fair Play Transparency</Text>
+            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Trust & Fair Play Transparency</Text>
               <View style={styles.complianceRow}>
                 <ShieldCheck size={18} color="#10b981" />
-                <Text style={styles.complianceText}>
+                <Text style={[styles.complianceText, { color: colors.textSecondary }]}>
                   GameLoot is an ad-funded rewards platform. Points represent loyalty rewards from advertising revenue share. Instant approval queues and transparent payout minimums.
                 </Text>
               </View>
             </View>
 
             {/* Account Danger Zone */}
-            <View style={styles.sectionCard}>
+            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TouchableOpacity
                 style={styles.logoutBtn}
                 onPress={() => {
@@ -423,7 +478,7 @@ const styles = StyleSheet.create({
   sheetHandle: {
     width: 38,
     height: 4,
-    backgroundColor: '#334155',
+    backgroundColor: '#64748b',
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 10,
@@ -477,6 +532,34 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     gap: 14
+  },
+  themeRow: {
+    flexDirection: 'row',
+    gap: 10
+  },
+  themeOptionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    backgroundColor: '#1e293b',
+    borderColor: '#334155'
+  },
+  themeOptionBtnActive: {
+    borderColor: '#06b6d4',
+    backgroundColor: 'rgba(6, 182, 212, 0.12)'
+  },
+  themeOptionText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#94a3b8'
+  },
+  themeOptionTextActive: {
+    color: '#06b6d4'
   },
   profileCard: {
     borderRadius: 18,
@@ -556,7 +639,7 @@ const styles = StyleSheet.create({
   shareBtnText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#090d16'
+    color: '#ffffff'
   },
   sectionCard: {
     backgroundColor: '#0f172a',

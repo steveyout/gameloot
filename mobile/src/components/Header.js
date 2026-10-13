@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gamepad2, Sparkles, RefreshCw, LogOut, ShieldCheck, Bell, Settings } from 'lucide-react-native';
+import { Gamepad2, Sparkles, RefreshCw, LogOut, ShieldCheck, Bell, Settings, Sun, Moon } from 'lucide-react-native';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Header({
   user,
@@ -13,6 +14,7 @@ export default function Header({
   isCheckingUpdate,
   onLogout
 }) {
+  const { isDark, toggleTheme, colors } = useTheme();
   const usdValue = (pointsBalance * 0.001).toFixed(3);
   const balanceScale = useRef(new Animated.Value(1)).current;
   const prevBalanceRef = useRef(pointsBalance);
@@ -20,7 +22,6 @@ export default function Header({
   useEffect(() => {
     if (prevBalanceRef.current !== pointsBalance) {
       prevBalanceRef.current = pointsBalance;
-      // Trigger a satisfying pulse bounce when balance increases/changes
       Animated.sequence([
         Animated.timing(balanceScale, {
           toValue: 1.14,
@@ -38,7 +39,7 @@ export default function Header({
   }, [pointsBalance]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
       {/* Brand logo & App title */}
       <View style={styles.brandRow}>
         <LinearGradient
@@ -50,39 +51,53 @@ export default function Header({
           <Gamepad2 size={20} color="#ffffff" />
         </LinearGradient>
         <View>
-          <Text style={styles.brandTitle}>GameLoot</Text>
+          <Text style={[styles.brandTitle, { color: colors.text }]}>GameLoot</Text>
           <View style={styles.verifiedRow}>
-            <ShieldCheck size={11} color="#06b6d4" />
-            <Text style={styles.brandSubtitle}>Verified Gaming Hub</Text>
+            <ShieldCheck size={11} color={colors.primary} />
+            <Text style={[styles.brandSubtitle, { color: colors.textSecondary }]}>Verified Gaming Hub</Text>
           </View>
         </View>
       </View>
 
-      {/* Right side: Points balance badge + Notifications Bell + Settings + Logout */}
+      {/* Right side: Points balance badge + Theme Switcher + Bell + Settings */}
       <View style={styles.rightActions}>
         {/* Animated Points & USD conversion badge */}
         <Animated.View style={{ transform: [{ scale: balanceScale }] }}>
           <LinearGradient
-            colors={['#1e293b', '#0f172a']}
-            style={styles.pointsBadge}
+            colors={isDark ? ['#1e293b', '#0f172a'] : ['#e2e8f0', '#f8fafc']}
+            style={[styles.pointsBadge, { borderColor: colors.borderStrong }]}
           >
             <Sparkles size={13} color="#f59e0b" style={{ marginRight: 5 }} />
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.pointsNumber}>{pointsBalance.toLocaleString()} PTS</Text>
-              <Text style={styles.usdText}>≈ ${usdValue} USD</Text>
+              <Text style={[styles.usdText, { color: colors.textSecondary }]}>≈ ${usdValue} USD</Text>
             </View>
           </LinearGradient>
         </Animated.View>
 
-        {/* In-App Notifications Bell with Animated Pulse Badge */}
+        {/* Instant Light/Dark Theme Switcher */}
         <TouchableOpacity
-          style={styles.iconButton}
+          style={[styles.iconButton, { backgroundColor: colors.surfaceSubtle }]}
+          onPress={toggleTheme}
+          activeOpacity={0.7}
+          accessibilityLabel="Toggle Theme"
+        >
+          {isDark ? (
+            <Sun size={15} color="#fbbf24" />
+          ) : (
+            <Moon size={15} color="#6366f1" />
+          )}
+        </TouchableOpacity>
+
+        {/* In-App Notifications Bell */}
+        <TouchableOpacity
+          style={[styles.iconButton, { backgroundColor: colors.surfaceSubtle }]}
           onPress={onOpenNotifications}
           activeOpacity={0.7}
         >
-          <Bell size={16} color="#06b6d4" />
+          <Bell size={15} color={colors.primary} />
           {unreadNotificationsCount > 0 && (
-            <View style={styles.badgeContainer}>
+            <View style={[styles.badgeContainer, { borderColor: colors.background }]}>
               <Text style={styles.badgeText}>
                 {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
               </Text>
@@ -92,31 +107,31 @@ export default function Header({
 
         {/* In-App Settings Gear */}
         <TouchableOpacity
-          style={styles.iconButton}
+          style={[styles.iconButton, { backgroundColor: colors.surfaceSubtle }]}
           onPress={onOpenSettings}
           activeOpacity={0.7}
         >
-          <Settings size={16} color="#cbd5e1" />
+          <Settings size={15} color={colors.textSecondary} />
         </TouchableOpacity>
 
         {/* Update Checker Button */}
         <TouchableOpacity
-          style={styles.iconButton}
+          style={[styles.iconButton, { backgroundColor: colors.surfaceSubtle }]}
           onPress={onCheckUpdate}
           activeOpacity={0.7}
           disabled={isCheckingUpdate}
         >
-          <RefreshCw size={14} color={isCheckingUpdate ? '#06b6d4' : '#64748b'} />
+          <RefreshCw size={13} color={isCheckingUpdate ? colors.primary : colors.textMuted} />
         </TouchableOpacity>
 
         {/* Logout */}
         {user ? (
           <TouchableOpacity
-            style={styles.iconButton}
+            style={[styles.iconButton, { backgroundColor: colors.surfaceSubtle }]}
             onPress={onLogout}
             activeOpacity={0.7}
           >
-            <LogOut size={14} color="#ef4444" />
+            <LogOut size={13} color="#ef4444" />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -174,12 +189,12 @@ const styles = StyleSheet.create({
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 5
   },
   pointsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 12,
     borderWidth: 1,
@@ -196,9 +211,9 @@ const styles = StyleSheet.create({
     fontWeight: '600'
   },
   iconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 9,
     backgroundColor: '#1e293b',
     justifyContent: 'center',
     alignItems: 'center'

@@ -11,9 +11,10 @@ import {
   Platform
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, X, Trophy, Disc, Clock, Coins, Star } from 'lucide-react-native';
+import { Sparkles, X, Trophy, Disc, Clock, Coins, Star, Frown } from 'lucide-react-native';
 import { getWheelStatus, spinLuckyWheel } from '../api/clientApi';
 import { playSound, triggerHaptic } from '../services/soundEffects';
+import { useTheme } from '../context/ThemeContext';
 
 export default function LuckyWheelModal({
   visible,
@@ -21,6 +22,7 @@ export default function LuckyWheelModal({
   onClose,
   onRewardWon
 }) {
+  const { theme, isDark } = useTheme();
   const [wheelData, setWheelData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [spinning, setSpinning] = useState(false);
@@ -103,8 +105,13 @@ export default function LuckyWheelModal({
           setWheelData((prev) => ({ ...prev, can_spin: false, seconds_remaining: 8 * 3600 }));
           setSpinning(false);
 
-          playSound('win');
-          triggerHaptic('success');
+          if (res.won_segment.isTryAgain || res.won_segment.points === 0) {
+            playSound('tap');
+            triggerHaptic('light');
+          } else {
+            playSound('win');
+            triggerHaptic('success');
+          }
 
           Animated.spring(prizeScaleAnim, {
             toValue: 1,
@@ -115,7 +122,7 @@ export default function LuckyWheelModal({
 
           if (onRewardWon) {
             onRewardWon({
-              points: res.won_segment.points,
+              points: res.won_segment.points || 0,
               newBalance: res.new_balance,
               label: res.won_segment.label
             });
@@ -154,11 +161,24 @@ export default function LuckyWheelModal({
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
-        <View style={styles.modalSheet}>
-          <View style={styles.sheetHandle} />
+        {/* Tap outside sheet to dismiss */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View style={[
+          styles.modalSheet,
+          {
+            backgroundColor: theme.card,
+            borderColor: theme.border
+          }
+        ]}>
+          <View style={[styles.sheetHandle, { backgroundColor: isDark ? '#334155' : '#cbd5e1' }]} />
 
           {/* Header */}
-          <View style={styles.modalHeader}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
             <View style={styles.headerLeft}>
               <LinearGradient
                 colors={['#8b5cf6', '#6366f1']}
@@ -167,20 +187,24 @@ export default function LuckyWheelModal({
                 <Disc size={20} color="#ffffff" />
               </LinearGradient>
               <View>
-                <Text style={styles.modalTitle}>Daily Lucky Wheel</Text>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Daily Lucky Wheel</Text>
                 <Text style={styles.modalSubtitle}>Spin & Win up to 500 PTS Jackpot!</Text>
               </View>
             </View>
 
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-              <X size={18} color="#94a3b8" />
+            <TouchableOpacity
+              style={[styles.closeBtn, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}
+              onPress={onClose}
+              activeOpacity={0.7}
+            >
+              <X size={18} color={theme.subtext} />
             </TouchableOpacity>
           </View>
 
           {loading ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator size="small" color="#8b5cf6" />
-              <Text style={styles.loadingText}>Loading wheel rewards...</Text>
+              <Text style={[styles.loadingText, { color: theme.subtext }]}>Loading wheel rewards...</Text>
             </View>
           ) : (
             <View style={styles.content}>
@@ -197,7 +221,7 @@ export default function LuckyWheelModal({
                   <View style={styles.needlePin} />
                 </Animated.View>
 
-                {/* Animated Rotating Disc with Carnival Pegs */}
+                {/* Animated Rotating Disc with 8 Carnival Segments */}
                 <Animated.View
                   style={[
                     styles.wheelDisc,
@@ -208,18 +232,44 @@ export default function LuckyWheelModal({
                     colors={['#1e1b4b', '#312e81', '#1e1b4b']}
                     style={styles.wheelDiscGradient}
                   >
-                    {/* Visual Segment Labels */}
-                    <View style={[styles.segmentLabel, { top: 22 }]}>
+                    {/* Segment 1 (Top): Jackpot 500 */}
+                    <View style={[styles.segmentLabel, { top: 18 }]}>
                       <Text style={styles.segTextGold}>500 PTS 👑</Text>
                     </View>
-                    <View style={[styles.segmentLabel, { bottom: 22 }]}>
-                      <Text style={styles.segText}>15 PTS</Text>
+
+                    {/* Segment 2 (Top Right): 5 PTS */}
+                    <View style={[styles.segmentLabel, { top: 40, right: 28 }]}>
+                      <Text style={styles.segText}>5 PTS</Text>
                     </View>
-                    <View style={[styles.segmentLabel, { right: 22 }]}>
-                      <Text style={styles.segText}>100 PTS</Text>
+
+                    {/* Segment 3 (Right): Try Again */}
+                    <View style={[styles.segmentLabel, { right: 14 }]}>
+                      <Text style={styles.segTextTry}>TRY AGAIN</Text>
                     </View>
-                    <View style={[styles.segmentLabel, { left: 22 }]}>
+
+                    {/* Segment 4 (Bottom Right): 10 PTS */}
+                    <View style={[styles.segmentLabel, { bottom: 40, right: 28 }]}>
+                      <Text style={styles.segText}>10 PTS</Text>
+                    </View>
+
+                    {/* Segment 5 (Bottom): 25 PTS */}
+                    <View style={[styles.segmentLabel, { bottom: 18 }]}>
+                      <Text style={styles.segText}>25 PTS</Text>
+                    </View>
+
+                    {/* Segment 6 (Bottom Left): Try Again */}
+                    <View style={[styles.segmentLabel, { bottom: 40, left: 24 }]}>
+                      <Text style={styles.segTextTry}>TRY AGAIN</Text>
+                    </View>
+
+                    {/* Segment 7 (Left): 50 PTS */}
+                    <View style={[styles.segmentLabel, { left: 16 }]}>
                       <Text style={styles.segText}>50 PTS</Text>
+                    </View>
+
+                    {/* Segment 8 (Top Left): 100 PTS */}
+                    <View style={[styles.segmentLabel, { top: 40, left: 24 }]}>
+                      <Text style={styles.segText}>100 PTS</Text>
                     </View>
 
                     {/* Perimeter Carnival Pegs */}
@@ -246,14 +296,37 @@ export default function LuckyWheelModal({
                 </Animated.View>
               </View>
 
-              {/* Prize Announcement if Won */}
+              {/* Prize / Try Again Announcement */}
               {wonPrize && (
-                <Animated.View style={[styles.wonBanner, { transform: [{ scale: prizeScaleAnim }] }]}>
-                  <Trophy size={20} color="#fbbf24" style={{ marginRight: 8 }} />
-                  <View>
-                    <Text style={styles.wonBannerTitle}>🎉 JACKPOT WINNER!</Text>
-                    <Text style={styles.wonBannerText}>
-                      Won {wonPrize.label} (+{wonPrize.points} PTS)
+                <Animated.View
+                  style={[
+                    styles.wonBanner,
+                    (wonPrize.isTryAgain || wonPrize.points === 0) ? styles.tryAgainBanner : null,
+                    wonPrize.isJackpot ? styles.jackpotBanner : null,
+                    { transform: [{ scale: prizeScaleAnim }] }
+                  ]}
+                >
+                  {(wonPrize.isTryAgain || wonPrize.points === 0) ? (
+                    <Frown size={22} color="#94a3b8" style={{ marginRight: 10 }} />
+                  ) : (
+                    <Trophy size={22} color="#fbbf24" style={{ marginRight: 10 }} />
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[
+                      styles.wonBannerTitle,
+                      (wonPrize.isTryAgain || wonPrize.points === 0) && { color: '#94a3b8' },
+                      wonPrize.isJackpot && { color: '#f59e0b', fontSize: 13 }
+                    ]}>
+                      {wonPrize.isJackpot
+                        ? '👑 MEGA JACKPOT HIT!'
+                        : (wonPrize.isTryAgain || wonPrize.points === 0)
+                        ? '💔 TRY AGAIN NEXT TIME'
+                        : '🎉 REWARD WON!'}
+                    </Text>
+                    <Text style={[styles.wonBannerText, (wonPrize.isTryAgain || wonPrize.points === 0) && { color: '#cbd5e1' }]}>
+                      {(wonPrize.isTryAgain || wonPrize.points === 0)
+                        ? 'Better luck on your next free spin!'
+                        : `Won ${wonPrize.label} (+${wonPrize.points} PTS)`}
                     </Text>
                   </View>
                 </Animated.View>
@@ -278,9 +351,9 @@ export default function LuckyWheelModal({
                   </LinearGradient>
                 </TouchableOpacity>
               ) : (
-                <View style={styles.cooldownBanner}>
-                  <Clock size={16} color="#94a3b8" style={{ marginRight: 6 }} />
-                  <Text style={styles.cooldownText}>
+                <View style={[styles.cooldownBanner, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderColor: theme.border }]}>
+                  <Clock size={16} color={theme.subtext} style={{ marginRight: 6 }} />
+                  <Text style={[styles.cooldownText, { color: theme.subtext }]}>
                     Next free spin in {hoursLeft}h {minsLeft}m
                   </Text>
                 </View>
@@ -300,17 +373,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
   modalSheet: {
-    backgroundColor: '#0b111e',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderTopWidth: 1,
-    borderColor: '#1e293b',
     paddingBottom: Platform.OS === 'android' ? 24 : 38
   },
   sheetHandle: {
     width: 38,
     height: 4,
-    backgroundColor: '#334155',
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 10,
@@ -322,8 +392,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 18,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e293b'
+    borderBottomWidth: 1
   },
   headerLeft: {
     flexDirection: 'row',
@@ -339,12 +408,11 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 16,
-    fontWeight: '900',
-    color: '#ffffff'
+    fontWeight: '900'
   },
   modalSubtitle: {
     fontSize: 11,
-    color: '#a5b4fc',
+    color: '#8b5cf6',
     fontWeight: '700',
     marginTop: 1
   },
@@ -352,7 +420,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 9,
-    backgroundColor: '#1e293b',
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -362,7 +429,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 12,
-    color: '#64748b',
     marginTop: 8
   },
   content: {
@@ -431,19 +497,25 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   segText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
     color: '#e2e8f0'
   },
   segTextGold: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
     color: '#fbbf24'
   },
+  segTextTry: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#94a3b8',
+    letterSpacing: -0.2
+  },
   wheelCenterHub: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#090d16',
     borderWidth: 3.5,
     borderColor: '#fbbf24',
@@ -455,12 +527,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(245, 158, 11, 0.2)',
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#f59e0b',
-    marginBottom: 16
+    marginBottom: 16,
+    width: '100%'
+  },
+  tryAgainBanner: {
+    backgroundColor: 'rgba(100, 116, 139, 0.2)',
+    borderColor: '#64748b'
+  },
+  jackpotBanner: {
+    backgroundColor: 'rgba(234, 179, 8, 0.25)',
+    borderColor: '#eab308'
   },
   wonBannerTitle: {
     color: '#fbbf24',
@@ -470,7 +551,7 @@ const styles = StyleSheet.create({
   },
   wonBannerText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     marginTop: 2
   },
@@ -495,16 +576,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1e293b',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
     width: '100%'
   },
   cooldownText: {
-    color: '#94a3b8',
     fontSize: 12,
     fontWeight: '700'
   }

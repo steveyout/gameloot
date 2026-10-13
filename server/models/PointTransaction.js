@@ -12,8 +12,9 @@ const PointTransaction = sequelize.define('PointTransaction', {
     allowNull: false
   },
   type: {
-    type: DataTypes.ENUM('game_reward', 'daily_bonus', 'referral', 'redemption', 'admin_adjustment'),
-    allowNull: false
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    comment: 'game_reward, daily_bonus, wheel_bonus, streak_bonus, bonus_reward, redemption, admin_adjustment, ad_reward'
   },
   amount: {
     type: DataTypes.INTEGER,

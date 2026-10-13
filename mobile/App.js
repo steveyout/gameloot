@@ -9,6 +9,7 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { useAppUpdate } from './src/hooks/useAppUpdate';
 import { userLogin, getNotifications } from './src/api/clientApi';
 import { SOCKET_URL } from './src/api/config';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
 // Components
 import Header from './src/components/Header';
@@ -34,7 +35,8 @@ import EarnHubScreen from './src/screens/EarnHubScreen';
 import RewardsScreen from './src/screens/RewardsScreen';
 import WalletScreen from './src/screens/WalletScreen';
 
-export default function App() {
+function MainApp() {
+  const { theme, isDark } = useTheme();
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [activeTab, setActiveTab] = useState('lobby');
@@ -76,7 +78,6 @@ export default function App() {
 
   // Android Immersive Sticky Mode:
   // Hides bottom system navigation bar buttons so they don't obstruct or hinder the app navbar.
-  // Accessible only by swiping up from the bottom edge, and automatically re-hides after interaction.
   useEffect(() => {
     if (Platform.OS === 'android') {
       const configureStickyImmersiveNav = async () => {
@@ -88,10 +89,10 @@ export default function App() {
             await NavigationBar.setBehaviorAsync('overlay-swipe');
           }
           if (NavigationBar?.setBackgroundColorAsync) {
-            await NavigationBar.setBackgroundColorAsync('#090d16');
+            await NavigationBar.setBackgroundColorAsync(theme.background || '#090d16');
           }
           if (NavigationBar?.setButtonStyleAsync) {
-            await NavigationBar.setButtonStyleAsync('light');
+            await NavigationBar.setButtonStyleAsync(isDark ? 'light' : 'dark');
           }
         } catch (e) {
           // Gracefully continue on unsupported environments
@@ -123,7 +124,7 @@ export default function App() {
         } catch (e) {}
       };
     }
-  }, []);
+  }, [theme.background, isDark]);
 
   // Smooth screen tab transition animation
   useEffect(() => {
@@ -242,13 +243,21 @@ export default function App() {
       setUser((prev) => ({ ...prev, points_balance: newBalance }));
     }
     const name = gameTitle || title || 'Task';
-    triggerCelebration(points, name);
-    showAlert(
-      `Earned from ${name}! Points added to balance.`,
-      'points',
-      'Reward Collected',
-      points
-    );
+    if (points > 0) {
+      triggerCelebration(points, name);
+      showAlert(
+        `Earned from ${name}! Points added to balance.`,
+        'points',
+        'Reward Collected',
+        points
+      );
+    } else {
+      showAlert(
+        'Loot box was empty! Better luck on your next drop.',
+        'info',
+        'Try Again'
+      );
+    }
   };
 
   const handleStreakClaimed = ({ points, newBalance, day }) => {
@@ -268,13 +277,21 @@ export default function App() {
     if (newBalance !== undefined && user) {
       setUser((prev) => ({ ...prev, points_balance: newBalance }));
     }
-    triggerCelebration(points, `Lucky Wheel: ${label}`);
-    showAlert(
-      `Jackpot! Won ${label} from Lucky Wheel!`,
-      'points',
-      'Lucky Wheel Bonus',
-      points
-    );
+    if (points > 0) {
+      triggerCelebration(points, `Lucky Wheel: ${label}`);
+      showAlert(
+        `Won ${label} (+${points} PTS) from Lucky Wheel!`,
+        'points',
+        'Lucky Wheel Bonus',
+        points
+      );
+    } else {
+      showAlert(
+        'Better luck on your next daily spin!',
+        'info',
+        'Try Again'
+      );
+    }
   };
 
   const handleNotificationBonusClaimed = ({ points, newBalance, title }) => {
@@ -302,211 +319,219 @@ export default function App() {
   };
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <ExpoStatusBar style="light" backgroundColor="#090d16" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'left', 'right']}>
+      <ExpoStatusBar style={isDark ? 'light' : 'dark'} backgroundColor={theme.background} />
 
-        {/* Non-blocking Optional Update Banner */}
-        <OptionalUpdateBanner
-          visible={showOptionalBanner}
-          latestVersion={updateInfo?.latest_version}
-          onUpdatePress={openUpdateUrl}
-          onDismiss={dismissOptionalBanner}
+      {/* Non-blocking Optional Update Banner */}
+      <OptionalUpdateBanner
+        visible={showOptionalBanner}
+        latestVersion={updateInfo?.latest_version}
+        onUpdatePress={openUpdateUrl}
+        onDismiss={dismissOptionalBanner}
+      />
+
+      {/* Floating Overlay In-App Alert (Never pushes the top navigation or content) */}
+      <AlertBanner alert={alert} onDismiss={() => setAlert(null)} />
+
+      {/* Points Celebration Particles Burst */}
+      <PointsCelebration
+        points={celebration.points}
+        title={celebration.title}
+        visible={celebration.visible}
+        onComplete={() => setCelebration({ visible: false, points: 0, title: '' })}
+      />
+
+      {/* Main View Container */}
+      {!user ? (
+        <AuthScreen
+          onAuthSuccess={handleAuthSuccess}
+          onErrorAlert={(msg) => showAlert(msg, 'error', 'Error')}
         />
-
-        {/* Floating Overlay In-App Alert (Never pushes the top navigation or content) */}
-        <AlertBanner alert={alert} onDismiss={() => setAlert(null)} />
-
-        {/* Points Celebration Particles Burst */}
-        <PointsCelebration
-          points={celebration.points}
-          title={celebration.title}
-          visible={celebration.visible}
-          onComplete={() => setCelebration({ visible: false, points: 0, title: '' })}
-        />
-
-        {/* Main View Container */}
-        {!user ? (
-          <AuthScreen
-            onAuthSuccess={handleAuthSuccess}
-            onErrorAlert={(msg) => showAlert(msg, 'error', 'Error')}
+      ) : (
+        <View style={styles.contentWrap}>
+          {/* Top Status Header with Bell & Settings icons */}
+          <Header
+            user={user}
+            pointsBalance={user.points_balance || 0}
+            unreadNotificationsCount={unreadNotificationsCount}
+            onOpenNotifications={() => setShowNotifications(true)}
+            onOpenSettings={() => setShowSettings(true)}
+            onCheckUpdate={handleManualUpdateCheck}
+            isCheckingUpdate={isCheckingUpdate}
+            onLogout={handleLogout}
           />
-        ) : (
-          <View style={styles.contentWrap}>
-            {/* Top Status Header with Bell & Settings icons */}
-            <Header
-              user={user}
-              pointsBalance={user.points_balance || 0}
-              unreadNotificationsCount={unreadNotificationsCount}
-              onOpenNotifications={() => setShowNotifications(true)}
-              onOpenSettings={() => setShowSettings(true)}
-              onCheckUpdate={handleManualUpdateCheck}
-              isCheckingUpdate={isCheckingUpdate}
-              onLogout={handleLogout}
-            />
 
-            {/* Active Screen Tab with smooth animated transition */}
-            <View style={styles.screenContainer}>
-              <Animated.View
-                style={[
-                  styles.animatedScreenWrap,
-                  {
-                    opacity: screenFade,
-                    transform: [
-                      { translateY: screenTranslateY },
-                      { scale: screenScale }
-                    ]
-                  }
-                ]}
-              >
-                {activeTab === 'lobby' && (
-                  <LobbyScreen
-                    onSelectGame={(g) => setActiveGame(g)}
-                    onOpenAdReward={() => setShowAdReward(true)}
-                    onOpenDailyStreak={() => setShowDailyStreak(true)}
-                    onOpenLuckyWheel={() => setShowLuckyWheel(true)}
-                    onCheckUpdate={handleManualUpdateCheck}
-                    isCheckingUpdate={isCheckingUpdate}
-                    updateInfo={updateInfo}
-                  />
-                )}
+          {/* Active Screen Tab with smooth animated transition */}
+          <View style={styles.screenContainer}>
+            <Animated.View
+              style={[
+                styles.animatedScreenWrap,
+                {
+                  opacity: screenFade,
+                  transform: [
+                    { translateY: screenTranslateY },
+                    { scale: screenScale }
+                  ]
+                }
+              ]}
+            >
+              {activeTab === 'lobby' && (
+                <LobbyScreen
+                  onSelectGame={(g) => setActiveGame(g)}
+                  onOpenAdReward={() => setShowAdReward(true)}
+                  onOpenDailyStreak={() => setShowDailyStreak(true)}
+                  onOpenLuckyWheel={() => setShowLuckyWheel(true)}
+                  onCheckUpdate={handleManualUpdateCheck}
+                  isCheckingUpdate={isCheckingUpdate}
+                  updateInfo={updateInfo}
+                />
+              )}
 
-                {activeTab === 'earn' && (
-                  <EarnHubScreen
-                    onSelectQuiz={(q) => setActiveQuiz(q)}
-                    onSelectSurf={(s) => setActiveSurf(s)}
-                    onSelectSurvey={(sur) => setActiveSurvey(sur)}
-                    onOpenAdReward={() => setShowAdReward(true)}
-                    onOpenDailyStreak={() => setShowDailyStreak(true)}
-                    onOpenLuckyWheel={() => setShowLuckyWheel(true)}
-                  />
-                )}
+              {activeTab === 'earn' && (
+                <EarnHubScreen
+                  onSelectQuiz={(q) => setActiveQuiz(q)}
+                  onSelectSurf={(s) => setActiveSurf(s)}
+                  onSelectSurvey={(sur) => setActiveSurvey(sur)}
+                  onOpenAdReward={() => setShowAdReward(true)}
+                  onOpenDailyStreak={() => setShowDailyStreak(true)}
+                  onOpenLuckyWheel={() => setShowLuckyWheel(true)}
+                />
+              )}
 
-                {activeTab === 'rewards' && (
-                  <RewardsScreen
-                    user={user}
-                    token={token}
-                    onRedemptionSuccess={handleRedemptionSuccess}
-                    onErrorAlert={(msg) => showAlert(msg, 'error', 'Cashout Notice')}
-                  />
-                )}
+              {activeTab === 'rewards' && (
+                <RewardsScreen
+                  user={user}
+                  token={token}
+                  onRedemptionSuccess={handleRedemptionSuccess}
+                  onErrorAlert={(msg) => showAlert(msg, 'error', 'Cashout Notice')}
+                />
+              )}
 
-                {activeTab === 'wallet' && (
-                  <WalletScreen
-                    user={user}
-                    token={token}
-                    onRefreshUser={(u) => setUser(u)}
-                    onCheckUpdate={handleManualUpdateCheck}
-                    isCheckingUpdate={isCheckingUpdate}
-                    updateInfo={updateInfo}
-                  />
-                )}
-              </Animated.View>
-            </View>
-
-            {/* Bottom Navigation Bar with tactile spring physics */}
-            <Navbar activeTab={activeTab} onTabSelect={setActiveTab} />
+              {activeTab === 'wallet' && (
+                <WalletScreen
+                  user={user}
+                  token={token}
+                  onRefreshUser={(u) => setUser(u)}
+                  onCheckUpdate={handleManualUpdateCheck}
+                  isCheckingUpdate={isCheckingUpdate}
+                  updateInfo={updateInfo}
+                />
+              )}
+            </Animated.View>
           </View>
-        )}
 
-        {/* HTML5 Game Player Container */}
-        <GamePlayerModal
-          visible={!!activeGame}
-          game={activeGame}
-          token={token}
-          onClose={() => setActiveGame(null)}
-          onRewardClaimed={handleRewardClaimed}
-        />
+          {/* Bottom Navigation Bar with tactile spring physics */}
+          <Navbar activeTab={activeTab} onTabSelect={setActiveTab} />
+        </View>
+      )}
 
-        {/* Quizzes & Trivia Modal */}
-        <QuizModal
-          visible={!!activeQuiz}
-          quiz={activeQuiz}
-          token={token}
-          onClose={() => setActiveQuiz(null)}
-          onRewardClaimed={handleRewardClaimed}
-        />
+      {/* HTML5 Game Player Container */}
+      <GamePlayerModal
+        visible={!!activeGame}
+        game={activeGame}
+        token={token}
+        onClose={() => setActiveGame(null)}
+        onRewardClaimed={handleRewardClaimed}
+      />
 
-        {/* Web Surf Modal */}
-        <SurfModal
-          visible={!!activeSurf}
-          task={activeSurf}
-          token={token}
-          onClose={() => setActiveSurf(null)}
-          onRewardClaimed={handleRewardClaimed}
-        />
+      {/* Quizzes & Trivia Modal */}
+      <QuizModal
+        visible={!!activeQuiz}
+        quiz={activeQuiz}
+        token={token}
+        onClose={() => setActiveQuiz(null)}
+        onRewardClaimed={handleRewardClaimed}
+      />
 
-        {/* Survey Modal */}
-        <SurveyModal
-          visible={!!activeSurvey}
-          survey={activeSurvey}
-          token={token}
-          onClose={() => setActiveSurvey(null)}
-          onRewardClaimed={handleRewardClaimed}
-        />
+      {/* Web Surf Modal */}
+      <SurfModal
+        visible={!!activeSurf}
+        task={activeSurf}
+        token={token}
+        onClose={() => setActiveSurf(null)}
+        onRewardClaimed={handleRewardClaimed}
+      />
 
-        {/* Google AdMob Rewarded Video Simulation */}
-        <AdRewardModal
-          visible={showAdReward}
-          token={token}
-          onClose={() => setShowAdReward(false)}
-          onRewardClaimed={handleRewardClaimed}
-        />
+      {/* Survey Modal */}
+      <SurveyModal
+        visible={!!activeSurvey}
+        survey={activeSurvey}
+        token={token}
+        onClose={() => setActiveSurvey(null)}
+        onRewardClaimed={handleRewardClaimed}
+      />
 
-        {/* In-App Notifications & Drops Center */}
-        <NotificationModal
-          visible={showNotifications}
-          token={token}
-          onClose={() => setShowNotifications(false)}
-          onBonusClaimed={handleNotificationBonusClaimed}
-          onNavigateTab={(tab) => {
-            setActiveTab(tab);
-            setShowNotifications(false);
-          }}
-          onUnreadChange={setUnreadNotificationsCount}
-        />
+      {/* Google AdMob Rewarded Video Simulation */}
+      <AdRewardModal
+        visible={showAdReward}
+        token={token}
+        onClose={() => setShowAdReward(false)}
+        onRewardClaimed={handleRewardClaimed}
+      />
 
-        {/* In-App Settings & Preferences Modal */}
-        <SettingsModal
-          visible={showSettings}
-          user={user}
-          onClose={() => setShowSettings(false)}
-          onLogout={handleLogout}
-          onCheckUpdate={handleManualUpdateCheck}
-          isCheckingUpdate={isCheckingUpdate}
-          updateInfo={updateInfo}
-          onShowAlert={showAlert}
-        />
+      {/* In-App Notifications & Drops Center */}
+      <NotificationModal
+        visible={showNotifications}
+        token={token}
+        onClose={() => setShowNotifications(false)}
+        onBonusClaimed={handleNotificationBonusClaimed}
+        onNavigateTab={(tab) => {
+          setActiveTab(tab);
+          setShowNotifications(false);
+        }}
+        onUnreadChange={setUnreadNotificationsCount}
+      />
 
-        {/* 7-Day Daily Streak Check-in Calendar */}
-        <DailyStreakModal
-          visible={showDailyStreak}
-          token={token}
-          onClose={() => setShowDailyStreak(false)}
-          onStreakClaimed={handleStreakClaimed}
-        />
+      {/* In-App Settings & Preferences Modal */}
+      <SettingsModal
+        visible={showSettings}
+        user={user}
+        onClose={() => setShowSettings(false)}
+        onLogout={handleLogout}
+        onCheckUpdate={handleManualUpdateCheck}
+        isCheckingUpdate={isCheckingUpdate}
+        updateInfo={updateInfo}
+        onShowAlert={showAlert}
+      />
 
-        {/* Daily Lucky Wheel / Spin to Win */}
-        <LuckyWheelModal
-          visible={showLuckyWheel}
-          token={token}
-          onClose={() => setShowLuckyWheel(false)}
-          onRewardWon={handleWheelWon}
-        />
+      {/* 7-Day Daily Streak Check-in Calendar */}
+      <DailyStreakModal
+        visible={showDailyStreak}
+        token={token}
+        onClose={() => setShowDailyStreak(false)}
+        onStreakClaimed={handleStreakClaimed}
+      />
 
-        {/* CRITICAL: Forced Update Screen (Non-Dismissible in Production) */}
-        <ForcedUpdateModal
-          visible={showForcedModal}
-          updateInfo={updateInfo}
-          onUpdatePress={openUpdateUrl}
-          onApkDownloadPress={openApkDownloadUrl}
-        />
+      {/* Daily Lucky Wheel / Spin to Win */}
+      <LuckyWheelModal
+        visible={showLuckyWheel}
+        token={token}
+        onClose={() => setShowLuckyWheel(false)}
+        onRewardWon={handleWheelWon}
+      />
 
-        {/* Animated Startup Splash Screen */}
-        {showSplash && (
-          <SplashScreen onFinish={() => setShowSplash(false)} />
-        )}
-      </SafeAreaView>
+      {/* CRITICAL: Forced Update Screen (Non-Dismissible in Production) */}
+      <ForcedUpdateModal
+        visible={showForcedModal}
+        updateInfo={updateInfo}
+        onUpdatePress={openUpdateUrl}
+        onApkDownloadPress={openApkDownloadUrl}
+      />
+
+      {/* Animated Startup Splash Screen */}
+      {showSplash && (
+        <SplashScreen onFinish={() => setShowSplash(false)} />
+      )}
+    </SafeAreaView>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <MainApp />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

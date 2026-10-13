@@ -103,12 +103,31 @@ async function getSurveys(req, res) {
 // Claim Quiz completion reward
 async function claimQuiz(req, res) {
   try {
-    const { quiz_id, score, total } = req.body;
+    const { quiz_id, answers, score, total } = req.body;
     const quiz = await Quiz.findByPk(quiz_id);
     if (!quiz) return res.status(404).json({ success: false, message: 'Quiz not found' });
 
     const user = await User.findByPk(req.user.userId);
-    const pointsAwarded = Math.round((score / total) * quiz.reward_points);
+    let finalScore = 0;
+    let finalTotal = 1;
+
+    if (score !== undefined && total !== undefined) {
+      finalScore = parseInt(score, 10) || 0;
+      finalTotal = Math.max(1, parseInt(total, 10) || 1);
+    } else if (answers && typeof answers === 'object') {
+      const questions = Array.isArray(quiz.questions_json)
+        ? quiz.questions_json
+        : (typeof quiz.questions_json === 'string' ? JSON.parse(quiz.questions_json) : []);
+      finalTotal = Math.max(1, questions.length);
+      questions.forEach((q, idx) => {
+        const correctIdx = q.correct_option !== undefined ? q.correct_option : 0;
+        if (answers[idx] !== undefined && parseInt(answers[idx], 10) === correctIdx) {
+          finalScore++;
+        }
+      });
+    }
+
+    const pointsAwarded = Math.max(1, Math.round((finalScore / finalTotal) * (quiz.reward_points || 15)));
 
     if (pointsAwarded > 0) {
       user.points_balance += pointsAwarded;
@@ -120,14 +139,21 @@ async function claimQuiz(req, res) {
         type: 'game_reward',
         amount: pointsAwarded,
         balance_after: user.points_balance,
-        description: `Quiz Trivia Reward: ${quiz.title} (${score}/${total} correct)`
+        description: `Quiz Trivia Reward: ${quiz.title} (${finalScore}/${finalTotal} correct)`
       });
 
       quiz.completion_count += 1;
       await quiz.save();
     }
 
-    return res.json({ success: true, points_earned: pointsAwarded, new_balance: user.points_balance });
+    return res.json({
+      success: true,
+      points_earned: pointsAwarded,
+      reward_earned: pointsAwarded,
+      score: finalScore,
+      total: finalTotal,
+      new_balance: user.points_balance
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to claim quiz', error: err.message });
   }
@@ -136,8 +162,10 @@ async function claimQuiz(req, res) {
 // Claim Surf task completion reward
 async function claimSurf(req, res) {
   try {
-    const { surf_task_id } = req.body;
-    const task = await SurfTask.findByPk(surf_task_id);
+    const taskId = req.body.surf_task_id || req.body.task_id;
+    if (!taskId) return res.status(400).json({ success: false, message: 'Task ID required' });
+
+    const task = await SurfTask.findByPk(taskId);
     if (!task) return res.status(404).json({ success: false, message: 'Surf task not found' });
 
     const user = await User.findByPk(req.user.userId);
@@ -156,7 +184,12 @@ async function claimSurf(req, res) {
     task.surf_count += 1;
     await task.save();
 
-    return res.json({ success: true, points_earned: task.reward_points, new_balance: user.points_balance });
+    return res.json({
+      success: true,
+      points_earned: task.reward_points,
+      reward_earned: task.reward_points,
+      new_balance: user.points_balance
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to claim surf task', error: err.message });
   }
@@ -185,7 +218,12 @@ async function claimSurvey(req, res) {
     survey.response_count += 1;
     await survey.save();
 
-    return res.json({ success: true, points_earned: survey.reward_points, new_balance: user.points_balance });
+    return res.json({
+      success: true,
+      points_earned: survey.reward_points,
+      reward_earned: survey.reward_points,
+      new_balance: user.points_balance
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to claim survey', error: err.message });
   }
@@ -223,6 +261,11 @@ async function startSession(req, res) {
     return res.json({
       success: true,
       session_token: sessionToken,
+      session: {
+        session_id: sessionToken,
+        session_token: sessionToken,
+        ping_interval_seconds: 45
+      },
       game: {
         id: game.id,
         title: game.title,
@@ -240,11 +283,11 @@ async function startSession(req, res) {
 // Session Heartbeat Ping
 async function pingSession(req, res) {
   try {
-    const { session_token } = req.body;
-    if (!session_token) return res.status(400).json({ success: false, message: 'session_token required' });
+    const sessionToken = req.body.session_token || req.body.session_id;
+    if (!sessionToken) return res.status(400).json({ success: false, message: 'session_token required' });
 
     const session = await GameSession.findOne({
-      where: { session_token, user_id: req.user.userId, status: 'active' },
+      where: { session_token: sessionToken, user_id: req.user.userId, status: 'active' },
       include: [{ model: Game, as: 'game' }]
     });
 
@@ -285,7 +328,8 @@ async function pingSession(req, res) {
     return res.json({
       success: true,
       duration_seconds: totalSeconds,
-      current_points_earned: cappedPoints
+      current_points_earned: cappedPoints,
+      current_reward: cappedPoints
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Ping failed', error: err.message });
@@ -295,11 +339,11 @@ async function pingSession(req, res) {
 // Session Claim Reward
 async function claimSession(req, res) {
   try {
-    const { session_token } = req.body;
-    if (!session_token) return res.status(400).json({ success: false, message: 'session_token required' });
+    const sessionToken = req.body.session_token || req.body.session_id;
+    if (!sessionToken) return res.status(400).json({ success: false, message: 'session_token required' });
 
     const session = await GameSession.findOne({
-      where: { session_token, user_id: req.user.userId, status: 'active' },
+      where: { session_token: sessionToken, user_id: req.user.userId, status: 'active' },
       include: [{ model: Game, as: 'game' }]
     });
 
@@ -331,6 +375,7 @@ async function claimSession(req, res) {
         success: true,
         message: `Claimed +${pointsToCredit} points!`,
         points_earned: pointsToCredit,
+        reward_earned: pointsToCredit,
         new_balance: user.points_balance
       });
     }
@@ -338,7 +383,8 @@ async function claimSession(req, res) {
     return res.json({
       success: true,
       message: 'Session closed (play time below point threshold)',
-      points_earned: 0
+      points_earned: 0,
+      reward_earned: 0
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Claim failed', error: err.message });
@@ -364,7 +410,7 @@ async function redeemReward(req, res) {
     if (user.points_balance < reward.cost_points) {
       return res.status(400).json({
         success: false,
-        message: `Insufficient points. You need ${reward.cost_points} PTS but have ${user.points_balance} PTS.`
+        message: `Insufficient points. You need ${reward.cost_points.toLocaleString()} PTS but have ${user.points_balance.toLocaleString()} PTS.`
       });
     }
 
@@ -413,7 +459,6 @@ async function redeemReward(req, res) {
   }
 }
 
-
 // App Update Checker & Forced Update Engine
 async function checkAppUpdate(req, res) {
   try {
@@ -460,9 +505,6 @@ async function checkAppUpdate(req, res) {
     const isBelowMin = compareVer(minVersion, clientVersion) > 0;
     const isNewerAvailable = compareVer(latestVersion, clientVersion) > 0 || clientVersionCode < latestVersionCode;
 
-    // Forced update triggers if:
-    // 1) App version is below minimum allowed version
-    // 2) OR admin flagged global forced update AND a newer version is available
     const updateRequired = isBelowMin || (isForceUpdateConfig && isNewerAvailable);
 
     return res.json({

@@ -10,11 +10,13 @@ import {
   Easing
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, X, Trophy, ShieldCheck, Gift, Lock, Coins, Zap } from 'lucide-react-native';
+import { Sparkles, X, Trophy, ShieldCheck, Gift, Lock, Coins, Zap, Frown } from 'lucide-react-native';
 import { claimRewardedAd } from '../api/clientApi';
 import { playSound, triggerHaptic } from '../services/soundEffects';
+import { useTheme } from '../context/ThemeContext';
 
 export default function AdRewardModal({ visible, token, onClose, onRewardClaimed }) {
+  const { theme, isDark } = useTheme();
   const [secondsLeft, setSecondsLeft] = useState(15);
   const [adFinished, setAdFinished] = useState(false);
   const [isOpened, setIsOpened] = useState(false);
@@ -127,14 +129,23 @@ export default function AdRewardModal({ visible, token, onClose, onRewardClaimed
       if (res.success) {
         setRewardData(res);
         setIsOpened(true);
-        playSound('win');
-        triggerHaptic('success');
+
+        const pts = res.reward_earned !== undefined ? res.reward_earned : (res.tier?.points || 0);
+        const isTryAgain = res.tier?.isTryAgain || pts === 0;
+
+        if (isTryAgain) {
+          playSound('tap');
+          triggerHaptic('light');
+        } else {
+          playSound('win');
+          triggerHaptic('success');
+        }
 
         if (onRewardClaimed) {
           onRewardClaimed({
-            points: res.reward_earned || 3,
+            points: pts,
             newBalance: res.new_balance,
-            title: 'Daily Loot Chest'
+            title: res.tier?.name || 'Daily Loot Chest'
           });
         }
       }
@@ -147,6 +158,10 @@ export default function AdRewardModal({ visible, token, onClose, onRewardClaimed
 
   if (!visible) return null;
 
+  const ptsEarned = rewardData?.reward_earned !== undefined ? rewardData.reward_earned : (rewardData?.tier?.points || 0);
+  const isTryAgain = rewardData?.tier?.isTryAgain || ptsEarned === 0;
+  const isJackpot = rewardData?.tier?.isJackpot;
+
   return (
     <Modal
       visible={visible}
@@ -157,17 +172,26 @@ export default function AdRewardModal({ visible, token, onClose, onRewardClaimed
       }}
     >
       <View style={styles.backdrop}>
-        <View style={styles.card}>
+        {/* Dismiss on click outside once unlocked or completed */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={() => {
+            if (adFinished || isOpened) onClose();
+          }}
+        />
+
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderBottomColor: theme.border }]}>
             <View style={styles.sponsorBadge}>
               <Gift size={15} color="#f59e0b" />
-              <Text style={styles.sponsorText}>Daily Free Loot Chest</Text>
+              <Text style={[styles.sponsorText, { color: theme.text }]}>Daily Free Loot Chest</Text>
             </View>
 
             {adFinished || isOpened ? (
               <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
-                <X size={18} color="#ffffff" />
+                <X size={18} color={theme.subtext} />
               </TouchableOpacity>
             ) : (
               <View style={styles.countdownBadge}>
@@ -178,7 +202,7 @@ export default function AdRewardModal({ visible, token, onClose, onRewardClaimed
 
           {/* Interactive Loot Chest Showcase */}
           <LinearGradient
-            colors={['#1c1917', '#0f172a', '#030712']}
+            colors={isDark ? ['#1c1917', '#0f172a', '#030712'] : ['#f8fafc', '#f1f5f9', '#e2e8f0']}
             style={styles.adContent}
           >
             {/* Shimmering Chest Visual */}
@@ -195,11 +219,19 @@ export default function AdRewardModal({ visible, token, onClose, onRewardClaimed
               ]}
             >
               <LinearGradient
-                colors={isOpened ? ['#f59e0b', '#d97706', '#78350f'] : ['#292524', '#1c1917', '#0c0a09']}
-                style={[styles.chestBox, isOpened && styles.chestBoxOpened]}
+                colors={
+                  isOpened
+                    ? (isTryAgain ? ['#475569', '#334155', '#1e293b'] : ['#f59e0b', '#d97706', '#78350f'])
+                    : ['#292524', '#1c1917', '#0c0a09']
+                }
+                style={[styles.chestBox, isOpened && !isTryAgain && styles.chestBoxOpened]}
               >
                 {isOpened ? (
-                  <Coins size={54} color="#fef08a" />
+                  isTryAgain ? (
+                    <Frown size={50} color="#94a3b8" />
+                  ) : (
+                    <Coins size={54} color="#fef08a" />
+                  )
                 ) : adFinished ? (
                   <Gift size={52} color="#fbbf24" />
                 ) : (
@@ -215,8 +247,8 @@ export default function AdRewardModal({ visible, token, onClose, onRewardClaimed
             {!adFinished ? (
               <View style={styles.simBox}>
                 <ActivityIndicator size="small" color="#06b6d4" style={{ marginBottom: 12 }} />
-                <Text style={styles.simTitle}>Sponsored Loyalty Chest</Text>
-                <Text style={styles.simSub}>
+                <Text style={[styles.simTitle, { color: theme.text }]}>Sponsored Loyalty Chest</Text>
+                <Text style={[styles.simSub, { color: theme.subtext }]}>
                   Sponsor video in progress. Keep screen open to unlock your free bonus chest.
                 </Text>
                 <View style={styles.policyRow}>
@@ -227,7 +259,7 @@ export default function AdRewardModal({ visible, token, onClose, onRewardClaimed
             ) : !isOpened ? (
               <View style={styles.simBox}>
                 <Text style={styles.unlockedTitle}>✨ Chest Unlocked!</Text>
-                <Text style={styles.simSub}>Tap below to crack open your mystery bonus drop.</Text>
+                <Text style={[styles.simSub, { color: theme.subtext }]}>Tap below to crack open your mystery bonus drop.</Text>
 
                 <TouchableOpacity
                   style={styles.openBtn}
@@ -248,11 +280,25 @@ export default function AdRewardModal({ visible, token, onClose, onRewardClaimed
               </View>
             ) : (
               <Animated.View style={[styles.rewardClaimedBox, { transform: [{ scale: rewardScaleAnim }] }]}>
-                <View style={styles.ptsBadge}>
-                  <Sparkles size={18} color="#fbbf24" />
-                  <Text style={styles.ptsBadgeText}>+{rewardData?.reward_earned || 3} PTS ADDED!</Text>
-                </View>
-                <Text style={styles.congratsText}>Deposited straight into your loyalty vault.</Text>
+                {isTryAgain ? (
+                  <View style={[styles.ptsBadge, styles.tryAgainBadge]}>
+                    <Frown size={18} color="#94a3b8" />
+                    <Text style={[styles.ptsBadgeText, { color: '#cbd5e1' }]}>EMPTY CHEST — TRY AGAIN</Text>
+                  </View>
+                ) : (
+                  <View style={[styles.ptsBadge, isJackpot && styles.jackpotBadge]}>
+                    <Sparkles size={18} color="#fbbf24" />
+                    <Text style={styles.ptsBadgeText}>
+                      {isJackpot ? `👑 +${ptsEarned} PTS JACKPOT!` : `+${ptsEarned} PTS ADDED!`}
+                    </Text>
+                  </View>
+                )}
+
+                <Text style={[styles.congratsText, { color: theme.subtext }]}>
+                  {isTryAgain
+                    ? 'No points this drop. Better luck next time!'
+                    : 'Deposited straight into your loyalty vault.'}
+                </Text>
 
                 <TouchableOpacity style={styles.doneBtn} onPress={onClose} activeOpacity={0.85}>
                   <Text style={styles.doneBtnText}>Collect & Continue</Text>
@@ -274,18 +320,16 @@ const styles = StyleSheet.create({
     padding: 20
   },
   card: {
-    backgroundColor: '#0f172a',
     borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: '#334155'
+    borderWidth: 1.5
   },
   header: {
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1e293b'
+    borderBottomWidth: 1
   },
   sponsorBadge: {
     flexDirection: 'row',
@@ -293,7 +337,6 @@ const styles = StyleSheet.create({
     gap: 7
   },
   sponsorText: {
-    color: '#f8fafc',
     fontSize: 13,
     fontWeight: '800'
   },
@@ -367,19 +410,17 @@ const styles = StyleSheet.create({
   simTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#ffffff',
     textAlign: 'center'
   },
   unlockedTitle: {
     fontSize: 19,
     fontWeight: '900',
-    color: '#fef08a',
+    color: '#f59e0b',
     textAlign: 'center',
     letterSpacing: -0.3
   },
   simSub: {
     fontSize: 12,
-    color: '#94a3b8',
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
@@ -439,14 +480,21 @@ const styles = StyleSheet.create({
     borderColor: '#f59e0b',
     marginBottom: 8
   },
+  tryAgainBadge: {
+    backgroundColor: 'rgba(100, 116, 139, 0.2)',
+    borderColor: '#64748b'
+  },
+  jackpotBadge: {
+    backgroundColor: 'rgba(234, 179, 8, 0.3)',
+    borderColor: '#eab308'
+  },
   ptsBadgeText: {
     color: '#fef08a',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
     letterSpacing: 0.5
   },
   congratsText: {
-    color: '#94a3b8',
     fontSize: 12,
     marginBottom: 18
   },

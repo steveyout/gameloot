@@ -133,14 +133,14 @@ export async function startPlaySession(token, game_id) {
 export async function pingPlaySession(token, session_id, client_hash) {
   return request('/client/session/ping', {
     method: 'POST',
-    body: JSON.stringify({ session_id, client_hash })
+    body: JSON.stringify({ session_id, session_token: session_id, client_hash })
   }, token);
 }
 
 export async function claimPlaySession(token, session_id) {
   return request('/client/session/claim', {
     method: 'POST',
-    body: JSON.stringify({ session_id })
+    body: JSON.stringify({ session_id, session_token: session_id })
   }, token);
 }
 
@@ -163,7 +163,7 @@ export async function getSurfTasks() {
 export async function claimSurfReward(token, task_id) {
   return request('/client/surf/claim', {
     method: 'POST',
-    body: JSON.stringify({ task_id })
+    body: JSON.stringify({ task_id, surf_task_id: task_id })
   }, token);
 }
 
@@ -178,7 +178,7 @@ export async function claimSurveyReward(token, survey_id, answers) {
   }, token);
 }
 
-// 6. Rewarded Ad Video Drops
+// 6. Rewarded Ad Video Drops & Loot Boxes
 export async function getAdConfig() {
   return request('/client/ads/config');
 }

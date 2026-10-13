@@ -30,6 +30,7 @@ import {
   markAllNotificationsRead,
   claimNotificationBonus
 } from '../api/clientApi';
+import { useTheme } from '../context/ThemeContext';
 
 export default function NotificationModal({
   visible,
@@ -39,6 +40,7 @@ export default function NotificationModal({
   onNavigateTab,
   onUnreadChange
 }) {
+  const { theme, isDark } = useTheme();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -129,7 +131,7 @@ export default function NotificationModal({
     }
   };
 
-  const getTheme = (type) => {
+  const getThemeConfig = (type) => {
     switch (type) {
       case 'bonus':
         return {
@@ -195,19 +197,26 @@ export default function NotificationModal({
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
-        <View style={styles.modalSheet}>
+        {/* Tap outside to dismiss */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View style={[styles.modalSheet, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {/* Top handle bar */}
-          <View style={styles.sheetHandle} />
+          <View style={[styles.sheetHandle, { backgroundColor: isDark ? '#334155' : '#cbd5e1' }]} />
 
           {/* Modal Header */}
-          <View style={styles.modalHeader}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
             <View style={styles.modalTitleRow}>
               <View style={styles.titleIconBadge}>
                 <Bell size={18} color="#06b6d4" />
               </View>
               <View>
-                <Text style={styles.modalTitle}>Notifications & Drops</Text>
-                <Text style={styles.modalSubtitle}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Notifications & Drops</Text>
+                <Text style={[styles.modalSubtitle, { color: theme.subtext }]}>
                   {unreadCount > 0 ? `${unreadCount} unread updates` : 'All caught up!'}
                 </Text>
               </View>
@@ -216,7 +225,7 @@ export default function NotificationModal({
             <View style={styles.headerRightActions}>
               {unreadCount > 0 && (
                 <TouchableOpacity
-                  style={styles.markAllBtn}
+                  style={[styles.markAllBtn, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderColor: theme.border }]}
                   onPress={handleMarkAllRead}
                   activeOpacity={0.7}
                 >
@@ -226,43 +235,43 @@ export default function NotificationModal({
               )}
 
               <TouchableOpacity
-                style={styles.closeBtn}
+                style={[styles.closeBtn, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}
                 onPress={onClose}
                 activeOpacity={0.7}
               >
-                <X size={18} color="#94a3b8" />
+                <X size={18} color={theme.subtext} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Filter Pills */}
-          <View style={styles.filtersRow}>
+          <View style={[styles.filtersRow, { borderBottomColor: theme.border }]}>
             <TouchableOpacity
-              style={[styles.filterPill, filter === 'all' && styles.filterPillActive]}
+              style={[styles.filterPill, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }, filter === 'all' && styles.filterPillActive]}
               onPress={() => setFilter('all')}
               activeOpacity={0.7}
             >
-              <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
+              <Text style={[styles.filterText, { color: theme.subtext }, filter === 'all' && styles.filterTextActive]}>
                 All ({notifications.length})
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.filterPill, filter === 'unread' && styles.filterPillActive]}
+              style={[styles.filterPill, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }, filter === 'unread' && styles.filterPillActive]}
               onPress={() => setFilter('unread')}
               activeOpacity={0.7}
             >
-              <Text style={[styles.filterText, filter === 'unread' && styles.filterTextActive]}>
+              <Text style={[styles.filterText, { color: theme.subtext }, filter === 'unread' && styles.filterTextActive]}>
                 Unread ({unreadCount})
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.filterPill, filter === 'bonus' && styles.filterPillActive]}
+              style={[styles.filterPill, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }, filter === 'bonus' && styles.filterPillActive]}
               onPress={() => setFilter('bonus')}
               activeOpacity={0.7}
             >
-              <Text style={[styles.filterText, filter === 'bonus' && styles.filterTextActive]}>
+              <Text style={[styles.filterText, { color: theme.subtext }, filter === 'bonus' && styles.filterTextActive]}>
                 🎁 Bonus Drops
               </Text>
             </TouchableOpacity>
@@ -272,13 +281,13 @@ export default function NotificationModal({
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color="#06b6d4" />
-              <Text style={styles.loadingText}>Fetching your updates...</Text>
+              <Text style={[styles.loadingText, { color: theme.subtext }]}>Fetching your updates...</Text>
             </View>
           ) : filteredNotifications.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Bell size={42} color="#334155" />
-              <Text style={styles.emptyTitle}>No Notifications</Text>
-              <Text style={styles.emptySubtitle}>
+              <Bell size={42} color={theme.subtext} />
+              <Text style={[styles.emptyTitle, { color: theme.text }]}>No Notifications</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.subtext }]}>
                 {filter === 'unread'
                   ? 'You have read all your notifications.'
                   : 'New bonus drops, streak rewards, and announcements will appear here.'}
@@ -298,8 +307,8 @@ export default function NotificationModal({
               showsVerticalScrollIndicator={false}
             >
               {filteredNotifications.map((item) => {
-                const theme = getTheme(item.type);
-                const IconComp = theme.Icon;
+                const conf = getThemeConfig(item.type);
+                const IconComp = conf.Icon;
                 const isClaiming = claimingId === item.id;
 
                 return (
@@ -307,24 +316,25 @@ export default function NotificationModal({
                     key={item.id}
                     style={[
                       styles.card,
-                      !item.is_read && styles.cardUnread
+                      { backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: theme.border },
+                      !item.is_read && (isDark ? styles.cardUnread : styles.cardUnreadLight)
                     ]}
                     onPress={() => handleNotificationPress(item)}
                     activeOpacity={0.85}
                   >
                     <View style={styles.cardHeader}>
                       <View style={styles.cardTypeRow}>
-                        <View style={[styles.cardIconWrap, { backgroundColor: theme.bg }]}>
-                          <IconComp size={14} color={theme.iconColor} />
+                        <View style={[styles.cardIconWrap, { backgroundColor: conf.bg }]}>
+                          <IconComp size={14} color={conf.iconColor} />
                         </View>
-                        <Text style={[styles.cardTypeBadge, { color: theme.badgeColor }]}>
-                          {theme.badgeText}
+                        <Text style={[styles.cardTypeBadge, { color: conf.badgeColor }]}>
+                          {conf.badgeText}
                         </Text>
                       </View>
 
                       <View style={styles.cardTimeRow}>
                         {!item.is_read && <View style={styles.unreadDot} />}
-                        <Text style={styles.cardTimeText}>
+                        <Text style={[styles.cardTimeText, { color: theme.subtext }]}>
                           {item.created_at
                             ? new Date(item.created_at).toLocaleDateString('en-US', {
                                 month: 'short',
@@ -335,8 +345,8 @@ export default function NotificationModal({
                       </View>
                     </View>
 
-                    <Text style={styles.cardTitle}>{item.title}</Text>
-                    <Text style={styles.cardMessage}>{item.message}</Text>
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>{item.title}</Text>
+                    <Text style={[styles.cardMessage, { color: theme.subtext }]}>{item.message}</Text>
 
                     {/* Bonus Points Claim Box if present */}
                     {item.bonus_points > 0 && (
@@ -371,7 +381,7 @@ export default function NotificationModal({
 
                     {/* Action Deep Link if provided */}
                     {item.action_screen && (
-                      <View style={styles.actionRow}>
+                      <View style={[styles.actionRow, { borderTopColor: theme.border }]}>
                         <Text style={styles.actionText}>
                           Go to {item.action_screen.toUpperCase()}
                         </Text>
@@ -396,11 +406,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
   modalSheet: {
-    backgroundColor: '#0b111e',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderTopWidth: 1,
-    borderColor: '#1e293b',
     maxHeight: '85%',
     minHeight: '55%',
     paddingBottom: Platform.OS === 'android' ? 20 : 34
@@ -408,7 +416,6 @@ const styles = StyleSheet.create({
   sheetHandle: {
     width: 38,
     height: 4,
-    backgroundColor: '#334155',
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 10,
@@ -420,8 +427,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 18,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e293b'
+    borderBottomWidth: 1
   },
   modalTitleRow: {
     flexDirection: 'row',
@@ -440,12 +446,10 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 16,
-    fontWeight: '900',
-    color: '#ffffff'
+    fontWeight: '900'
   },
   modalSubtitle: {
     fontSize: 11,
-    color: '#94a3b8',
     marginTop: 1
   },
   headerRightActions: {
@@ -456,12 +460,10 @@ const styles = StyleSheet.create({
   markAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#334155'
+    borderWidth: 1
   },
   markAllText: {
     fontSize: 10,
@@ -472,7 +474,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 9,
-    backgroundColor: '#1e293b',
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -481,22 +482,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#162032'
+    borderBottomWidth: 1
   },
   filterPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 9,
-    backgroundColor: '#1e293b'
+    borderRadius: 9
   },
   filterPillActive: {
     backgroundColor: '#06b6d4'
   },
   filterText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#94a3b8'
+    fontWeight: '700'
   },
   filterTextActive: {
     color: '#090d16',
@@ -509,7 +507,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 12,
-    color: '#64748b',
     marginTop: 8
   },
   emptyContainer: {
@@ -520,12 +517,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#ffffff',
     marginTop: 12
   },
   emptySubtitle: {
     fontSize: 12,
-    color: '#64748b',
     textAlign: 'center',
     marginTop: 4,
     lineHeight: 18,
@@ -539,15 +534,17 @@ const styles = StyleSheet.create({
     gap: 12
   },
   card: {
-    backgroundColor: '#0f172a',
     borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
-    borderColor: '#1e293b'
+    borderWidth: 1
   },
   cardUnread: {
     borderColor: 'rgba(6, 182, 212, 0.4)',
     backgroundColor: '#131e33'
+  },
+  cardUnreadLight: {
+    borderColor: '#06b6d4',
+    backgroundColor: '#e0f2fe'
   },
   cardHeader: {
     flexDirection: 'row',
@@ -584,18 +581,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#06b6d4'
   },
   cardTimeText: {
-    fontSize: 10,
-    color: '#64748b'
+    fontSize: 10
   },
   cardTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#ffffff',
     marginBottom: 4
   },
   cardMessage: {
     fontSize: 12,
-    color: '#94a3b8',
     lineHeight: 17
   },
   bonusBox: {
@@ -650,7 +644,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#1e293b',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between'

@@ -32,7 +32,7 @@ async function ensureSafeSchema(sequelize) {
       console.warn('⚠️ [Schema Guard - users.ip_address]:', ipErr.message);
     }
 
-    // 2. Games table: featured column
+    // 2. Games table: featured & banner_url columns
     try {
       const [featuredCol] = await sequelize.query("SHOW COLUMNS FROM `games` LIKE 'featured'");
       if (!featuredCol || featuredCol.length === 0) {
@@ -46,7 +46,6 @@ async function ensureSafeSchema(sequelize) {
       console.warn('⚠️ [Schema Guard - games.featured]:', gErr1.message);
     }
 
-    // 2b. Games table: banner_url column
     try {
       const [bannerCol] = await sequelize.query("SHOW COLUMNS FROM `games` LIKE 'banner_url'");
       if (!bannerCol || bannerCol.length === 0) {
@@ -60,7 +59,29 @@ async function ensureSafeSchema(sequelize) {
       console.warn('⚠️ [Schema Guard - games.banner_url]:', gErr2.message);
     }
 
-    // 3. Guarantee a default test player exists for immediate sign-in testing
+    // 3. Point Transactions table: widen type from enum to VARCHAR(50) to allow wheel_bonus, streak_bonus, etc.
+    try {
+      const [ptCols] = await sequelize.query("SHOW COLUMNS FROM `point_transactions` LIKE 'type'");
+      if (ptCols && ptCols.length > 0) {
+        await sequelize.query("ALTER TABLE `point_transactions` MODIFY COLUMN `type` VARCHAR(50) NOT NULL");
+        console.log('✅ [Schema Guard] `point_transactions.type` verified as VARCHAR(50).');
+      }
+    } catch (ptErr) {
+      console.warn('⚠️ [Schema Guard - point_transactions.type]:', ptErr.message);
+    }
+
+    // 4. Ensure auxiliary tables exist non-destructively
+    try {
+      const { UserEngagement, NotificationRead, RewardRedemption } = require('../models');
+      if (UserEngagement) await UserEngagement.sync({ force: false });
+      if (NotificationRead) await NotificationRead.sync({ force: false });
+      if (RewardRedemption) await RewardRedemption.sync({ force: false });
+      console.log('✅ [Schema Guard] Auxiliary engagement & redemption tables verified.');
+    } catch (syncAuxErr) {
+      console.warn('⚠️ [Schema Guard - aux tables]:', syncAuxErr.message);
+    }
+
+    // 5. Guarantee a default test player exists for immediate sign-in testing
     try {
       const { User } = require('../models');
       const existingUser = await User.findOne({

@@ -11,8 +11,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Brain, CheckCircle2, X, Sparkles, Trophy } from 'lucide-react-native';
 import { claimQuizReward } from '../api/clientApi';
+import { useTheme } from '../context/ThemeContext';
 
 export default function QuizModal({ visible, quiz, token, onClose, onRewardClaimed }) {
+  const { theme, isDark } = useTheme();
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -62,7 +64,14 @@ export default function QuizModal({ visible, quiz, token, onClose, onRewardClaim
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.card}>
+        {/* Tap outside to dismiss */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {/* Header */}
           <LinearGradient
             colors={['#8b5cf6', '#6d28d9']}
@@ -90,8 +99,8 @@ export default function QuizModal({ visible, quiz, token, onClose, onRewardClaim
             {result ? (
               <View style={styles.resultBox}>
                 <Trophy size={48} color="#fbbf24" style={{ marginBottom: 12 }} />
-                <Text style={styles.resultTitle}>Quiz Completed!</Text>
-                <Text style={styles.resultScore}>Score: {result.score} / {result.total}</Text>
+                <Text style={[styles.resultTitle, { color: theme.text }]}>Quiz Completed!</Text>
+                <Text style={[styles.resultScore, { color: theme.subtext }]}>Score: {result.score} / {result.total}</Text>
                 <View style={styles.ptsAward}>
                   <Text style={styles.ptsAwardText}>+{result.reward_earned} PTS Credited</Text>
                 </View>
@@ -101,8 +110,8 @@ export default function QuizModal({ visible, quiz, token, onClose, onRewardClaim
               </View>
             ) : (
               questions.map((q, qIdx) => (
-                <View key={qIdx} style={styles.qCard}>
-                  <Text style={styles.qText}>
+                <View key={qIdx} style={[styles.qCard, { backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderColor: theme.border }]}>
+                  <Text style={[styles.qText, { color: theme.text }]}>
                     {qIdx + 1}. {q.question}
                   </Text>
                   <View style={styles.optList}>
@@ -111,14 +120,18 @@ export default function QuizModal({ visible, quiz, token, onClose, onRewardClaim
                       return (
                         <TouchableOpacity
                           key={optIdx}
-                          style={[styles.optBtn, isSelected && styles.optBtnSelected]}
+                          style={[
+                            styles.optBtn,
+                            { backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: theme.border },
+                            isSelected && styles.optBtnSelected
+                          ]}
                           onPress={() => handleSelect(qIdx, optIdx)}
                           activeOpacity={0.7}
                         >
                           <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
                             {isSelected ? <View style={styles.radioInner} /> : null}
                           </View>
-                          <Text style={[styles.optText, isSelected && styles.optTextSelected]}>
+                          <Text style={[styles.optText, { color: theme.subtext }, isSelected && styles.optTextSelected]}>
                             {opt}
                           </Text>
                         </TouchableOpacity>
@@ -132,7 +145,7 @@ export default function QuizModal({ visible, quiz, token, onClose, onRewardClaim
 
           {/* Footer Submit */}
           {!result ? (
-            <View style={styles.footer}>
+            <View style={[styles.footer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
               <TouchableOpacity
                 style={[styles.submitBtn, (!allAnswered || isSubmitting) && styles.submitBtnDisabled]}
                 disabled={!allAnswered || isSubmitting}
@@ -163,12 +176,10 @@ const styles = StyleSheet.create({
     padding: 16
   },
   card: {
-    backgroundColor: '#0f172a',
     borderRadius: 24,
     overflow: 'hidden',
     maxHeight: '85%',
-    borderWidth: 1,
-    borderColor: '#334155'
+    borderWidth: 1
   },
   header: {
     padding: 20
@@ -220,17 +231,14 @@ const styles = StyleSheet.create({
     padding: 16
   },
   qCard: {
-    backgroundColor: '#1e293b',
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#334155'
+    borderWidth: 1
   },
   qText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#ffffff',
     marginBottom: 10
   },
   optList: {
@@ -239,11 +247,9 @@ const styles = StyleSheet.create({
   optBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
     borderRadius: 10,
     padding: 10,
-    borderWidth: 1,
-    borderColor: '#334155'
+    borderWidth: 1
   },
   optBtnSelected: {
     borderColor: '#8b5cf6',
@@ -270,18 +276,15 @@ const styles = StyleSheet.create({
   },
   optText: {
     fontSize: 12,
-    color: '#94a3b8',
     flex: 1
   },
   optTextSelected: {
-    color: '#ffffff',
-    fontWeight: '600'
+    color: '#8b5cf6',
+    fontWeight: '700'
   },
   footer: {
     padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#1e293b',
-    backgroundColor: '#0f172a'
+    borderTopWidth: 1
   },
   submitBtn: {
     backgroundColor: '#8b5cf6',
@@ -303,12 +306,10 @@ const styles = StyleSheet.create({
   },
   resultTitle: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#ffffff'
+    fontWeight: '800'
   },
   resultScore: {
     fontSize: 14,
-    color: '#94a3b8',
     marginTop: 4
   },
   ptsAward: {

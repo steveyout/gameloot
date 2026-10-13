@@ -119,6 +119,7 @@ export default function SurfModal({ visible, task, token, onClose, onRewardClaim
         {/* Success Modal */}
         {claimed ? (
           <View style={styles.successOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
             <View style={styles.successCard}>
               <Trophy size={40} color="#fbbf24" style={{ marginBottom: 12 }} />
               <Text style={styles.successTitle}>Surf Reward Claimed!</Text>

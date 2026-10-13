@@ -49,8 +49,13 @@ export default function GamePlayerModal({
         setLoading(true);
         const data = await startPlaySession(token, game.id);
         if (active && data.success) {
-          setSession(data.session);
-          setPingCountdown(data.session.ping_interval_seconds || 45);
+          const sessionObj = data.session || {
+            session_id: data.session_token,
+            session_token: data.session_token,
+            ping_interval_seconds: 45
+          };
+          setSession(sessionObj);
+          setPingCountdown(sessionObj.ping_interval_seconds || 45);
         }
       } catch (err) {
         console.warn('Could not start play session:', err.message);
@@ -93,9 +98,10 @@ export default function GamePlayerModal({
     if (!session || !token) return;
     try {
       const pingHash = 'ping_' + Date.now();
-      const res = await pingPlaySession(token, session.session_id, pingHash);
+      const sId = session.session_id || session.session_token;
+      const res = await pingPlaySession(token, sId, pingHash);
       if (res.success) {
-        setClaimablePoints(res.current_reward || (claimablePoints + 1));
+        setClaimablePoints(res.current_reward || res.current_points_earned || (claimablePoints + 1));
       }
     } catch (err) {
       console.warn('Ping failed:', err.message);
@@ -110,11 +116,14 @@ export default function GamePlayerModal({
 
     try {
       setIsClaiming(true);
-      const res = await claimPlaySession(token, session.session_id);
-      if (res.success && res.reward_earned > 0) {
-        setClaimResult(res);
+      const sId = session.session_id || session.session_token;
+      const res = await claimPlaySession(token, sId);
+      const earned = res.reward_earned !== undefined ? res.reward_earned : (res.points_earned || 0);
+
+      if (res.success && earned > 0) {
+        setClaimResult({ ...res, reward_earned: earned });
         onRewardClaimed({
-          points: res.reward_earned,
+          points: earned,
           newBalance: res.new_balance,
           gameTitle: game.title
         });
@@ -207,6 +216,11 @@ export default function GamePlayerModal({
         {/* Claim Success Celebration Overlay */}
         {claimResult ? (
           <View style={styles.claimOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={onClose}
+            />
             <View style={styles.claimCard}>
               <LinearGradient
                 colors={['#06b6d4', '#3b82f6']}
