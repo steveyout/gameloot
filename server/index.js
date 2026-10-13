@@ -59,6 +59,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
 
+// Static Uploads Storage (Game thumbnails, banners, assets)
+const uploadsDir = path.resolve(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+const gamesUploadDir = path.join(uploadsDir, 'games');
+if (!fs.existsSync(gamesUploadDir)) fs.mkdirSync(gamesUploadDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({

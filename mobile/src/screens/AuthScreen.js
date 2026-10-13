@@ -8,11 +8,12 @@ import {
   ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Modal
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gamepad2, Sparkles, Lock, Mail, User, ShieldCheck } from 'lucide-react-native';
-import { userLogin, userRegister } from '../api/clientApi';
+import { Gamepad2, Sparkles, Lock, Mail, User, ShieldCheck, X, Check } from 'lucide-react-native';
+import { userLogin, userRegister, userGoogleLogin } from '../api/clientApi';
 
 export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -20,6 +21,12 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
   const [email, setEmail] = useState('player@gameloot.com');
   const [password, setPassword] = useState('player123');
   const [loading, setLoading] = useState(false);
+
+  // Google Login modal state
+  const [googleModalVisible, setGoogleModalVisible] = useState(false);
+  const [googleEmail, setGoogleEmail] = useState('');
+  const [googleName, setGoogleName] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleSubmit = async () => {
     if (loading) return;
@@ -54,6 +61,44 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
     }
   };
 
+  const handleGoogleSignInPrompt = () => {
+    setGoogleEmail('gamer_' + Math.floor(100 + Math.random() * 900) + '@gmail.com');
+    setGoogleName('Gamer Player');
+    setGoogleModalVisible(true);
+  };
+
+  const executeGoogleAuth = async (targetEmail, targetName) => {
+    const finalEmail = (targetEmail || googleEmail).trim();
+    const finalName = (targetName || googleName).trim();
+
+    if (!finalEmail || !finalEmail.includes('@')) {
+      onErrorAlert('Valid Google email address required');
+      return;
+    }
+
+    setGoogleLoading(true);
+    try {
+      const googleId = 'gid_' + Math.abs(finalEmail.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0));
+      const res = await userGoogleLogin({
+        email: finalEmail,
+        name: finalName || 'Google User',
+        google_id: googleId,
+        avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=' + encodeURIComponent(finalEmail)
+      });
+
+      if (res && res.success && res.token) {
+        setGoogleModalVisible(false);
+        onAuthSuccess(res.user, res.token);
+      } else {
+        onErrorAlert(res?.message || 'Google authentication failed.');
+      }
+    } catch (err) {
+      onErrorAlert(err.message || 'Google sign-in request failed.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   const handleQuickDemo = async () => {
     if (loading) return;
     setUsername('demo_player');
@@ -64,7 +109,6 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
       if (res && res.success && res.token) {
         onAuthSuccess(res.user, res.token);
       } else {
-        // Try registering demo player if doesn't exist
         const regRes = await userRegister('demo_player', 'demo@gameloot.com', 'player123');
         if (regRes && regRes.success) {
           onAuthSuccess(regRes.user, regRes.token);
@@ -182,6 +226,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
               </View>
             </View>
 
+            {/* Standard Email Submit Button */}
             <TouchableOpacity
               style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
               onPress={handleSubmit}
@@ -205,6 +250,27 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
               </LinearGradient>
             </TouchableOpacity>
 
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google Sign In Button */}
+            <TouchableOpacity
+              style={styles.googleBtn}
+              onPress={handleGoogleSignInPrompt}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              <View style={styles.googleLogoWrap}>
+                <Text style={styles.googleLogoG}>G</Text>
+              </View>
+              <Text style={styles.googleBtnText}>Continue with Google</Text>
+            </TouchableOpacity>
+
+            {/* 1-Tap Quick Demo Button */}
             <TouchableOpacity
               style={[styles.demoBtn, loading && styles.demoBtnDisabled]}
               onPress={handleQuickDemo}
@@ -224,6 +290,94 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Google OAuth One-Tap Modal */}
+      <Modal
+        visible={googleModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setGoogleModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={styles.googleLogoWrapLarge}>
+                <Text style={styles.googleLogoGLarge}>G</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.modalTitle}>Sign in with Google</Text>
+                <Text style={styles.modalSubtitle}>to continue to GameLoot Rewards</Text>
+              </View>
+              <TouchableOpacity onPress={() => setGoogleModalVisible(false)} style={styles.modalCloseBtn}>
+                <X size={18} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick 1-Tap Google Account Tile */}
+            <TouchableOpacity
+              style={styles.googleAccountTile}
+              onPress={() => executeGoogleAuth(googleEmail, googleName)}
+              disabled={googleLoading}
+              activeOpacity={0.75}
+            >
+              <View style={styles.googleAvatarBadge}>
+                <Text style={styles.googleAvatarInitial}>
+                  {(googleName || 'G').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.googleAccountName}>{googleName || 'Google Account'}</Text>
+                <Text style={styles.googleAccountEmail}>{googleEmail}</Text>
+              </View>
+              <View style={styles.oneTapArrow}>
+                <Check size={14} color="#34d399" />
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.dividerRowSmall}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerTextSmall}>OR USE ANOTHER EMAIL</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={{ gap: 10, marginTop: 8 }}>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Google email address"
+                placeholderTextColor="#64748b"
+                value={googleEmail}
+                onChangeText={setGoogleEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Full Name"
+                placeholderTextColor="#64748b"
+                value={googleName}
+                onChangeText={setGoogleName}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.modalSubmitBtn, googleLoading && { opacity: 0.6 }]}
+              onPress={() => executeGoogleAuth(googleEmail, googleName)}
+              disabled={googleLoading}
+            >
+              <LinearGradient
+                colors={['#4285F4', '#2b6cb0']}
+                style={styles.modalSubmitGradient}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.modalSubmitText}>Authorize & Sign In</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -346,13 +500,13 @@ const styles = StyleSheet.create({
   submitBtn: {
     borderRadius: 14,
     overflow: 'hidden',
-    marginTop: 8
+    marginTop: 6
   },
   submitBtnDisabled: {
     opacity: 0.7
   },
   btnGradient: {
-    paddingVertical: 14,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -366,8 +520,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800'
   },
-  demoBtn: {
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#334155'
+  },
+  dividerText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748b',
+    paddingHorizontal: 8,
+    letterSpacing: 0.5
+  },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
     paddingVertical: 12,
+    paddingHorizontal: 16,
+    shadowColor: '#ffffff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3
+  },
+  googleLogoWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10
+  },
+  googleLogoG: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 16
+  },
+  googleBtnText: {
+    color: '#1f2937',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  demoBtn: {
+    paddingVertical: 11,
     alignItems: 'center',
     backgroundColor: '#1e293b',
     borderRadius: 12,
@@ -398,5 +603,132 @@ const styles = StyleSheet.create({
     color: '#6ee7b7',
     lineHeight: 14,
     flex: 1
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  modalCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 22,
+    width: '100%',
+    maxWidth: 380,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 10
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  googleLogoWrapLarge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  googleLogoGLarge: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 24
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#ffffff'
+  },
+  modalSubtitle: {
+    fontSize: 11,
+    color: '#94a3b8'
+  },
+  modalCloseBtn: {
+    padding: 6
+  },
+  googleAccountTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#38bdf8'
+  },
+  googleAvatarBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#0284c7',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  googleAvatarInitial: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900'
+  },
+  googleAccountName: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  googleAccountEmail: {
+    color: '#94a3b8',
+    fontSize: 11
+  },
+  oneTapArrow: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  dividerRowSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14
+  },
+  dividerTextSmall: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748b',
+    paddingHorizontal: 8
+  },
+  modalInput: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: '#ffffff',
+    fontSize: 12
+  },
+  modalSubmitBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginTop: 16
+  },
+  modalSubmitGradient: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  modalSubmitText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800'
   }
 });

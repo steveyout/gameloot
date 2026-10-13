@@ -41,6 +41,7 @@ export default function LobbyScreen({
   const [categories, setCategories] = useState([]);
   const [games, setGames] = useState([]);
   const [selectedCat, setSelectedCat] = useState(null);
+  const [filterFeatured, setFilterFeatured] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,6 +73,7 @@ export default function LobbyScreen({
   };
 
   const featuredGame = games.find(g => g.featured) || games[0];
+  const displayedGames = filterFeatured ? games.filter(g => g.featured) : games;
 
   return (
     <ScrollView
@@ -270,12 +272,22 @@ export default function LobbyScreen({
         contentContainerStyle={styles.catScroll}
       >
         <TouchableOpacity
-          style={[styles.catPill, !selectedCat && styles.catPillActive]}
-          onPress={() => setSelectedCat(null)}
+          style={[styles.catPill, !selectedCat && !filterFeatured && styles.catPillActive]}
+          onPress={() => { setSelectedCat(null); setFilterFeatured(false); }}
           activeOpacity={0.75}
         >
-          <Text style={[styles.catPillText, !selectedCat && styles.catPillTextActive]}>
+          <Text style={[styles.catPillText, !selectedCat && !filterFeatured && styles.catPillTextActive]}>
             🎮 All Games
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.catPill, filterFeatured && styles.catPillFeaturedActive]}
+          onPress={() => { setFilterFeatured(!filterFeatured); setSelectedCat(null); }}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.catPillText, filterFeatured && styles.catPillFeaturedTextActive]}>
+            ⭐ Featured
           </Text>
         </TouchableOpacity>
 
@@ -285,7 +297,7 @@ export default function LobbyScreen({
             <TouchableOpacity
               key={c.id}
               style={[styles.catPill, isActive && styles.catPillActive]}
-              onPress={() => setSelectedCat(c.id)}
+              onPress={() => { setSelectedCat(c.id); setFilterFeatured(false); }}
               activeOpacity={0.75}
             >
               <Text style={[styles.catPillText, isActive && styles.catPillTextActive]}>
@@ -302,7 +314,7 @@ export default function LobbyScreen({
           <Gamepad2 size={18} color="#06b6d4" />
           <Text style={styles.sectionTitle}>HTML5 Instant Games</Text>
         </View>
-        <Text style={styles.sectionCount}>{games.length} Verified Titles</Text>
+        <Text style={styles.sectionCount}>{displayedGames.length} Verified Titles</Text>
       </View>
 
       {loading ? (
@@ -312,7 +324,7 @@ export default function LobbyScreen({
         </View>
       ) : (
         <View style={styles.gamesGrid}>
-          {games.map(game => (
+          {displayedGames.map(game => (
             <AnimatedCard
               key={game.id}
               style={styles.gameCardWrapper}
@@ -339,6 +351,13 @@ export default function LobbyScreen({
                       <Star size={10} color="#fbbf24" fill="#fbbf24" />
                       <Text style={styles.ratingChipText}>{game.rating || '4.8'}</Text>
                     </View>
+
+                    {game.featured ? (
+                      <View style={styles.cardFeaturedBadge}>
+                        <Sparkles size={9} color="#fbbf24" />
+                        <Text style={styles.cardFeaturedText}>FEATURED</Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   <Text style={styles.gameCardTitle} numberOfLines={1}>{game.title}</Text>
@@ -893,5 +912,30 @@ const styles = StyleSheet.create({
     color: '#475569',
     fontSize: 10,
     fontWeight: '600'
+  },
+  catPillFeaturedActive: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: '#f59e0b'
+  },
+  catPillFeaturedTextActive: {
+    color: '#fbbf24',
+    fontWeight: '800'
+  },
+  cardFeaturedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.45)',
+    marginLeft: 2
+  },
+  cardFeaturedText: {
+    color: '#fbbf24',
+    fontSize: 8.5,
+    fontWeight: '900'
   }
 });

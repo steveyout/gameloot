@@ -21,7 +21,12 @@ const User = sequelize.define('User', {
   },
   password_hash: {
     type: DataTypes.STRING(255),
-    allowNull: false
+    allowNull: true
+  },
+  google_id: {
+    type: DataTypes.STRING(150),
+    allowNull: true,
+    unique: true
   },
   avatar: {
     type: DataTypes.STRING(500),
@@ -60,6 +65,7 @@ const User = sequelize.define('User', {
 });
 
 User.prototype.validatePassword = async function (password) {
+  if (!this.password_hash) return false;
   return bcrypt.compare(password, this.password_hash);
 };
 

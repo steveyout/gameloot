@@ -12,11 +12,13 @@ router.use(verifyAdmin);
 // 1. Dashboard Overview
 router.get('/dashboard', adminController.getDashboard);
 
-// 2. Games CRUD
+// 2. Games CRUD & Featured & Bulk & Image Upload
 router.get('/games', adminController.getGames);
 router.post('/games', adminController.createGame);
 router.put('/games/:id', adminController.updateGame);
 router.delete('/games/:id', adminController.deleteGame);
+router.post('/games/bulk-action', adminController.bulkActionGames);
+router.post('/upload-image', adminController.uploadImage);
 
 // 3. Categories CRUD
 router.get('/categories', adminController.getCategories);
@@ -24,15 +26,17 @@ router.post('/categories', adminController.createCategory);
 router.put('/categories/:id', adminController.updateCategory);
 router.delete('/categories/:id', adminController.deleteCategory);
 
-// 4. Users Management & Points Adjustment
+// 4. Users Management & Points Adjustment & Bulk
 router.get('/users', adminController.getUsers);
 router.get('/users/:id', adminController.getUserDetails);
 router.patch('/users/:id/status', adminController.updateUserStatus);
 router.post('/users/:id/adjust-points', adminController.adjustUserPoints);
+router.post('/users/bulk-action', adminController.bulkActionUsers);
 
-// 5. Redemptions Fulfillment
+// 5. Redemptions Fulfillment & Bulk
 router.get('/redemptions', adminController.getRedemptions);
 router.patch('/redemptions/:id', adminController.updateRedemptionStatus);
+router.post('/redemptions/bulk-action', adminController.bulkActionRedemptions);
 
 // 6. Anti-Cheat & Fraud Logs
 router.get('/fraud', adminController.getFraudLogs);

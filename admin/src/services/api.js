@@ -44,14 +44,17 @@ export const getAdminMe = () => apiRequest('/auth/admin/me');
 // Dashboard metrics
 export const getDashboardStats = () => apiRequest('/admin/dashboard');
 
-// Games CRUD
+// Games CRUD & Featured & Bulk & Upload
 export const getGames = (params = {}) => {
-  const query = new URLSearchParams(params).toString();
+  const cleanParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== '' && v !== null && v !== undefined));
+  const query = new URLSearchParams(cleanParams).toString();
   return apiRequest(`/admin/games${query ? `?${query}` : ''}`);
 };
 export const createGame = (data) => apiRequest('/admin/games', 'POST', data);
 export const updateGame = (id, data) => apiRequest(`/admin/games/${id}`, 'PUT', data);
 export const deleteGame = (id) => apiRequest(`/admin/games/${id}`, 'DELETE');
+export const bulkGamesAction = (ids, action) => apiRequest('/admin/games/bulk-action', 'POST', { ids, action });
+export const uploadImage = (image, filename, folder = 'games') => apiRequest('/admin/upload-image', 'POST', { image, filename, folder });
 
 // Categories CRUD
 export const getCategories = () => apiRequest('/admin/categories');
@@ -61,19 +64,23 @@ export const deleteCategory = (id) => apiRequest(`/admin/categories/${id}`, 'DEL
 
 // Users
 export const getUsers = (params = {}) => {
-  const query = new URLSearchParams(params).toString();
+  const cleanParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== '' && v !== null && v !== undefined));
+  const query = new URLSearchParams(cleanParams).toString();
   return apiRequest(`/admin/users${query ? `?${query}` : ''}`);
 };
 export const getUserDetails = (id) => apiRequest(`/admin/users/${id}`);
 export const updateUserStatus = (id, status) => apiRequest(`/admin/users/${id}/status`, 'PATCH', { status });
 export const adjustUserPoints = (id, amount, reason) => apiRequest(`/admin/users/${id}/adjust-points`, 'POST', { amount, reason });
+export const bulkUsersAction = (ids, action, amount = 100, reason = '') => apiRequest('/admin/users/bulk-action', 'POST', { ids, action, amount, reason });
 
 // Redemptions
 export const getRedemptions = (params = {}) => {
-  const query = new URLSearchParams(params).toString();
+  const cleanParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== '' && v !== null && v !== undefined));
+  const query = new URLSearchParams(cleanParams).toString();
   return apiRequest(`/admin/redemptions${query ? `?${query}` : ''}`);
 };
 export const updateRedemptionStatus = (id, status, admin_notes) => apiRequest(`/admin/redemptions/${id}`, 'PATCH', { status, admin_notes });
+export const bulkRedemptionsAction = (ids, action, admin_notes = '') => apiRequest('/admin/redemptions/bulk-action', 'POST', { ids, action, admin_notes });
 
 // Security / Fraud
 export const getFraudLogs = () => apiRequest('/admin/fraud');

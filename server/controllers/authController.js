@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { Op } = require('sequelize');
 const { Admin, User } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'gameloot_super_secret_jwt_key_2026_cyberloot';
@@ -68,7 +69,7 @@ async function userRegister(req, res) {
 
     const existing = await User.findOne({
       where: {
-        [require('sequelize').Op.or]: [
+        [Op.or]: [
           { email: email.trim().toLowerCase() },
           { username: username.trim() }
         ]
@@ -164,6 +165,85 @@ async function userLogin(req, res) {
   }
 }
 
+// User Google OAuth Login (Player)
+async function userGoogleLogin(req, res) {
+  try {
+    const { email, name, google_id, avatar, device_id } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Google email is required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    let user = await User.findOne({
+      where: google_id ? {
+        [Op.or]: [
+          { google_id: String(google_id) },
+          { email: cleanEmail }
+        ]
+      } : { email: cleanEmail }
+    });
+
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+
+    if (user) {
+      if (user.status === 'banned') {
+        return res.status(403).json({ success: false, message: 'Account banned from GameLoot' });
+      }
+      if (google_id && !user.google_id) user.google_id = String(google_id);
+      if (avatar && (!user.avatar || user.avatar.includes('dicebear'))) user.avatar = avatar;
+      await user.save();
+    } else {
+      const baseName = (name || cleanEmail.split('@')[0])
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toLowerCase() || 'player';
+      const randSuffix = Math.floor(100 + Math.random() * 900);
+      let username = `${baseName}_${randSuffix}`;
+
+      const existingUser = await User.findOne({ where: { username } });
+      if (existingUser) {
+        username = `${baseName}_${Date.now().toString().slice(-4)}`;
+      }
+
+      user = await User.create({
+        username,
+        email: cleanEmail,
+        google_id: google_id ? String(google_id) : `google_${Date.now()}`,
+        avatar: avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`,
+        points_balance: 100, // Welcome bonus
+        tickets_balance: 5,
+        total_earned: 100,
+        status: 'active',
+        device_id: device_id || null,
+        ip_address: ip
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, username: user.username, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Google login successful',
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+        points_balance: user.points_balance,
+        tickets_balance: user.tickets_balance,
+        total_earned: user.total_earned,
+        status: user.status
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Google authentication error', error: err.message });
+  }
+}
+
 // User Profile (Player Me)
 async function userMe(req, res) {
   try {
@@ -182,5 +262,6 @@ module.exports = {
   adminMe,
   userRegister,
   userLogin,
+  userGoogleLogin,
   userMe
 };

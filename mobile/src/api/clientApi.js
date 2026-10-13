@@ -1,4 +1,4 @@
-import { API_BASE_URL, CURRENT_APP_VERSION, CURRENT_VERSION_CODE, PRODUCTION_HOST } from './config';
+﻿import { API_BASE_URL, CURRENT_APP_VERSION, CURRENT_VERSION_CODE, PRODUCTION_HOST } from './config';
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
   const controller = new AbortController();
@@ -77,6 +77,13 @@ export async function userRegister(username, email, password) {
   return request('/auth/user/register', {
     method: 'POST',
     body: JSON.stringify({ username, email, password })
+  });
+}
+
+export async function userGoogleLogin(googleData) {
+  return request('/auth/user/google', {
+    method: 'POST',
+    body: JSON.stringify(googleData)
   });
 }
 

@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { Op } = require('sequelize');
 const {
   sequelize,
@@ -120,15 +122,18 @@ async function getDashboard(req, res) {
   }
 }
 
-// 2. Games CRUD
+// 2. Games CRUD & Featured Setting & Image Upload
 async function getGames(req, res) {
   try {
-    const { category, search, active } = req.query;
+    const { category, search, active, featured, page, limit } = req.query;
     const where = {};
 
     if (category) where.category_id = category;
     if (active !== undefined && active !== '') {
       where.is_active = active === 'true' || active === '1';
+    }
+    if (featured !== undefined && featured !== '') {
+      where.featured = featured === 'true' || featured === '1';
     }
     if (search) {
       where[Op.or] = [
@@ -137,18 +142,39 @@ async function getGames(req, res) {
       ];
     }
 
-    const games = await Game.findAll({
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const options = {
       where,
       include: [{ model: Category, as: 'category', attributes: ['name', 'slug', 'icon'] }],
       order: [['featured', 'DESC'], ['play_count', 'DESC']]
-    });
+    };
 
+    if (!isNaN(pageNum) && pageNum > 0 && !isNaN(limitNum) && limitNum > 0) {
+      options.limit = limitNum;
+      options.offset = (pageNum - 1) * limitNum;
+      const { count, rows } = await Game.findAndCountAll(options);
+      const formatted = rows.map(g => ({
+        ...g.toJSON(),
+        category_name: g.category?.name || 'Uncategorized'
+      }));
+      return res.json({
+        success: true,
+        games: formatted,
+        total: count,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(count / limitNum)
+      });
+    }
+
+    const games = await Game.findAll(options);
     const formatted = games.map(g => ({
       ...g.toJSON(),
       category_name: g.category?.name || 'Uncategorized'
     }));
 
-    return res.json({ success: true, games: formatted });
+    return res.json({ success: true, games: formatted, total: formatted.length });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to retrieve games', error: err.message });
   }
@@ -193,7 +219,6 @@ async function createGame(req, res) {
       is_active: is_active !== undefined ? !!is_active : true
     });
 
-    // Instant Notification
     sendNotification({
       title: 'New Game Added',
       message: `"${game.title}" was published to GameLoot.`,
@@ -237,6 +262,90 @@ async function deleteGame(req, res) {
     return res.json({ success: true, message: 'Game deleted successfully' });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to delete game', error: err.message });
+  }
+}
+
+// Upload Game & System Images
+async function uploadImage(req, res) {
+  try {
+    const { image, filename, folder = 'games' } = req.body;
+    if (!image) {
+      return res.status(400).json({ success: false, message: 'Image base64 data is required' });
+    }
+
+    const matches = image.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+    let ext = 'png';
+    let base64Data = image;
+
+    if (matches && matches.length === 3) {
+      ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+      base64Data = matches[2];
+    }
+
+    const buffer = Buffer.from(base64Data, 'base64');
+    if (buffer.length > 10 * 1024 * 1024) {
+      return res.status(400).json({ success: false, message: 'Image size exceeds 10MB limit' });
+    }
+
+    const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, '') || 'games';
+    const uploadDirPath = path.resolve(__dirname, '../uploads', safeFolder);
+    if (!fs.existsSync(uploadDirPath)) {
+      fs.mkdirSync(uploadDirPath, { recursive: true });
+    }
+
+    const cleanName = (filename || 'game_image')
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 40);
+    const finalFilename = `${Date.now()}_${cleanName}.${ext}`;
+    const filePath = path.join(uploadDirPath, finalFilename);
+
+    fs.writeFileSync(filePath, buffer);
+
+    const publicUrl = `/uploads/${safeFolder}/${finalFilename}`;
+    return res.status(201).json({
+      success: true,
+      message: 'Image uploaded successfully',
+      url: publicUrl,
+      filename: finalFilename
+    });
+  } catch (err) {
+    console.error('uploadImage error:', err);
+    return res.status(500).json({ success: false, message: 'Image upload failed', error: err.message });
+  }
+}
+
+// Bulk Actions for Games
+async function bulkActionGames(req, res) {
+  try {
+    const { ids, action } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Game IDs array is required' });
+    }
+
+    if (action === 'feature') {
+      await Game.update({ featured: true }, { where: { id: ids } });
+    } else if (action === 'unfeature') {
+      await Game.update({ featured: false }, { where: { id: ids } });
+    } else if (action === 'activate') {
+      await Game.update({ is_active: true }, { where: { id: ids } });
+    } else if (action === 'deactivate') {
+      await Game.update({ is_active: false }, { where: { id: ids } });
+    } else if (action === 'delete') {
+      await Game.destroy({ where: { id: ids } });
+    } else {
+      return res.status(400).json({ success: false, message: `Unknown bulk action: ${action}` });
+    }
+
+    sendNotification({
+      title: 'Bulk Game Action',
+      message: `Action "${action}" applied to ${ids.length} game(s).`,
+      type: 'info'
+    });
+
+    return res.json({ success: true, message: `Bulk action "${action}" executed on ${ids.length} games` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Bulk game action failed', error: err.message });
   }
 }
 
@@ -299,10 +408,10 @@ async function deleteCategory(req, res) {
   }
 }
 
-// 4. Users Management
+// 4. Users Management & Bulk Actions & Pagination
 async function getUsers(req, res) {
   try {
-    const { search, status } = req.query;
+    const { search, status, page, limit } = req.query;
     const where = {};
 
     if (status) where.status = status;
@@ -313,12 +422,29 @@ async function getUsers(req, res) {
       ];
     }
 
-    const users = await User.findAll({
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const options = {
       where,
       order: [['created_at', 'DESC']]
-    });
+    };
 
-    return res.json({ success: true, users });
+    if (!isNaN(pageNum) && pageNum > 0 && !isNaN(limitNum) && limitNum > 0) {
+      options.limit = limitNum;
+      options.offset = (pageNum - 1) * limitNum;
+      const { count, rows } = await User.findAndCountAll(options);
+      return res.json({
+        success: true,
+        users: rows,
+        total: count,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(count / limitNum)
+      });
+    }
+
+    const users = await User.findAll(options);
+    return res.json({ success: true, users, total: users.length });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to retrieve users', error: err.message });
   }
@@ -427,19 +553,83 @@ async function adjustUserPoints(req, res) {
   }
 }
 
-// 5. Redemptions Payout Queue
+// Bulk Actions for Users
+async function bulkActionUsers(req, res) {
+  try {
+    const { ids, action, amount, reason } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'User IDs array is required' });
+    }
+
+    if (['active', 'suspended', 'banned'].includes(action)) {
+      await User.update({ status: action }, { where: { id: ids } });
+    } else if (action === 'bonus') {
+      const bonusPts = parseInt(amount, 10) || 100;
+      const users = await User.findAll({ where: { id: ids } });
+      for (const u of users) {
+        u.points_balance += bonusPts;
+        u.total_earned += bonusPts;
+        await u.save();
+        await PointTransaction.create({
+          user_id: u.id,
+          type: 'admin_adjustment',
+          amount: bonusPts,
+          balance_after: u.points_balance,
+          description: reason || `Bulk Bonus Perk: +${bonusPts} PTS`
+        });
+      }
+    } else {
+      return res.status(400).json({ success: false, message: `Unknown user bulk action: ${action}` });
+    }
+
+    sendNotification({
+      title: 'Bulk Player Action',
+      message: `Action "${action}" executed on ${ids.length} player(s).`,
+      type: action === 'banned' ? 'fraud' : 'info'
+    });
+
+    return res.json({ success: true, message: `Bulk action "${action}" applied to ${ids.length} users` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Bulk user action failed', error: err.message });
+  }
+}
+
+// 5. Redemptions Payout Queue & Bulk Actions & Pagination
 async function getRedemptions(req, res) {
   try {
-    const { status } = req.query;
+    const { status, page, limit } = req.query;
     const where = {};
     if (status) where.status = status;
 
-    const redemptions = await RewardRedemption.findAll({
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const options = {
       where,
       include: [{ model: User, as: 'user', attributes: ['id', 'username', 'email', 'points_balance'] }],
       order: [['created_at', 'DESC']]
-    });
+    };
 
+    if (!isNaN(pageNum) && pageNum > 0 && !isNaN(limitNum) && limitNum > 0) {
+      options.limit = limitNum;
+      options.offset = (pageNum - 1) * limitNum;
+      const { count, rows } = await RewardRedemption.findAndCountAll(options);
+      const mapped = rows.map(r => ({
+        ...r.toJSON(),
+        username: r.user?.username || 'Unknown',
+        email: r.user?.email || '',
+        points_balance: r.user?.points_balance || 0
+      }));
+      return res.json({
+        success: true,
+        redemptions: mapped,
+        total: count,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(count / limitNum)
+      });
+    }
+
+    const redemptions = await RewardRedemption.findAll(options);
     const mapped = redemptions.map(r => ({
       ...r.toJSON(),
       username: r.user?.username || 'Unknown',
@@ -447,7 +637,7 @@ async function getRedemptions(req, res) {
       points_balance: r.user?.points_balance || 0
     }));
 
-    return res.json({ success: true, redemptions: mapped });
+    return res.json({ success: true, redemptions: mapped, total: mapped.length });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to retrieve redemptions', error: err.message });
   }
@@ -467,7 +657,6 @@ async function updateRedemptionStatus(req, res) {
     });
     if (!red) return res.status(404).json({ success: false, message: 'Redemption request not found' });
 
-    // Handle refund if rejected
     if (status === 'rejected' && (red.status === 'pending' || red.status === 'approved')) {
       if (red.user) {
         red.user.points_balance += red.points_spent;
@@ -484,7 +673,6 @@ async function updateRedemptionStatus(req, res) {
       }
     }
 
-    // Handle marked as paid
     if (status === 'paid' && red.status !== 'paid') {
       if (red.user) {
         red.user.total_withdrawn = Number(red.user.total_withdrawn || 0) + Number(red.cash_value_usd);
@@ -506,6 +694,61 @@ async function updateRedemptionStatus(req, res) {
     return res.json({ success: true, message: `Redemption marked as ${status}` });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to update redemption', error: err.message });
+  }
+}
+
+// Bulk Actions for Redemptions
+async function bulkActionRedemptions(req, res) {
+  try {
+    const { ids, action, admin_notes } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Redemption IDs array is required' });
+    }
+
+    if (!['paid', 'approved', 'rejected'].includes(action)) {
+      return res.status(400).json({ success: false, message: `Invalid bulk redemption action: ${action}` });
+    }
+
+    const redemptions = await RewardRedemption.findAll({
+      where: { id: ids },
+      include: [{ model: User, as: 'user' }]
+    });
+
+    for (const red of redemptions) {
+      if (action === 'rejected' && (red.status === 'pending' || red.status === 'approved')) {
+        if (red.user) {
+          red.user.points_balance += red.points_spent;
+          await red.user.save();
+          await PointTransaction.create({
+            user_id: red.user.id,
+            type: 'admin_adjustment',
+            amount: red.points_spent,
+            balance_after: red.user.points_balance,
+            description: `Bulk refund for rejected cashout: ${red.reward_title}`,
+            reference_id: `REFUND-${red.id}`
+          });
+        }
+      } else if (action === 'paid' && red.status !== 'paid') {
+        if (red.user) {
+          red.user.total_withdrawn = Number(red.user.total_withdrawn || 0) + Number(red.cash_value_usd);
+          await red.user.save();
+        }
+      }
+      red.status = action;
+      if (admin_notes) red.admin_notes = admin_notes;
+      red.processed_at = new Date();
+      await red.save();
+    }
+
+    sendNotification({
+      title: 'Bulk Cashouts Updated',
+      message: `${ids.length} redemption request(s) updated to ${action.toUpperCase()}.`,
+      type: action === 'paid' ? 'success' : action === 'rejected' ? 'fraud' : 'info'
+    });
+
+    return res.json({ success: true, message: `Bulk action "${action}" applied to ${ids.length} cashout requests` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Bulk cashout action failed', error: err.message });
   }
 }
 
@@ -577,7 +820,6 @@ async function updateSettings(req, res) {
       );
     }
 
-    // Check if any mobile app version or force update settings were modified
     const hasAppUpdate = settings.some(s => s.setting_key && s.setting_key.startsWith('app_'));
     if (hasAppUpdate) {
       const allAppSettings = await SystemSetting.findAll({
@@ -608,6 +850,8 @@ module.exports = {
   createGame,
   updateGame,
   deleteGame,
+  uploadImage,
+  bulkActionGames,
   getCategories,
   createCategory,
   updateCategory,
@@ -616,8 +860,10 @@ module.exports = {
   getUserDetails,
   updateUserStatus,
   adjustUserPoints,
+  bulkActionUsers,
   getRedemptions,
   updateRedemptionStatus,
+  bulkActionRedemptions,
   getFraudLogs,
   updateFraudStatus,
   getSettings,
