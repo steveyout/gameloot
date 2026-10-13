@@ -22,8 +22,7 @@ import QuizModal from './src/components/QuizModal';
 import SurfModal from './src/components/SurfModal';
 import SurveyModal from './src/components/SurveyModal';
 import AdRewardModal from './src/components/AdRewardModal';
-import NotificationModal from './src/components/NotificationModal';
-import SettingsModal from './src/components/SettingsModal';
+import SwappableDrawerModal from './src/components/SwappableDrawerModal';
 import DailyStreakModal from './src/components/DailyStreakModal';
 import LuckyWheelModal from './src/components/LuckyWheelModal';
 import SplashScreen from './src/components/SplashScreen';
@@ -59,8 +58,8 @@ function MainApp() {
   const [activeSurf, setActiveSurf] = useState(null);
   const [activeSurvey, setActiveSurvey] = useState(null);
   const [showAdReward, setShowAdReward] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showDrawer, setShowDrawer] = useState(false);
+  const [drawerTab, setDrawerTab] = useState('notifications');
   const [showDailyStreak, setShowDailyStreak] = useState(false);
   const [showLuckyWheel, setShowLuckyWheel] = useState(false);
 
@@ -371,8 +370,14 @@ function MainApp() {
             user={user}
             pointsBalance={user.points_balance || 0}
             unreadNotificationsCount={unreadNotificationsCount}
-            onOpenNotifications={() => setShowNotifications(true)}
-            onOpenSettings={() => setShowSettings(true)}
+            onOpenNotifications={() => {
+              setDrawerTab('notifications');
+              setShowDrawer(true);
+            }}
+            onOpenSettings={() => {
+              setDrawerTab('settings');
+              setShowDrawer(true);
+            }}
             onCheckUpdate={handleManualUpdateCheck}
             isCheckingUpdate={isCheckingUpdate}
             onLogout={handleLogout}
@@ -486,24 +491,19 @@ function MainApp() {
         onRewardClaimed={handleRewardClaimed}
       />
 
-      {/* In-App Notifications & Drops Center */}
-      <NotificationModal
-        visible={showNotifications}
+      {/* Unified Swappable Drawer (Notifications & Drops <-> Settings & Preferences) */}
+      <SwappableDrawerModal
+        visible={showDrawer}
+        initialTab={drawerTab}
+        user={user}
         token={token}
-        onClose={() => setShowNotifications(false)}
+        onClose={() => setShowDrawer(false)}
         onBonusClaimed={handleNotificationBonusClaimed}
         onNavigateTab={(tab) => {
           setActiveTab(tab);
-          setShowNotifications(false);
+          setShowDrawer(false);
         }}
         onUnreadChange={setUnreadNotificationsCount}
-      />
-
-      {/* In-App Settings & Preferences Modal */}
-      <SettingsModal
-        visible={showSettings}
-        user={user}
-        onClose={() => setShowSettings(false)}
         onLogout={handleLogout}
         onCheckUpdate={handleManualUpdateCheck}
         isCheckingUpdate={isCheckingUpdate}
