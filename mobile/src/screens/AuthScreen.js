@@ -10,7 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
-  SafeAreaView
+  SafeAreaView,
+  Alert
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,8 +20,29 @@ import { userLogin, userRegister, userGoogleLogin } from '../api/clientApi';
 import { logEvent } from '../services/firebase';
 import LegalModal from '../components/LegalModal';
 
-const GOOGLE_CLIENT_ID = '854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com';
+const GOOGLE_WEB_CLIENT_ID = '854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com';
 const GOOGLE_REDIRECT_URI = 'https://gameloot-e2358.firebaseapp.com/__/auth/handler';
+
+// Dynamically check for Android Native Google Play Services module
+let NativeGoogleSignin = null;
+let NativeStatusCodes = null;
+
+try {
+  const gModule = require('@react-native-google-signin/google-signin');
+  if (gModule && gModule.GoogleSignin) {
+    NativeGoogleSignin = gModule.GoogleSignin;
+    NativeStatusCodes = gModule.statusCodes;
+    NativeGoogleSignin.configure({
+      webClientId: GOOGLE_WEB_CLIENT_ID,
+      scopes: ['email', 'profile'],
+      offlineAccess: false,
+    });
+  }
+} catch (_) {
+  // Running inside Expo Go sandbox without compiled native code
+  NativeGoogleSignin = null;
+  NativeStatusCodes = null;
+}
 
 const GOOGLE_USER_AGENT =
   Platform.OS === 'ios'
@@ -66,8 +88,9 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  // In-App Google Sign-In Popup State (No External Browsers)
+  // In-App Google Sign-In Popup State (Fallback for Expo Go)
   const [googleModalVisible, setGoogleModalVisible] = useState(false);
   const [verifyingGoogle, setVerifyingGoogle] = useState(false);
   const [googleAuthNonce, setGoogleAuthNonce] = useState(
@@ -81,7 +104,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
 
   const googleAuthUrl =
     `https://accounts.google.com/o/oauth2/v2/auth?` +
-    `client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}` +
+    `client_id=${encodeURIComponent(GOOGLE_WEB_CLIENT_ID)}` +
     `&redirect_uri=${encodeURIComponent(GOOGLE_REDIRECT_URI)}` +
     `&response_type=token%20id_token` +
     `&scope=${encodeURIComponent('openid email profile')}` +
@@ -94,7 +117,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   };
 
   const handleSubmit = async () => {
-    if (loading || verifyingGoogle) return;
+    if (loading || googleLoading || verifyingGoogle) return;
     if (!username.trim() || !password.trim()) {
       onErrorAlert('Please enter your username and password');
       return;
@@ -132,11 +155,70 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   };
 
   /**
-   * Triggers the Google Sign-In In-App Popup Dialog
-   * Avoids launching Chrome, Safari, or external browsers entirely
+   * Google Sign-In Handler
+   * 1. If running with native Google Play Services (Dev Build / APK), opens the exact native bottom sheet dialog
+   * 2. If running inside Expo Go, falls back to the in-app popup modal
    */
-  const handleGoogleSignIn = () => {
-    if (loading || verifyingGoogle) return;
+  const handleGoogleSignIn = async () => {
+    if (loading || googleLoading || verifyingGoogle) return;
+
+    // Check if native Google Play Services module is available (Development Build or APK)
+    if (NativeGoogleSignin && typeof NativeGoogleSignin.signIn === 'function') {
+      try {
+        setGoogleLoading(true);
+        await NativeGoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        const response = await NativeGoogleSignin.signIn();
+
+        // Support both old and new response structures of @react-native-google-signin/google-signin
+        const userInfo = response?.data || response;
+        const user = userInfo?.user || userInfo;
+
+        if (user && user.email) {
+          const res = await userGoogleLogin({
+            email: user.email,
+            name: user.name || user.givenName,
+            google_id: user.id,
+            avatar: user.photo
+          });
+
+          if (res && res.success && res.token) {
+            logEvent('login_success', {
+              provider: 'google.native',
+              user_id: res.user?.id,
+              email: res.user?.email,
+              app: 'gameloot'
+            });
+            onAuthSuccess(res.user, res.token);
+            return;
+          } else {
+            onErrorAlert(res?.message || 'Google account verification failed on GameLoot server.');
+          }
+        }
+      } catch (err) {
+        if (
+          err.code === NativeStatusCodes?.SIGN_IN_CANCELLED ||
+          err.message?.includes('cancelled') ||
+          err.message?.includes('canceled')
+        ) {
+          // User closed bottom sheet dialog
+          return;
+        }
+
+        console.warn('Native Google Play Services Sign-In exception:', err.message);
+
+        // If native module fails (e.g. SHA-1 mismatch or Expo Go environment), fall back to in-app popup modal
+        launchInAppGooglePopup();
+      } finally {
+        setGoogleLoading(false);
+      }
+      return;
+    }
+
+    // Expo Go sandbox environment: launch in-app popup modal without opening external browsers
+    launchInAppGooglePopup();
+  };
+
+  const launchInAppGooglePopup = () => {
     const newNonce = Math.random().toString(36).substring(2) + Date.now().toString(36);
     setGoogleAuthNonce(newNonce);
     isProcessingGoogleAuth.current = false;
@@ -286,8 +368,8 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
           <Text style={styles.brandTitle}>gameloot</Text>
           <Text style={styles.brandSubtitle}>
             {payoutsEnabled
-              ? 'Instant Games Arcade \u2022 Play & Earn Real Rewards'
-              : 'Instant Games Arcade \u2022 Play & Compete'}
+              ? 'Instant Games Arcade • Play & Earn Real Rewards'
+              : 'Instant Games Arcade • Play & Compete'}
           </Text>
 
           <View style={styles.bonusBanner}>
@@ -295,7 +377,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
             <Text style={styles.bonusText}>
               {payoutsEnabled
                 ? 'NEW PLAYERS GET +100 PTS ON SIGN UP'
-                : 'FREE TO PLAY \u2022 UNLIMITED INSTANT GAMES'}
+                : 'FREE TO PLAY • UNLIMITED INSTANT GAMES'}
             </Text>
           </View>
         </View>
@@ -338,7 +420,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
-                  editable={!loading && !verifyingGoogle}
+                  editable={!loading && !googleLoading && !verifyingGoogle}
                 />
               </View>
             </View>
@@ -356,7 +438,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
                     onChangeText={setEmail}
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    editable={!loading && !verifyingGoogle}
+                    editable={!loading && !googleLoading && !verifyingGoogle}
                   />
                 </View>
               </View>
@@ -373,16 +455,16 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
-                  editable={!loading && !verifyingGoogle}
+                  editable={!loading && !googleLoading && !verifyingGoogle}
                 />
               </View>
             </View>
 
             {/* Standard Email Submit Button */}
             <TouchableOpacity
-              style={[styles.submitBtn, (loading || verifyingGoogle) && styles.submitBtnDisabled]}
+              style={[styles.submitBtn, (loading || googleLoading || verifyingGoogle) && styles.submitBtnDisabled]}
               onPress={handleSubmit}
-              disabled={loading || verifyingGoogle}
+              disabled={loading || googleLoading || verifyingGoogle}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -409,17 +491,26 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Google Sign In Button - Triggers In-App Google Popup Modal */}
+            {/* Google Sign In Button - Triggers Native Bottom Sheet or In-App Popup */}
             <TouchableOpacity
-              style={[styles.googleBtn, (loading || verifyingGoogle) && styles.googleBtnDisabled]}
+              style={[styles.googleBtn, (loading || googleLoading || verifyingGoogle) && styles.googleBtnDisabled]}
               onPress={handleGoogleSignIn}
-              disabled={loading || verifyingGoogle}
+              disabled={loading || googleLoading || verifyingGoogle}
               activeOpacity={0.85}
             >
-              <View style={styles.googleLogoWrap}>
-                <Text style={styles.googleLogoG}>G</Text>
-              </View>
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
+              {googleLoading ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator size="small" color="#517bfd" style={{ marginRight: 8 }} />
+                  <Text style={styles.googleBtnText}>Opening Google Account Picker...</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.googleLogoWrap}>
+                    <Text style={styles.googleLogoG}>G</Text>
+                  </View>
+                  <Text style={styles.googleBtnText}>Continue with Google</Text>
+                </>
+              )}
             </TouchableOpacity>
 
             {/* Terms of Service & Privacy Policy Acceptance notice */}
@@ -454,7 +545,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
             <Shield size={13} color="#517bfd" />
             <Text style={styles.publicLegalBtnText}>Privacy Policy</Text>
           </TouchableOpacity>
-          <Text style={styles.publicLegalDot}>\u2022</Text>
+          <Text style={styles.publicLegalDot}>•</Text>
           <TouchableOpacity
             style={styles.publicLegalBtn}
             onPress={() => handleOpenLegal('terms')}
@@ -466,7 +557,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
         </View>
       </ScrollView>
 
-      {/* In-App Google Sign-In Popup Dialog (No External Browser, No Chrome/Safari) */}
+      {/* In-App Google Sign-In Popup Dialog (Expo Go fallback) */}
       <Modal
         visible={googleModalVisible}
         animationType="slide"
