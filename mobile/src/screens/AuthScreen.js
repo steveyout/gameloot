@@ -11,22 +11,16 @@ import {
   Platform,
   Linking
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Gamepad2, Sparkles, Lock, Mail, User, Shield, FileText } from 'lucide-react-native';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { userLogin, userRegister, userGoogleLogin } from '../api/clientApi';
 import { API_BASE_URL } from '../api/config';
 import { logEvent } from '../services/firebase';
 import LegalModal from '../components/LegalModal';
 
-// Configure Google Play Services native in-app account picker
-try {
-  GoogleSignin.configure({
-    webClientId: '854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com',
-    scopes: ['email', 'profile'],
-    offlineAccess: false,
-  });
-} catch (_) {}
+// Completes auth session automatically if redirected back into web browser
+WebBrowser.maybeCompleteAuthSession();
 
 export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled = false }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -40,48 +34,55 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   const [legalModalVisible, setLegalModalVisible] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState('privacy');
 
-  // Fallback deep link handler for OAuth redirects
+  const handleAuthRedirectUrl = (url) => {
+    if (!url) {
+      setGoogleLoading(false);
+      return;
+    }
+    try {
+      if (url.startsWith('gameloot://auth') || url.includes('gameloot://auth')) {
+        const query = url.includes('?') ? url.split('?')[1] : '';
+
+        const getParam = (name) => {
+          const match = query.match(new RegExp('(?:^|[?&])' + name + '=([^&]*)'));
+          return match ? decodeURIComponent(match[1]) : null;
+        };
+
+        const token = getParam('token');
+        const userParam = getParam('user');
+        const error = getParam('error');
+        const cancel = getParam('cancel');
+
+        setGoogleLoading(false);
+
+        if (cancel) return;
+
+        if (error) {
+          onErrorAlert(error || 'Google authentication failed.');
+          return;
+        }
+
+        if (token && userParam) {
+          const parsedUser = JSON.parse(userParam);
+          logEvent('login_success', {
+            provider: 'google.oauth',
+            user_id: parsedUser?.id,
+            email: parsedUser?.email,
+            app: 'gameloot'
+          });
+          onAuthSuccess(parsedUser, token);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to parse Google OAuth redirect URL:', err.message);
+      setGoogleLoading(false);
+    }
+  };
+
+  // Deep link listener for OAuth return
   useEffect(() => {
     const handleDeepLink = ({ url }) => {
-      if (!url) return;
-      try {
-        if (url.startsWith('gameloot://auth') || url.includes('gameloot://auth')) {
-          const query = url.includes('?') ? url.split('?')[1] : '';
-
-          const getParam = (name) => {
-            const match = query.match(new RegExp('(?:^|[?&])' + name + '=([^&]*)'));
-            return match ? decodeURIComponent(match[1]) : null;
-          };
-
-          const token = getParam('token');
-          const userParam = getParam('user');
-          const error = getParam('error');
-          const cancel = getParam('cancel');
-
-          setGoogleLoading(false);
-
-          if (cancel) return;
-
-          if (error) {
-            onErrorAlert(error || 'Google authentication failed.');
-            return;
-          }
-
-          if (token && userParam) {
-            const parsedUser = JSON.parse(userParam);
-            logEvent('login_success', {
-              provider: 'google.oauth',
-              user_id: parsedUser?.id,
-              email: parsedUser?.email,
-              app: 'gameloot'
-            });
-            onAuthSuccess(parsedUser, token);
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to parse Google OAuth redirect URL:', err.message);
-        setGoogleLoading(false);
-      }
+      handleAuthRedirectUrl(url);
     };
 
     const subscription = Linking.addEventListener('url', handleDeepLink);
@@ -89,7 +90,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
     Linking.getInitialURL()
       .then((url) => {
         if (url) {
-          handleDeepLink({ url });
+          handleAuthRedirectUrl(url);
         }
       })
       .catch(() => {});
@@ -145,63 +146,36 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   };
 
   /**
-   * Native Google Sign-In In-App Modal / Bottom Sheet
-   * Pops up the native Google account picker sheet directly in the app (No Web Browser)
+   * Google Sign-In In-App Modal / Bottom Sheet
+   * Opens the in-app Google Auth modal overlay directly over the app without switching to external browser
    */
   const handleGoogleSignIn = async () => {
     if (loading || googleLoading) return;
     setGoogleLoading(true);
 
     try {
-      if (GoogleSignin && typeof GoogleSignin.hasPlayServices === 'function') {
-        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-        const response = await GoogleSignin.signIn();
-        const googleUser = response?.data?.user || response?.user;
+      const authUrl = `${API_BASE_URL}/auth/google`;
+      const redirectUrl = 'gameloot://auth';
 
-        if (googleUser && googleUser.email) {
-          const res = await userGoogleLogin({
-            email: googleUser.email,
-            name: googleUser.name || googleUser.givenName || googleUser.email.split('@')[0],
-            google_id: googleUser.id,
-            avatar: googleUser.photo
-          });
+      // Opens in-app modal overlay (Chrome Custom Tab / ASWebAuthenticationSession)
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
 
-          if (res && res.success && res.token) {
-            logEvent('login_success', {
-              provider: 'google.native',
-              user_id: res.user?.id,
-              email: res.user?.email,
-              app: 'gameloot'
-            });
-            onAuthSuccess(res.user, res.token);
-            setGoogleLoading(false);
-            return;
-          } else {
-            throw new Error(res?.message || 'Server authentication failed');
-          }
-        }
+      if (result.type === 'success' && result.url) {
+        handleAuthRedirectUrl(result.url);
+      } else {
+        // Modal was dismissed or closed by user
+        setGoogleLoading(false);
       }
     } catch (err) {
-      if (err.code === statusCodes?.SIGN_IN_CANCELLED) {
-        setGoogleLoading(false);
-        return;
-      } else if (err.code === statusCodes?.IN_PROGRESS) {
-        return;
-      }
-
-      console.warn('Native Google Sign-In notice:', err.message);
-      // Fallback for environments where native play services aren't linked (e.g. Expo Go)
+      console.warn('In-app Google Auth notice:', err.message);
+      setGoogleLoading(false);
+      // Fallback
       try {
-        const authUrl = `${API_BASE_URL}/auth/google`;
-        await Linking.openURL(authUrl);
+        await Linking.openURL(`${API_BASE_URL}/auth/google`);
       } catch (linkErr) {
-        onErrorAlert('Google Sign-In: ' + (err.message || linkErr.message));
-        setGoogleLoading(false);
+        onErrorAlert('Could not launch Google Sign-In: ' + (err.message || linkErr.message));
       }
-      return;
     }
-
-    setGoogleLoading(false);
   };
 
   return (
@@ -349,7 +323,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Google Sign In Button - Triggers Google Native Modal */}
+            {/* Google Sign In Button - Triggers In-App Google Modal */}
             <TouchableOpacity
               style={[styles.googleBtn, (loading || googleLoading) && styles.googleBtnDisabled]}
               onPress={handleGoogleSignIn}
