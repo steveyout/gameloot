@@ -11,6 +11,7 @@ import { useAppUpdate } from './src/hooks/useAppUpdate';
 import { userLogin, getNotifications, getUserProfile } from './src/api/clientApi';
 import { SOCKET_URL } from './src/api/config';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { initFirebase, logEvent, logScreenView, setUserId } from './src/services/firebase';
 
 // Components
 import Header from './src/components/Header';
@@ -88,6 +89,23 @@ function MainApp() {
     currentVersion
   } = useAppUpdate();
 
+  // Initialize Firebase Analytics on app start
+  useEffect(() => {
+    initFirebase().catch(() => {});
+  }, []);
+
+  // Update Firebase User ID when user changes
+  useEffect(() => {
+    if (user?.id) {
+      setUserId(user.id);
+    }
+  }, [user?.id]);
+
+  // Track Screen Views in Firebase Analytics
+  useEffect(() => {
+    logScreenView(activeTab, `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}Screen`);
+  }, [activeTab]);
+
   // If administrator disables payouts, automatically route away from rewards or earn tab
   useEffect(() => {
     if (!payoutsEnabled && (activeTab === 'rewards' || activeTab === 'earn')) {
@@ -114,6 +132,7 @@ function MainApp() {
               const parsedUser = JSON.parse(savedUserJson);
               if (parsedUser && parsedUser.id) {
                 setUser(parsedUser);
+                setUserId(parsedUser.id);
               }
             } catch (_) {}
           }
@@ -123,6 +142,7 @@ function MainApp() {
             const profileRes = await getUserProfile(savedToken);
             if (profileRes && profileRes.success && profileRes.user && isMounted) {
               setUser(profileRes.user);
+              setUserId(profileRes.user.id);
               await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(profileRes.user));
             }
           } catch (profileErr) {
@@ -323,10 +343,16 @@ function MainApp() {
     } catch (e) {
       console.warn('Failed to persist auth session:', e.message);
     }
+    logEvent('auth_success', {
+      user_id: userData.id,
+      username: userData.username,
+      app: 'gameloot'
+    });
     showAlert(`Welcome back, ${userData.username}!`, 'success', 'Session Authenticated');
   };
 
   const handleLogout = async () => {
+    logEvent('auth_logout', { user_id: user?.id, app: 'gameloot' });
     setUser(null);
     setToken(null);
     try {
@@ -343,6 +369,12 @@ function MainApp() {
       showAlert('Game sessions are temporarily paused during scheduled maintenance.', 'error', 'Maintenance Active');
       return;
     }
+    logEvent('game_start_select', {
+      game_id: game.id,
+      title: game.title,
+      category: game.category_name,
+      app: 'gameloot'
+    });
     setActiveGame(game);
     try {
       const stored = await AsyncStorage.getItem(RECENT_GAMES_KEY);
@@ -368,6 +400,12 @@ function MainApp() {
       persistUserUpdate((prev) => ({ ...prev, points_balance: newBalance }));
     }
     const name = gameTitle || title || 'Task';
+    logEvent('reward_collected', {
+      points,
+      source: name,
+      new_balance: newBalance,
+      app: 'gameloot'
+    });
     if (points > 0) {
       triggerCelebration(points, name);
       showAlert(
@@ -389,6 +427,7 @@ function MainApp() {
     if (newBalance !== undefined && user) {
       persistUserUpdate((prev) => ({ ...prev, points_balance: newBalance }));
     }
+    logEvent('streak_claimed', { day, points, app: 'gameloot' });
     triggerCelebration(points, `Day ${day} Streak 🔥`);
     showAlert(
       `Day ${day} streak bonus claimed! Points added to vault.`,
@@ -402,6 +441,7 @@ function MainApp() {
     if (newBalance !== undefined && user) {
       persistUserUpdate((prev) => ({ ...prev, points_balance: newBalance }));
     }
+    logEvent('wheel_spun', { label, points, app: 'gameloot' });
     if (points > 0) {
       triggerCelebration(points, `Lucky Wheel: ${label}`);
       showAlert(
@@ -423,6 +463,7 @@ function MainApp() {
     if (newBalance !== undefined && user) {
       persistUserUpdate((prev) => ({ ...prev, points_balance: newBalance }));
     }
+    logEvent('notification_bonus_claimed', { title, points, app: 'gameloot' });
     triggerCelebration(points, 'Bonus Drop 🎁');
     showAlert(
       `Bonus drop claimed: +${points} PTS added to your wallet!`,
@@ -436,6 +477,11 @@ function MainApp() {
     if (newBalance !== undefined && user) {
       persistUserUpdate((prev) => ({ ...prev, points_balance: newBalance }));
     }
+    logEvent('cashout_requested', {
+      reward_title: rewardTitle,
+      cash_usd: cashUsd,
+      app: 'gameloot'
+    });
     showAlert(
       `$${Number(cashUsd).toFixed(2)} (${rewardTitle}) request submitted for 24h payout.`,
       'success',

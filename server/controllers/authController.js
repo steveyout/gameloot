@@ -270,11 +270,292 @@ async function userMe(req, res) {
   }
 }
 
+// Google Sign-In Hosted OAuth Webpage for Mobile & Web clients
+function googleSignInPage(req, res) {
+  const firebaseApiKey = process.env.FIREBASE_API_KEY || 'AIzaSyA_GameLoot_2026_LiveKeySecureX9';
+  const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || 'gameloot-app';
+  const googleClientId = process.env.GOOGLE_CLIENT_ID || '';
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Google Sign-In - GameLoot</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #090d16;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .card {
+      background: #151722;
+      border: 1px solid #23263b;
+      border-radius: 24px;
+      padding: 32px 24px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+    .logo {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(81, 123, 253, 0.3);
+    }
+    .logo svg { width: 30px; height: 30px; }
+    h1 {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 6px;
+      color: #ffffff;
+    }
+    p {
+      color: #979caf;
+      font-size: 13px;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .btn-google {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      background: #ffffff;
+      color: #0b0c12;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 14px 20px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+    .btn-google:hover {
+      background: #f1f3f4;
+      transform: translateY(-1px);
+    }
+    .btn-google:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .status-box {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #979caf;
+      min-height: 24px;
+    }
+    .status-box.error { color: #f87171; }
+    .status-box.success { color: #34d399; }
+    .btn-cancel {
+      margin-top: 20px;
+      background: transparent;
+      border: none;
+      color: #686d82;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 8px;
+    }
+    .btn-cancel:hover { color: #979caf; }
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(81, 123, 253, 0.3);
+      border-radius: 50%;
+      border-top-color: #517bfd;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <svg viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+      </svg>
+    </div>
+    <h1>Sign in with Google</h1>
+    <p>Sign in to your authentic Google Account to sync your GameLoot progress & rewards.</p>
+
+    <div id="g_id_onload"
+      data-client_id="${googleClientId}"
+      data-callback="handleCredentialResponse"
+      data-auto_prompt="false">
+    </div>
+    <div id="g_id_signin" style="display: flex; justify-content: center; margin-bottom: 12px;"></div>
+
+    <button id="googleBtn" class="btn-google" onclick="triggerGoogleSignIn()">
+      <svg width="18" height="18" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+      </svg>
+      <span>Choose Google Account</span>
+    </button>
+
+    <div id="statusBox" class="status-box"></div>
+
+    <button class="btn-cancel" onclick="cancelSignIn()">Cancel</button>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "${firebaseApiKey}",
+      authDomain: "${firebaseProjectId}.firebaseapp.com",
+      projectId: "${firebaseProjectId}"
+    };
+
+    if (!firebase.apps.length) {
+      try { firebase.initializeApp(firebaseConfig); } catch(e) {}
+    }
+
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+
+    function setStatus(msg, isError, isSpinning) {
+      const box = document.getElementById('statusBox');
+      box.className = 'status-box' + (isError ? ' error' : (isSpinning ? '' : ' success'));
+      box.innerHTML = (isSpinning ? '<span class="spinner"></span>' : '') + msg;
+    }
+
+    async function syncBackend(googleUser) {
+      setStatus('Synchronizing with GameLoot...', false, true);
+      try {
+        const res = await fetch('/api/auth/user/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: googleUser.email,
+            name: googleUser.displayName || googleUser.name,
+            google_id: googleUser.uid || googleUser.sub,
+            avatar: googleUser.photoURL || googleUser.picture
+          })
+        });
+
+        const data = await res.json();
+        if (data.success && data.token) {
+          setStatus('Authentication verified! Loading GameLoot...', false, false);
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'GOOGLE_AUTH_SUCCESS',
+              token: data.token,
+              user: data.user
+            }));
+          }
+        } else {
+          setStatus(data.message || 'Server authentication failed', true, false);
+        }
+      } catch (err) {
+        setStatus('Connection error: ' + err.message, true, false);
+      }
+    }
+
+    // Google Identity Services (GIS) Callback
+    function handleCredentialResponse(response) {
+      try {
+        const payload = JSON.parse(atob(response.credential.split('.')[1]));
+        if (payload && payload.email) {
+          syncBackend({
+            email: payload.email,
+            name: payload.name,
+            uid: payload.sub,
+            photoURL: payload.picture
+          });
+        }
+      } catch (e) {
+        setStatus('Credential error: ' + e.message, true, false);
+      }
+    }
+
+    // Firebase Google Sign In Trigger
+    async function triggerGoogleSignIn() {
+      const btn = document.getElementById('googleBtn');
+      btn.disabled = true;
+      setStatus('Opening Google Account Sign-In...', false, true);
+
+      try {
+        const result = await firebase.auth().signInWithPopup(provider);
+        if (result && result.user && result.user.email) {
+          await syncBackend({
+            email: result.user.email,
+            displayName: result.user.displayName,
+            uid: result.user.uid,
+            photoURL: result.user.photoURL
+          });
+        }
+      } catch (err) {
+        btn.disabled = false;
+        if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
+          setStatus('Please sign in through the Google prompt window.', false, false);
+        } else {
+          setStatus('Google Sign-In: ' + (err.message || 'Authentication was cancelled'), true, false);
+        }
+      }
+    }
+
+    function cancelSignIn() {
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'GOOGLE_AUTH_CANCEL' }));
+      }
+    }
+
+    window.addEventListener('load', () => {
+      const clientId = "${googleClientId}";
+      if (clientId && window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleCredentialResponse
+          });
+          google.accounts.id.renderButton(
+            document.getElementById('g_id_signin'),
+            { theme: 'outline', size: 'large', width: 340 }
+          );
+        } catch (_) {}
+      }
+    });
+  </script>
+</body>
+</html>`;
+
+  res.setHeader('Content-Type', 'text/html');
+  return res.send(html);
+}
+
 module.exports = {
   adminLogin,
   adminMe,
   userRegister,
   userLogin,
   userGoogleLogin,
-  userMe
+  userMe,
+  googleSignInPage
 };

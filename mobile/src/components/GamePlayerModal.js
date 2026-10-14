@@ -11,8 +11,220 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
-import { X, Sparkles, Clock, ShieldCheck, Trophy, Play } from 'lucide-react-native';
+import { X, Sparkles, Clock, ShieldCheck, Trophy, Play, Shield } from 'lucide-react-native';
 import { startPlaySession, pingPlaySession, claimPlaySession } from '../api/clientApi';
+import { logEvent } from '../services/firebase';
+
+/**
+ * High-performance Ad Blocker & Safety Shim script for game WebViews.
+ * 1. Blocks Google AdSense & Google IMA ads from rendering.
+ * 2. Mocks window.adsbygoogle & window.google.ima callbacks so games never hang waiting for ads.
+ * 3. Hides ad containers and expands the game canvas to full viewport.
+ * 4. Disables window.open ad popups.
+ */
+const AD_BLOCKER_INJECTED_JS = `
+(function() {
+  if (window.__gameloot_adblock_ready) return;
+  window.__gameloot_adblock_ready = true;
+
+  // 1. Safe Mock for Google AdSense (adsbygoogle)
+  window.adsbygoogle = window.adsbygoogle || [];
+  try {
+    Object.defineProperty(window.adsbygoogle, 'push', {
+      value: function(args) {
+        if (args && typeof args === 'object' && args.params) {
+          if (typeof args.params.onAdLoaded === 'function') {
+            try { args.params.onAdLoaded(); } catch (e) {}
+          }
+        }
+        return 1;
+      },
+      writable: true,
+      configurable: true
+    });
+  } catch (e) {}
+
+  // 2. Safe Mock for Google Interactive Media Ads (IMA SDK)
+  window.google = window.google || {};
+  if (!window.google.ima) {
+    var noop = function() {};
+    var Emitter = function() {
+      this._handlers = {};
+    };
+    Emitter.prototype = {
+      addEventListener: function(type, handler) {
+        if (!this._handlers[type]) this._handlers[type] = [];
+        this._handlers[type].push(handler);
+        // Automatically dispatch completion/resume for games that pause on ads
+        if (type === 'allAdsCompleted' || type === 'contentResumeRequested' || type === 'complete') {
+          setTimeout(function() {
+            try { handler({ type: type }); } catch(err) {}
+          }, 25);
+        }
+      },
+      removeEventListener: function(type, handler) {
+        if (!this._handlers[type]) return;
+        this._handlers[type] = this._handlers[type].filter(function(h) { return h !== handler; });
+      },
+      dispatchEvent: function(event) {
+        var list = this._handlers[event.type] || [];
+        for (var i = 0; i < list.length; i++) {
+          try { list[i](event); } catch(err) {}
+        }
+      },
+      start: noop,
+      stop: noop,
+      destroy: noop,
+      init: noop,
+      requestAds: function() {
+        var self = this;
+        setTimeout(function() {
+          self.dispatchEvent({
+            type: 'adsManagerLoaded',
+            getAdsManager: function() { return new Emitter(); }
+          });
+        }, 15);
+      },
+      getAdsManager: function() {
+        return new Emitter();
+      }
+    };
+
+    window.google.ima = {
+      AdDisplayContainer: Emitter,
+      AdsLoader: Emitter,
+      AdsManagerLoadedEvent: { Type: { ADS_MANAGER_LOADED: 'adsManagerLoaded' } },
+      AdErrorEvent: { Type: { AD_ERROR: 'adError' } },
+      AdEvent: {
+        Type: {
+          CONTENT_PAUSE_REQUESTED: 'contentPauseRequested',
+          CONTENT_RESUME_REQUESTED: 'contentResumeRequested',
+          ALL_ADS_COMPLETED: 'allAdsCompleted',
+          COMPLETE: 'complete',
+          LOADED: 'loaded',
+          STARTED: 'started',
+          SKIPPED: 'skipped',
+          FIRST_QUARTILE: 'firstQuartile',
+          MIDPOINT: 'midpoint',
+          THIRD_QUARTILE: 'thirdQuartile'
+        }
+      },
+      ViewMode: { NORMAL: 'normal', FULLSCREEN: 'fullscreen' },
+      AdsRenderingSettings: noop,
+      AdsRequest: noop
+    };
+  }
+
+  // 3. Block window.open ad popups & redirects
+  var originalOpen = window.open;
+  window.open = function(url) {
+    if (url && (
+      url.indexOf('google') !== -1 ||
+      url.indexOf('doubleclick') !== -1 ||
+      url.indexOf('syndication') !== -1 ||
+      url.indexOf('ad') !== -1 ||
+      url.indexOf('track') !== -1
+    )) {
+      return null;
+    }
+    return originalOpen ? originalOpen.apply(window, arguments) : null;
+  };
+
+  // 4. Inject CSS to hide all ad elements, banners, and overlays
+  var style = document.createElement('style');
+  style.id = 'gameloot-adblock-styles';
+  style.textContent = [
+    'ins.adsbygoogle,',
+    'iframe[id*="google_ads"],',
+    'div[id*="google_ads"],',
+    'div[id*="aswift"],',
+    'iframe[src*="googleads"],',
+    'iframe[src*="doubleclick"],',
+    'iframe[src*="googlesyndication"],',
+    '#fg-ad-wrapper,',
+    '#fg-overlay,',
+    '.famobi-advertisement,',
+    '.fg-advertisement,',
+    '.ad-container,',
+    '.ad-slot,',
+    '.banner-ad,',
+    '#ad-container,',
+    '#ima-container,',
+    'div[id*="gpt-passback"],',
+    'div[id*="ad_banner"],',
+    'div[class*="ad_banner"] {',
+    '  display: none !important;',
+    '  visibility: hidden !important;',
+    '  opacity: 0 !important;',
+    '  pointer-events: none !important;',
+    '  position: absolute !important;',
+    '  left: -99999px !important;',
+    '  width: 0 !important;',
+    '  height: 0 !important;',
+    '  max-width: 0 !important;',
+    '  max-height: 0 !important;',
+    '  z-index: -9999 !important;',
+    '}',
+    'html, body {',
+    '  margin: 0 !important;',
+    '  padding: 0 !important;',
+    '  width: 100% !important;',
+    '  height: 100% !important;',
+    '  overflow: hidden !important;',
+    '  background-color: #000000 !important;',
+    '}',
+    '#canvas, canvas, #game, .game-container, #fg-game, #game-holder, #spilgames-game-container {',
+    '  width: 100% !important;',
+    '  height: 100% !important;',
+    '  margin: 0 auto !important;',
+    '  display: block !important;',
+    '}'
+  ].join(' ');
+  (document.head || document.documentElement).appendChild(style);
+
+  // 5. Active DOM cleanup
+  var removeAdNodes = function() {
+    var selectors = [
+      'ins.adsbygoogle',
+      'iframe[id*="google_ads"]',
+      'div[id*="google_ads"]',
+      'div[id*="aswift"]',
+      'iframe[src*="doubleclick"]',
+      'iframe[src*="googlesyndication"]',
+      '#fg-ad-wrapper',
+      '.famobi-advertisement'
+    ];
+    for (var i = 0; i < selectors.length; i++) {
+      var elements = document.querySelectorAll(selectors[i]);
+      for (var j = 0; j < elements.length; j++) {
+        var el = elements[j];
+        if (el && el.parentNode) {
+          try {
+            el.style.display = 'none';
+            el.parentNode.removeChild(el);
+          } catch(e) {}
+        }
+      }
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', removeAdNodes);
+  } else {
+    removeAdNodes();
+  }
+
+  var observer = new MutationObserver(removeAdNodes);
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true });
+  } else {
+    document.addEventListener('DOMContentLoaded', function() {
+      if (document.body) observer.observe(document.body, { childList: true, subtree: true });
+    });
+  }
+})();
+true;
+`;
 
 export default function GamePlayerModal({
   visible,
@@ -47,6 +259,14 @@ export default function GamePlayerModal({
     async function initSession() {
       try {
         setLoading(true);
+
+        logEvent('game_player_open', {
+          game_id: game.id,
+          game_title: game.title,
+          category: game.category_name,
+          app: 'gameloot'
+        });
+
         const data = await startPlaySession(token, game.id);
         if (active) {
           const sToken =
@@ -132,6 +352,12 @@ export default function GamePlayerModal({
 
   const handleClaimAndExit = async () => {
     if (!session || !token) {
+      logEvent('game_player_exit', {
+        game_id: game?.id,
+        seconds_played: sessionSeconds,
+        claimable_points: claimablePoints,
+        app: 'gameloot'
+      });
       onClose();
       return;
     }
@@ -141,6 +367,13 @@ export default function GamePlayerModal({
       const sId = session.session_id || session.session_token;
       const res = await claimPlaySession(token, sId);
       const earned = res?.reward_earned !== undefined ? res.reward_earned : (res?.points_earned || 0);
+
+      logEvent('game_reward_claim', {
+        game_id: game.id,
+        reward_earned: earned,
+        seconds_played: sessionSeconds,
+        app: 'gameloot'
+      });
 
       if (res?.success && earned > 0) {
         setClaimResult({ ...res, reward_earned: earned });
@@ -160,6 +393,48 @@ export default function GamePlayerModal({
     } finally {
       setIsClaiming(false);
     }
+  };
+
+  // Filter out Google Ads requests & ad redirect trackers without interrupting game execution
+  const handleShouldStartLoadWithRequest = (request) => {
+    const url = (request?.url || '').toLowerCase();
+
+    // Always allow data/blob/about and game origin requests
+    if (
+      url.startsWith('blob:') ||
+      url.startsWith('data:') ||
+      url.startsWith('about:') ||
+      url === (game?.embed_url || '').toLowerCase()
+    ) {
+      return true;
+    }
+
+    // Google ads network & known intrusive ad domains to block
+    const blockedAdPatterns = [
+      'googleads.g.doubleclick.net',
+      'pagead2.googlesyndication.com',
+      'adservice.google.com',
+      'googlesyndication.com',
+      'securepubads.g.doubleclick.net',
+      'stats.g.doubleclick.net',
+      'adclick.g.doubleclick.net',
+      'tpc.googlesyndication.com',
+      'adnxs.com',
+      'amazon-adsystem.com',
+      'criteo.com',
+      'criteo.net',
+      'taboola.com',
+      'outbrain.com',
+      'popads.net'
+    ];
+
+    for (const pattern of blockedAdPatterns) {
+      if (url.includes(pattern)) {
+        return false; // Intercept & block ad request
+      }
+    }
+
+    return true;
   };
 
   if (!visible || !game) return null;
@@ -189,6 +464,10 @@ export default function GamePlayerModal({
                   {Math.floor(sessionSeconds / 60)}:{(sessionSeconds % 60).toString().padStart(2, '0')}
                 </Text>
               </View>
+              <View style={styles.shieldPill}>
+                <Shield size={10} color="#10b981" />
+                <Text style={styles.shieldPillText}>Ad-Free</Text>
+              </View>
             </View>
           </View>
 
@@ -216,7 +495,7 @@ export default function GamePlayerModal({
             <View style={styles.loadingBox}>
               <ActivityIndicator size="large" color="#06b6d4" />
               <Text style={styles.loadingText}>Initializing {game.title}...</Text>
-              <Text style={styles.loadingSub}>Verifying proof-of-play anti-cheat session</Text>
+              <Text style={styles.loadingSub}>Loading ad-free instant game canvas</Text>
             </View>
           ) : (
             <WebView
@@ -227,6 +506,9 @@ export default function GamePlayerModal({
               allowsInlineMediaPlayback={true}
               mediaPlaybackRequiresUserAction={false}
               startInLoadingState={true}
+              injectedJavaScriptBeforeContentLoaded={AD_BLOCKER_INJECTED_JS}
+              injectedJavaScript={AD_BLOCKER_INJECTED_JS}
+              onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
               renderLoading={() => (
                 <View style={styles.loadingBox}>
                   <ActivityIndicator size="large" color="#06b6d4" />
@@ -338,6 +620,20 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '600',
     color: '#94a3b8'
+  },
+  shieldPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6
+  },
+  shieldPillText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#10b981'
   },
   hudRight: {
     flexDirection: 'row',
