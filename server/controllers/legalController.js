@@ -6,10 +6,10 @@
 
 const APP_NAME = 'GameLoot';
 const COMPANY_NAME = 'GameLoot Interactive';
-const CONTACT_EMAIL = 'support@gameloot.app';
-const PRIVACY_EMAIL = 'privacy@gameloot.app';
+const CONTACT_EMAIL = 'support@youplex.cc';
+const PRIVACY_EMAIL = 'support@youplex.cc';
 const APP_URL = 'https://gameloot.youplex.cc';
-const LAST_UPDATED = 'October 13, 2026';
+const LAST_UPDATED = 'October 14, 2026';
 
 // Common CSS styling for beautiful, clean, responsive legal pages
 const SHARED_CSS = `
@@ -214,7 +214,7 @@ const PRIVACY_SECTIONS = [
   {
     id: 'intro',
     title: '1. Introduction',
-    content: `Welcome to ${APP_NAME} ("we", "our", or "us"). We are committed to protecting your personal privacy while providing a fun and rewarding play-to-earn HTML5 mobile gaming platform. This Privacy Policy details the types of information we collect when you download, install, or use the ${APP_NAME} mobile application and website (${APP_URL}), how we use, share, and protect that information, and your rights regarding your personal data.`
+    content: `Welcome to ${APP_NAME} ("we", "our", or "us"). We are committed to protecting your personal privacy while providing a fun and rewarding play-to-earn mobile gaming platform. This Privacy Policy details the types of information we collect when you download, install, or use the ${APP_NAME} mobile application and website (${APP_URL}), how we use, share, and protect that information, and your rights regarding your personal data.`
   },
   {
     id: 'data-collected',
@@ -270,7 +270,7 @@ const PRIVACY_SECTIONS = [
     content: `In accordance with Google Play Developer Policy and global privacy standards (GDPR / CCPA):`,
     bullets: [
       'You have the right to request the permanent deletion of your account and all associated personal data at any time.',
-      'To request account deletion, navigate to Settings > Account > Delete Account in the mobile app, or email us at privacy@gameloot.app with your registered email and username.',
+      'To request account deletion, navigate to Settings > Account > Delete Account in the mobile app, or email us at support@youplex.cc with your registered email and username.',
       'Upon verification, all account records, gameplay histories, and personal identifiers will be permanently purged from our active databases within 30 days.'
     ]
   },
@@ -287,7 +287,7 @@ const PRIVACY_SECTIONS = [
   {
     id: 'contact',
     title: '9. Contact Us',
-    content: `If you have questions, feedback, or data privacy requests concerning this Privacy Policy, please contact our Data Protection Officer at:`,
+    content: `If you have questions, feedback, or data privacy requests concerning this Privacy Policy, please contact our support team at:`,
     contact: {
       email: PRIVACY_EMAIL,
       support: CONTACT_EMAIL,
@@ -345,7 +345,7 @@ const TERMS_SECTIONS = [
   {
     id: 'games-ip',
     title: '6. Third-Party Games & Intellectual Property',
-    content: `The HTML5 games featured in ${APP_NAME} are either licensed, public domain, or curated from authorized web game developers. All game trademarks, assets, and copyrights remain the exclusive property of their respective creators. ${APP_NAME} trademarks, graphics, UI design, and backend systems are protected proprietary intellectual property.`
+    content: `The games featured in ${APP_NAME} are either licensed, public domain, or curated from authorized game developers. All game trademarks, assets, and copyrights remain the exclusive property of their respective creators. ${APP_NAME} trademarks, graphics, UI design, and backend systems are protected proprietary intellectual property.`
   },
   {
     id: 'disclaimer',
@@ -387,8 +387,7 @@ function renderHtmlPage(title, badge, sections, activeTab) {
     if (s.contact) {
       extra += `
         <div class="contact-box">
-          <p><strong>Email:</strong> <a href="mailto:${s.contact.email}">${s.contact.email}</a></p>
-          <p><strong>Support:</strong> <a href="mailto:${s.contact.support || s.contact.email}">${s.contact.support || s.contact.email}</a></p>
+          <p><strong>Support & Inquiries:</strong> <a href="mailto:${s.contact.support || s.contact.email}">${s.contact.support || s.contact.email}</a></p>
           <p><strong>Platform:</strong> <a href="${s.contact.website}">${s.contact.website}</a></p>
         </div>
       `;
@@ -430,7 +429,7 @@ function renderHtmlPage(title, badge, sections, activeTab) {
     <div class="hero">
       <div class="badge">${badge}</div>
       <h1>${title}</h1>
-      <div class="updated">Effective & Last Updated: <strong>${LAST_UPDATED}</strong> &bull; Version 1.1</div>
+      <div class="updated">Effective & Last Updated: <strong>${LAST_UPDATED}</strong> &bull; Version 1.2</div>
     </div>
 
     ${sectionsHtml}

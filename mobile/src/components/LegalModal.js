@@ -23,15 +23,15 @@ import { PRODUCTION_HOST } from '../api/config';
 
 const APP_NAME = 'GameLoot';
 const COMPANY_NAME = 'GameLoot Interactive';
-const LAST_UPDATED = 'October 13, 2026';
-const PRIVACY_EMAIL = 'privacy@gameloot.app';
-const SUPPORT_EMAIL = 'support@gameloot.app';
+const LAST_UPDATED = 'October 14, 2026';
+const PRIVACY_EMAIL = 'support@youplex.cc';
+const SUPPORT_EMAIL = 'support@youplex.cc';
 
 const PRIVACY_SECTIONS = [
   {
     id: 'intro',
     title: '1. Introduction',
-    content: `Welcome to ${APP_NAME} ("we", "our", or "us"). We are committed to protecting your personal privacy while providing a fun and rewarding play-to-earn HTML5 mobile gaming platform. This Privacy Policy details the types of information we collect when you download, install, or use the ${APP_NAME} mobile application and website, how we use, share, and protect that information, and your rights regarding your personal data.`
+    content: `Welcome to ${APP_NAME} ("we", "our", or "us"). We are committed to protecting your personal privacy while providing a fun and rewarding play-to-earn mobile gaming platform. This Privacy Policy details the types of information we collect when you download, install, or use the ${APP_NAME} mobile application and website, how we use, share, and protect that information, and your rights regarding your personal data.`
   },
   {
     id: 'data-collected',
@@ -87,7 +87,7 @@ const PRIVACY_SECTIONS = [
     content: `In accordance with Google Play Developer Policy and global privacy standards (GDPR / CCPA):`,
     bullets: [
       'You have the right to request the permanent deletion of your account and all associated personal data at any time.',
-      'To request account deletion, navigate to Settings > Account > Delete Account in the mobile app, or email us at privacy@gameloot.app with your registered email and username.',
+      'To request account deletion, navigate to Settings > Account > Delete Account in the mobile app, or email us at support@youplex.cc with your registered email and username.',
       'Upon verification, all account records, gameplay histories, and personal identifiers will be permanently purged from our active databases within 30 days.'
     ]
   },
@@ -104,7 +104,7 @@ const PRIVACY_SECTIONS = [
   {
     id: 'contact',
     title: '9. Contact Us',
-    content: `If you have questions, feedback, or data privacy requests concerning this Privacy Policy, please contact our Data Protection Officer at: ${PRIVACY_EMAIL}`
+    content: `If you have questions, feedback, or data privacy requests concerning this Privacy Policy, please contact our support team at: ${SUPPORT_EMAIL}`
   }
 ];
 
@@ -155,7 +155,7 @@ const TERMS_SECTIONS = [
   {
     id: 'games-ip',
     title: '6. Third-Party Games & Intellectual Property',
-    content: `The HTML5 games featured in ${APP_NAME} are either licensed, public domain, or curated from authorized web game developers. All game trademarks, assets, and copyrights remain the exclusive property of their respective creators. ${APP_NAME} trademarks, graphics, UI design, and backend systems are protected proprietary intellectual property.`
+    content: `The games featured in ${APP_NAME} are either licensed, public domain, or curated from authorized game developers. All game trademarks, assets, and copyrights remain the exclusive property of their respective creators. ${APP_NAME} trademarks, graphics, UI design, and backend systems are protected proprietary intellectual property.`
   },
   {
     id: 'disclaimer',

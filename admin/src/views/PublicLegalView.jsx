@@ -14,17 +14,17 @@ import {
   Scale
 } from 'lucide-react';
 
-const LAST_UPDATED = 'October 13, 2026';
+const LAST_UPDATED = 'October 14, 2026';
 const APP_NAME = 'GameLoot';
 const COMPANY_NAME = 'GameLoot Interactive';
-const CONTACT_EMAIL = 'support@gameloot.app';
-const PRIVACY_EMAIL = 'privacy@gameloot.app';
+const CONTACT_EMAIL = 'support@youplex.cc';
+const PRIVACY_EMAIL = 'support@youplex.cc';
 
 const PRIVACY_SECTIONS = [
   {
     id: 'intro',
     title: '1. Introduction',
-    content: `Welcome to ${APP_NAME} ("we", "our", or "us"). We are committed to protecting your personal privacy while providing a fun and rewarding play-to-earn HTML5 mobile gaming platform. This Privacy Policy details the types of information we collect when you download, install, or use the ${APP_NAME} mobile application and website, how we use, share, and protect that information, and your rights regarding your personal data.`
+    content: `Welcome to ${APP_NAME} ("we", "our", or "us"). We are committed to protecting your personal privacy while providing a fun and rewarding play-to-earn mobile gaming platform. This Privacy Policy details the types of information we collect when you download, install, or use the ${APP_NAME} mobile application and website, how we use, share, and protect that information, and your rights regarding your personal data.`
   },
   {
     id: 'data-collected',
@@ -80,7 +80,7 @@ const PRIVACY_SECTIONS = [
     content: `In accordance with Google Play Developer Policy and global privacy standards (GDPR / CCPA):`,
     bullets: [
       'You have the right to request the permanent deletion of your account and all associated personal data at any time.',
-      'To request account deletion, navigate to Settings > Account > Delete Account in the mobile app, or email us at privacy@gameloot.app with your registered email and username.',
+      'To request account deletion, navigate to Settings > Account > Delete Account in the mobile app, or email us at support@youplex.cc with your registered email and username.',
       'Upon verification, all account records, gameplay histories, and personal identifiers will be permanently purged from our active databases within 30 days.'
     ]
   },
@@ -97,7 +97,7 @@ const PRIVACY_SECTIONS = [
   {
     id: 'contact',
     title: '9. Contact Us',
-    content: `If you have questions, feedback, or data privacy requests concerning this Privacy Policy, please contact our Data Protection Officer at:`,
+    content: `If you have questions, feedback, or data privacy requests concerning this Privacy Policy, please contact our support team at:`,
     contact: {
       email: PRIVACY_EMAIL,
       support: CONTACT_EMAIL,
@@ -153,7 +153,7 @@ const TERMS_SECTIONS = [
   {
     id: 'games-ip',
     title: '6. Third-Party Games & Intellectual Property',
-    content: `The HTML5 games featured in ${APP_NAME} are either licensed, public domain, or curated from authorized web game developers. All game trademarks, assets, and copyrights remain the exclusive property of their respective creators. ${APP_NAME} trademarks, graphics, UI design, and backend systems are protected proprietary intellectual property.`
+    content: `The games featured in ${APP_NAME} are either licensed, public domain, or curated from authorized game developers. All game trademarks, assets, and copyrights remain the exclusive property of their respective creators. ${APP_NAME} trademarks, graphics, UI design, and backend systems are protected proprietary intellectual property.`
   },
   {
     id: 'disclaimer',
@@ -370,16 +370,10 @@ export default function PublicLegalView({ initialTab = 'privacy' }) {
               {/* Contact box if any */}
               {section.contact && (
                 <div className="mt-4 p-4 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-wrap gap-4 text-xs sm:text-sm">
-                  {section.contact.email && (
-                    <div className="flex items-center gap-2 text-slate-300">
-                      <Mail className="w-4 h-4 text-cyan-400" />
-                      <span>Privacy Officer: <a href={`mailto:${section.contact.email}`} className="text-cyan-400 hover:underline">{section.contact.email}</a></span>
-                    </div>
-                  )}
                   {section.contact.support && (
                     <div className="flex items-center gap-2 text-slate-300">
                       <Mail className="w-4 h-4 text-cyan-400" />
-                      <span>General Support: <a href={`mailto:${section.contact.support}`} className="text-cyan-400 hover:underline">{section.contact.support}</a></span>
+                      <span>Support & Inquiries: <a href={`mailto:${section.contact.support}`} className="text-cyan-400 hover:underline">{section.contact.support}</a></span>
                     </div>
                   )}
                 </div>
@@ -401,7 +395,7 @@ export default function PublicLegalView({ initialTab = 'privacy' }) {
                 </h4>
                 <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
                   Under Google Play Developer Policies, GDPR, and CCPA, you may permanently purge your account and all associated gameplay logs at any time. Simply submit an automated deletion request inside the mobile app via <strong>Settings &gt; Delete Account</strong> or email us directly at{' '}
-                  <a href={`mailto:${PRIVACY_EMAIL}`} className="text-cyan-400 underline font-semibold">{PRIVACY_EMAIL}</a>.
+                  <a href={`mailto:${CONTACT_EMAIL}`} className="text-cyan-400 underline font-semibold">{CONTACT_EMAIL}</a>.
                 </p>
               </div>
             </div>
@@ -428,8 +422,8 @@ export default function PublicLegalView({ initialTab = 'privacy' }) {
               Terms of Service
             </button>
             <span>•</span>
-            <a href="/" onClick={handleGoHome} className="hover:text-cyan-400 transition-colors">
-              Admin HQ
+            <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-cyan-400 transition-colors">
+              {CONTACT_EMAIL}
             </a>
           </div>
         </div>
