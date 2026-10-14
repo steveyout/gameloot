@@ -2,6 +2,7 @@
   "expo": {
     "name": "gameloot",
     "slug": "gameloot",
+    "scheme": "gameloot",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -13,10 +14,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gameloot.app"
+      "bundleIdentifier": "cc.youplex.gameloot"
     },
     "android": {
-      "package": "com.gameloot.app",
+      "package": "cc.youplex.gameloot",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

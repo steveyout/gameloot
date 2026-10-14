@@ -1,19 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// Default Firebase Configuration for gameloot
+// Official Firebase Configuration for gameloot (cc.youplex.gameloot)
 export const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyA_GameLoot_2026_LiveKeySecureX9',
-  authDomain: 'gameloot-app.firebaseapp.com',
-  projectId: 'gameloot-app',
-  storageBucket: 'gameloot-app.appspot.com',
-  messagingSenderId: '839201948572',
-  appId: Platform.select({
-    ios: '1:839201948572:ios:7c9284ba39d012e8',
-    android: '1:839201948572:android:6e492bda31f821c4',
-    default: '1:839201948572:web:8a31e847cd928bfa'
-  }),
-  measurementId: 'G-GAMELOOT2026'
+  apiKey: 'AIzaSyCWb3BZi7hGpSg3PfRVv1eUzqfx3kbjrB8',
+  authDomain: 'gameloot-e2358.firebaseapp.com',
+  projectId: 'gameloot-e2358',
+  storageBucket: 'gameloot-e2358.firebasestorage.app',
+  messagingSenderId: '854151275080',
+  appId: '1:854151275080:android:61dcfd340fa89fba39ee7d'
 };
 
 const ANALYTICS_STORAGE_KEY = '@gameloot_firebase_analytics_queue';

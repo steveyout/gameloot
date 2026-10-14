@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,10 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Modal
+  Linking
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gamepad2, Sparkles, Lock, Mail, User, X, Shield, FileText } from 'lucide-react-native';
+import { Gamepad2, Sparkles, Lock, Mail, User, Shield, FileText } from 'lucide-react-native';
 import { userLogin, userRegister } from '../api/clientApi';
 import { API_BASE_URL } from '../api/config';
 import { logEvent } from '../services/firebase';
@@ -26,13 +24,75 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Real Google Sign-In Web OAuth Modal
-  const [googleAuthVisible, setGoogleAuthVisible] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Public Legal modal state - No Login Required
   const [legalModalVisible, setLegalModalVisible] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState('privacy');
+
+  // Listen for Google OAuth deep link redirects (e.g. gameloot://auth?token=...&user=...)
+  useEffect(() => {
+    const handleDeepLink = ({ url }) => {
+      if (!url) return;
+      try {
+        if (url.startsWith('gameloot://auth') || url.includes('gameloot://auth')) {
+          const query = url.includes('?') ? url.split('?')[1] : '';
+
+          // Helper to extract query parameters safely
+          const getParam = (name) => {
+            const match = query.match(new RegExp('(?:^|[?&])' + name + '=([^&]*)'));
+            return match ? decodeURIComponent(match[1]) : null;
+          };
+
+          const token = getParam('token');
+          const userParam = getParam('user');
+          const error = getParam('error');
+          const cancel = getParam('cancel');
+
+          setGoogleLoading(false);
+
+          if (cancel) {
+            return;
+          }
+
+          if (error) {
+            onErrorAlert(error || 'Google authentication failed.');
+            return;
+          }
+
+          if (token && userParam) {
+            const parsedUser = JSON.parse(userParam);
+            logEvent('login_success', {
+              provider: 'google.oauth',
+              user_id: parsedUser?.id,
+              email: parsedUser?.email,
+              app: 'gameloot'
+            });
+            onAuthSuccess(parsedUser, token);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to parse Google OAuth redirect URL:', err.message);
+        setGoogleLoading(false);
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) {
+          handleDeepLink({ url });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      if (subscription && typeof subscription.remove === 'function') {
+        subscription.remove();
+      }
+    };
+  }, [onAuthSuccess, onErrorAlert]);
 
   const handleOpenLegal = (tab = 'privacy') => {
     setLegalModalTab(tab);
@@ -40,7 +100,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   };
 
   const handleSubmit = async () => {
-    if (loading) return;
+    if (loading || googleLoading) return;
     if (!username.trim() || !password.trim()) {
       onErrorAlert('Please enter your username and password');
       return;
@@ -61,11 +121,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
       }
 
       if (res && res.success && res.token) {
-        logEvent(isLogin ? 'login_success' : 'sign_up_success', {
-          method: 'credentials',
-          user_id: res.user?.id,
-          app: 'gameloot'
-        });
+        logEvent(isLogin ? 'login_success' : 'sign_up_success', {"method":"credentials","user_id":res.user?.id,"app":"gameloot"});
         onAuthSuccess(res.user, res.token);
       } else {
         onErrorAlert(res?.message || 'Authentication failed. Please check credentials.');
@@ -78,32 +134,19 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   };
 
   /**
-   * Handle real Google OAuth callback from the hosted Google Sign-In WebView
+   * Trigger Google OAuth Immediately without opening any in-app modal
    */
-  const handleGoogleWebMessage = (event) => {
+  const handleGoogleSignIn = async () => {
+    if (loading || googleLoading) return;
+    setGoogleLoading(true);
     try {
-      const payload = JSON.parse(event.nativeEvent.data);
-      if (payload.type === 'GOOGLE_AUTH_SUCCESS') {
-        setGoogleAuthVisible(false);
-        logEvent('login_success', {
-          provider: 'google.oauth',
-          user_id: payload.user?.id,
-          email: payload.user?.email,
-          app: 'gameloot'
-        });
-        onAuthSuccess(payload.user, payload.token);
-      } else if (payload.type === 'GOOGLE_AUTH_CANCEL') {
-        setGoogleAuthVisible(false);
-      } else if (payload.type === 'GOOGLE_AUTH_ERROR') {
-        setGoogleAuthVisible(false);
-        onErrorAlert(payload.message || 'Google authentication was cancelled or failed.');
-      }
+      const authUrl = `${API_BASE_URL}/auth/google`;
+      await Linking.openURL(authUrl);
     } catch (err) {
-      console.warn('Failed to parse Google OAuth message:', err.message);
+      setGoogleLoading(false);
+      onErrorAlert('Could not launch Google authentication: ' + err.message);
     }
   };
-
-  const googleAuthUrl = `${API_BASE_URL}/auth/google/signin`;
 
   return (
     <KeyboardAvoidingView
@@ -179,7 +222,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
-                  editable={!loading}
+                  editable={!loading && !googleLoading}
                 />
               </View>
             </View>
@@ -197,7 +240,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
                     onChangeText={setEmail}
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    editable={!loading}
+                    editable={!loading && !googleLoading}
                   />
                 </View>
               </View>
@@ -214,16 +257,16 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
-                  editable={!loading}
+                  editable={!loading && !googleLoading}
                 />
               </View>
             </View>
 
             {/* Standard Email Submit Button */}
             <TouchableOpacity
-              style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+              style={[styles.submitBtn, (loading || googleLoading) && styles.submitBtnDisabled]}
               onPress={handleSubmit}
-              disabled={loading}
+              disabled={loading || googleLoading}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -250,17 +293,26 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Google Sign In Button - Triggers Google OAuth Directly */}
+            {/* Google Sign In Button - Triggers Google OAuth Immediately */}
             <TouchableOpacity
-              style={[styles.googleBtn, loading && styles.googleBtnDisabled]}
-              onPress={() => setGoogleAuthVisible(true)}
-              disabled={loading}
+              style={[styles.googleBtn, (loading || googleLoading) && styles.googleBtnDisabled]}
+              onPress={handleGoogleSignIn}
+              disabled={loading || googleLoading}
               activeOpacity={0.85}
             >
-              <View style={styles.googleLogoWrap}>
-                <Text style={styles.googleLogoG}>G</Text>
-              </View>
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
+              {googleLoading ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator size="small" color="#517bfd" style={{ marginRight: 8 }} />
+                  <Text style={styles.googleBtnText}>Connecting to Google...</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.googleLogoWrap}>
+                    <Text style={styles.googleLogoG}>G</Text>
+                  </View>
+                  <Text style={styles.googleBtnText}>Continue with Google</Text>
+                </>
+              )}
             </TouchableOpacity>
 
             {/* Terms of Service & Privacy Policy Acceptance notice */}
@@ -306,56 +358,6 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* Real Google Account OAuth Sign-In Modal */}
-      <Modal
-        visible={googleAuthVisible}
-        animationType="slide"
-        statusBarTranslucent={true}
-        onRequestClose={() => setGoogleAuthVisible(false)}
-      >
-        <SafeAreaView style={styles.googleModalContainer} edges={['top', 'left', 'right', 'bottom']}>
-          {/* Header Bar */}
-          <View style={styles.googleModalHeader}>
-            <View style={styles.googleModalHeaderLeft}>
-              <View style={styles.googleLogoWrapSmall}>
-                <Text style={styles.googleLogoGSmall}>G</Text>
-              </View>
-              <View>
-                <Text style={styles.googleModalTitle}>Google Sign-In</Text>
-                <Text style={styles.googleModalSub}>Sign in with your Google account</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.googleModalCloseBtn}
-              onPress={() => setGoogleAuthVisible(false)}
-              activeOpacity={0.75}
-            >
-              <X size={20} color="#979caf" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Hosted Google OAuth Web View */}
-          <View style={styles.googleWebContainer}>
-            <WebView
-              source={{ uri: googleAuthUrl }}
-              style={styles.googleWebView}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              userAgent="Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
-              onMessage={handleGoogleWebMessage}
-              startInLoadingState={true}
-              renderLoading={() => (
-                <View style={styles.googleWebLoading}>
-                  <ActivityIndicator size="large" color="#517bfd" />
-                  <Text style={styles.googleWebLoadingText}>Connecting to Google Accounts...</Text>
-                </View>
-              )}
-            />
-          </View>
-        </SafeAreaView>
-      </Modal>
 
       {/* Public In-App Legal Documents Reader Modal */}
       <LegalModal
@@ -598,73 +600,5 @@ const styles = StyleSheet.create({
   publicLegalDot: {
     color: '#686d82',
     fontSize: 12
-  },
-  googleModalContainer: {
-    flex: 1,
-    backgroundColor: '#090d16'
-  },
-  googleModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#151722',
-    borderBottomWidth: 1,
-    borderBottomColor: '#23263b'
-  },
-  googleModalHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10
-  },
-  googleLogoWrapSmall: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: '#517bfd',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  googleLogoGSmall: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '900'
-  },
-  googleModalTitle: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '800'
-  },
-  googleModalSub: {
-    color: '#979caf',
-    fontSize: 11
-  },
-  googleModalCloseBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#1d2030'
-  },
-  googleWebContainer: {
-    flex: 1,
-    backgroundColor: '#090d16'
-  },
-  googleWebView: {
-    flex: 1,
-    backgroundColor: '#090d16'
-  },
-  googleWebLoading: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#090d16',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    zIndex: 10
-  },
-  googleWebLoadingText: {
-    color: '#979caf',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 12
   }
 });

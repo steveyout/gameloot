@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Platform, Animated, StatusBar as NativeStatusBar } from 'react-native';
+import { View, StyleSheet, Platform, Animated, StatusBar as NativeStatusBar, Linking } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -333,6 +333,50 @@ function MainApp() {
       }
     }
   };
+
+
+  // Deep link handler for Google OAuth & external redirects (gameloot://auth)
+  useEffect(() => {
+    const handleUrl = (event) => {
+      const url = event?.url;
+      if (!url) return;
+      try {
+        if (url.startsWith('gameloot://auth') || url.includes('gameloot://auth')) {
+          const query = url.includes('?') ? url.split('?')[1] : '';
+          const getParam = (name) => {
+            const match = query.match(new RegExp('(?:^|[?&])' + name + '=([^&]*)'));
+            return match ? decodeURIComponent(match[1]) : null;
+          };
+          const authToken = getParam('token');
+          const userJson = getParam('user');
+          const errorMsg = getParam('error');
+
+          if (errorMsg) {
+            showAlert(errorMsg, 'error', 'Authentication Failed');
+            return;
+          }
+
+          if (authToken && userJson) {
+            const parsedUser = JSON.parse(userJson);
+            handleAuthSuccess(parsedUser, authToken);
+          }
+        }
+      } catch (e) {
+        console.warn('Deep link parse error:', e.message);
+      }
+    };
+
+    const sub = Linking.addEventListener('url', handleUrl);
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl({ url });
+    }).catch(() => {});
+
+    return () => {
+      if (sub && typeof sub.remove === 'function') {
+        sub.remove();
+      }
+    };
+  }, []);
 
   const handleAuthSuccess = async (userData, authToken) => {
     setUser(userData);
