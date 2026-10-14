@@ -97,7 +97,7 @@ async function seed() {
           gamesToSeed = rawScraped.map((g, idx) => ({
             title: g.title,
             slug: g.slug,
-            category_id: categoryMap[g.category_slug] || arcCat.id,
+            category_id: categoryMap[g.category_slug] || (arcCat ? arcCat.id : 1),
             description: g.description || `Play ${g.title} instantly with zero downloads. Enjoy rapid reflex arcade action and earn bonus points.`,
             thumbnail_url: g.thumbnail_url,
             banner_url: g.banner_url || g.thumbnail_url,
@@ -138,11 +138,28 @@ async function seed() {
       ];
     }
 
-    console.log(`🎮 Seeding ${gamesToSeed.length} instant games with CDN thumbnails...`);
-    for (const g of gamesToSeed) {
-      await Game.upsert(g);
+    console.log(`🎮 Synchronizing ${gamesToSeed.length} games into database in fast batches...`);
+    const updateFields = [
+      'title', 'category_id', 'description', 'thumbnail_url',
+      'banner_url', 'embed_url', 'orientation', 'reward_rate',
+      'max_daily_reward', 'min_play_seconds', 'featured',
+      'rating', 'play_count'
+    ];
+
+    try {
+      const CHUNK_SIZE = 100;
+      for (let i = 0; i < gamesToSeed.length; i += CHUNK_SIZE) {
+        const chunk = gamesToSeed.slice(i, i + CHUNK_SIZE);
+        await Game.bulkCreate(chunk, { updateOnDuplicate: updateFields });
+      }
+      console.log(`✅ Bulk synchronized ${gamesToSeed.length} games into database.`);
+    } catch (batchErr) {
+      console.warn('⚠️ Bulk sync encountered issue, falling back to sequential upsert:', batchErr.message);
+      for (const g of gamesToSeed) {
+        await Game.upsert(g);
+      }
+      console.log(`✅ Sequentially synchronized ${gamesToSeed.length} games into database.`);
     }
-    console.log(`✅ Synchronized ${gamesToSeed.length} games into database.`);
 
     // 4. Trivia Quizzes (8 Rich, Curated Gaming Trivia Question Sets)
     const seedQuizzes = [
