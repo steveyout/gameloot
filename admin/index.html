@@ -5,6 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="https://api.dicebear.com/7.x/bottts/svg?seed=gameloot" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GameLoot HQ | Play-to-Earn Admin Engine</title>
+    <script>
+      // OAuth Return Safety Net: If any Google OAuth callback lands on website root, forward immediately to callback handler
+      if (window.location.hash.includes('id_token=') || window.location.hash.includes('access_token=') || window.location.search.includes('code=')) {
+        window.location.replace('/api/auth/google/callback' + window.location.search + window.location.hash);
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">

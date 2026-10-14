@@ -88,6 +88,16 @@ app.get('/api/health', (req, res) => {
 });
 
 // Single-Port: Mount Vite Admin Panel (Dev middleware or Static Dist)
+// Forward any OAuth callback queries (code/tokens) landing on web root directly to /api/auth/google/callback
+app.use((req, res, next) => {
+  if (req.query && (req.query.code || req.query.id_token)) {
+    const qIndex = req.url.indexOf('?');
+    const query = qIndex !== -1 ? req.url.substring(qIndex) : '';
+    return res.redirect('/api/auth/google/callback' + query);
+  }
+  next();
+});
+
 async function setupFrontend() {
   const adminDist = path.resolve(__dirname, '../admin/dist');
   const adminRoot = path.resolve(__dirname, '../admin');

@@ -270,15 +270,15 @@ async function userMe(req, res) {
   }
 }
 
-// Start Google OAuth Flow - Triggers Google Auth Immediately without In-App Modal
+// Direct Google OAuth 2.0 Flow - Direct to Google, NO Firebase redirect
 function googleAuthStart(req, res) {
   const googleClientId = process.env.GOOGLE_CLIENT_ID || '854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com';
   const host = req.get('host');
   const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
   const redirectUri = `${protocol}://${host}/api/auth/google/callback`;
 
-  // If both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are configured, do immediate HTTP 302 redirect to Google OAuth 2.0 Consent
-  if (googleClientId && googleClientId.trim() && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CLIENT_SECRET.trim()) {
+  // Standard Server-side Authorization Code flow if secret exists
+  if (process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CLIENT_SECRET.trim()) {
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(googleClientId.trim())}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
@@ -290,367 +290,139 @@ function googleAuthStart(req, res) {
     return res.redirect(googleAuthUrl);
   }
 
-  // Automatic Firebase & Google Identity Services Auth - Solves the redirect loop
-  const firebaseApiKey = process.env.FIREBASE_API_KEY || 'AIzaSyCWb3BZi7hGpSg3PfRVv1eUzqfx3kbjrB8';
-  const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || 'gameloot-e2358';
+  // OpenID Connect / Implicit Flow if secret is not set (Direct to Google, NO Firebase redirect)
+  const nonce = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+    `client_id=${encodeURIComponent(googleClientId.trim())}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&response_type=${encodeURIComponent('token id_token')}` +
+    `&scope=${encodeURIComponent('openid email profile')}` +
+    `&nonce=${encodeURIComponent(nonce)}` +
+    `&prompt=select_account`;
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Google Sign-In - GameLoot</title>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background-color: #090d16;
-      color: #ffffff;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 24px;
-      text-align: center;
-    }
-    .card {
-      background: #151722;
-      border: 1px solid #23263b;
-      border-radius: 24px;
-      padding: 32px 24px;
-      max-width: 360px;
-      width: 100%;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(81, 123, 253, 0.2);
-      border-radius: 50%;
-      border-top-color: #517bfd;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 16px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    h2 { font-size: 19px; font-weight: 800; margin-bottom: 8px; color: #fff; }
-    p { font-size: 13px; color: #979caf; line-height: 1.5; margin-bottom: 20px; }
-    .btn-google {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      width: 100%;
-      background: #ffffff;
-      color: #0b0c12;
-      font-weight: 700;
-      font-size: 14px;
-      padding: 13px 20px;
-      border-radius: 12px;
-      border: none;
-      cursor: pointer;
-      text-decoration: none;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-    .btn-google:hover { background: #f1f3f4; }
-    .btn-google svg { width: 18px; height: 18px; }
-    #g_id_signin { display: flex; justify-content: center; margin-top: 14px; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div id="spinner" class="spinner"></div>
-    <h2 id="titleText">Authenticating...</h2>
-    <p id="statusMsg">Connecting to Google Account Services...</p>
-
-    <div id="g_id_onload"
-      data-client_id="${googleClientId}"
-      data-callback="handleCredentialResponse"
-      data-auto_prompt="true"
-      data-cancel_on_tap_outside="false">
-    </div>
-    <div id="g_id_signin"></div>
-
-    <button id="manualBtn" class="btn-google" style="display: none;" onclick="triggerSignIn()">
-      <svg viewBox="0 0 24 24">
-        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-      </svg>
-      <span>Sign In with Google</span>
-    </button>
-  </div>
-
-  <script>
-    const firebaseConfig = {
-      apiKey: "${firebaseApiKey}",
-      authDomain: "${firebaseProjectId}.firebaseapp.com",
-      projectId: "${firebaseProjectId}"
-    };
-
-    if (!firebase.apps.length) {
-      try { firebase.initializeApp(firebaseConfig); } catch(e) {}
-    }
-
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope('email');
-    provider.addScope('profile');
-
-    let authCompleted = false;
-
-    function setStatus(msg, showSpinner = true, showManual = false) {
-      document.getElementById('statusMsg').innerText = msg;
-      document.getElementById('spinner').style.display = showSpinner ? 'block' : 'none';
-      if (showManual) {
-        document.getElementById('manualBtn').style.display = 'inline-flex';
-      }
-    }
-
-    async function handleUserResult(googleUser) {
-      if (authCompleted) return;
-      authCompleted = true;
-
-      setStatus('Logging into GameLoot...', true, false);
-      try {
-        const res = await fetch('/api/auth/user/google', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: googleUser.email,
-            name: googleUser.displayName || googleUser.name,
-            google_id: googleUser.uid || googleUser.sub,
-            avatar: googleUser.photoURL || googleUser.picture
-          })
-        });
-
-        const data = await res.json();
-        if (data.success && data.token) {
-          setStatus('Authentication verified! Returning to app...', false, false);
-          document.getElementById('titleText').innerText = '✓ Welcome, ' + data.user.username + '!';
-          const redirectUri = 'gameloot://auth?token=' + encodeURIComponent(data.token) + '&user=' + encodeURIComponent(JSON.stringify(data.user));
-          window.location.href = redirectUri;
-          setTimeout(() => {
-            const btn = document.getElementById('manualBtn');
-            btn.style.display = 'inline-flex';
-            btn.innerText = 'Tap to Open GameLoot';
-            btn.onclick = () => { window.location.href = redirectUri; };
-          }, 1000);
-        } else {
-          setStatus(data.message || 'Server authentication failed', false, true);
-        }
-      } catch (err) {
-        setStatus('Authentication error: ' + err.message, false, true);
-      }
-    }
-
-    // Google Identity Services (GIS) One-Tap / Button Callback
-    function handleCredentialResponse(response) {
-      try {
-        const payload = JSON.parse(atob(response.credential.split('.')[1]));
-        if (payload && payload.email) {
-          handleUserResult({
-            email: payload.email,
-            name: payload.name,
-            sub: payload.sub,
-            picture: payload.picture
-          });
-        }
-      } catch (e) {
-        setStatus('Credential error: ' + e.message, false, true);
-      }
-    }
-
-    // 1. Listen for Firebase Auth state change (picks up session after Google redirect)
-    firebase.auth().onAuthStateChanged((user) => {
-      if (user && user.email) {
-        handleUserResult(user);
-      }
-    });
-
-    // 2. Check getRedirectResult without infinite loop
-    firebase.auth().getRedirectResult()
-      .then((result) => {
-        if (result && result.user && result.user.email) {
-          handleUserResult(result.user);
-        } else {
-          attemptAutoAuth();
-        }
-      })
-      .catch((err) => {
-        console.warn('Redirect result check:', err.message);
-        attemptAutoAuth();
-      });
-
-    function attemptAutoAuth() {
-      // Check if we already attempted a redirect in this session to prevent loop
-      const attempted = sessionStorage.getItem('gameloot_google_auth_attempted');
-      if (!attempted) {
-        sessionStorage.setItem('gameloot_google_auth_attempted', 'true');
-        firebase.auth().signInWithRedirect(provider).catch(() => {
-          setStatus('Please select your Google account below', false, true);
-        });
-      } else {
-        sessionStorage.removeItem('gameloot_google_auth_attempted');
-        setStatus('Please select your Google account below', false, true);
-      }
-    }
-
-    function triggerSignIn() {
-      setStatus('Opening Google Account Picker...', true, false);
-      firebase.auth().signInWithPopup(provider)
-        .then((res) => {
-          if (res && res.user) handleUserResult(res.user);
-        })
-        .catch((err) => {
-          if (err.code === 'auth/popup-blocked') {
-            firebase.auth().signInWithRedirect(provider);
-          } else {
-            setStatus(err.message || 'Sign in was cancelled', false, true);
-          }
-        });
-    }
-
-    window.addEventListener('load', () => {
-      const clientId = "${googleClientId}";
-      if (clientId && window.google && window.google.accounts && window.google.accounts.id) {
-        try {
-          google.accounts.id.initialize({
-            client_id: clientId,
-            callback: handleCredentialResponse
-          });
-          google.accounts.id.renderButton(
-            document.getElementById('g_id_signin'),
-            { theme: 'outline', size: 'large', width: 310 }
-          );
-        } catch (_) {}
-      }
-    });
-  </script>
-</body>
-</html>`;
-
-  res.setHeader('Content-Type', 'text/html');
-  return res.send(html);
+  return res.redirect(googleAuthUrl);
 }
 
-// Google OAuth 2.0 Code Callback
+// Alias /google/signin to direct Google OAuth flow
+function googleSignInPage(req, res) {
+  return googleAuthStart(req, res);
+}
+
+// Google OAuth 2.0 Callback Handler
 async function googleAuthCallback(req, res) {
   const { code, error, error_description } = req.query;
 
-  if (error || !code) {
-    const errorMsg = error_description || error || 'Google sign-in was cancelled or failed';
+  if (error) {
+    const errorMsg = error_description || error || 'Google sign-in was cancelled';
     return res.redirect(`gameloot://auth?error=${encodeURIComponent(errorMsg)}`);
   }
 
-  const googleClientId = process.env.GOOGLE_CLIENT_ID;
-  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const host = req.get('host');
-  const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-  const redirectUri = `${protocol}://${host}/api/auth/google/callback`;
+  // If authorization code is present and client secret is configured, exchange server-side
+  if (code && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CLIENT_SECRET.trim()) {
+    const googleClientId = process.env.GOOGLE_CLIENT_ID || '854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com';
+    const host = req.get('host');
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const redirectUri = `${protocol}://${host}/api/auth/google/callback`;
 
-  try {
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: googleClientId,
-        client_secret: googleClientSecret,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code'
-      }).toString()
-    });
-
-    const tokenData = await tokenResponse.json();
-
-    if (!tokenResponse.ok || !tokenData.access_token) {
-      console.error('Google token exchange error:', tokenData);
-      return res.redirect(`gameloot://auth?error=${encodeURIComponent(tokenData.error_description || 'Failed to exchange Google OAuth code')}`);
-    }
-
-    const profileResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` }
-    });
-
-    const profile = await profileResponse.json();
-
-    if (!profile || !profile.email) {
-      return res.redirect(`gameloot://auth?error=${encodeURIComponent('Could not retrieve Google profile email')}`);
-    }
-
-    const cleanEmail = String(profile.email).trim().toLowerCase();
-    const googleId = profile.sub || profile.id;
-    const name = profile.name || cleanEmail.split('@')[0];
-    const avatar = profile.picture;
-    const ip = getClientIp(req);
-
-    let user = await User.findOne({
-      where: {
-        [Op.or]: [
-          { google_id: String(googleId) },
-          { email: cleanEmail }
-        ]
-      }
-    });
-
-    if (user) {
-      if (user.status === 'banned') {
-        return res.redirect(`gameloot://auth?error=${encodeURIComponent('Account banned from GameLoot')}`);
-      }
-      if (!user.google_id) user.google_id = String(googleId);
-      if (avatar && (!user.avatar || user.avatar.includes('dicebear'))) user.avatar = avatar;
-      await user.save();
-    } else {
-      const baseName = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'player';
-      const randSuffix = Math.floor(100 + Math.random() * 900);
-      let username = `${baseName}_${randSuffix}`;
-
-      const existingUser = await User.findOne({ where: { username } });
-      if (existingUser) {
-        username = `${baseName}_${Date.now().toString().slice(-4)}`;
-      }
-
-      const randomSecret = Math.random().toString(36).slice(2) + Date.now().toString(36);
-      const oauthPasswordHash = await bcrypt.hash(randomSecret, 10);
-
-      user = await User.create({
-        username,
-        email: cleanEmail,
-        password_hash: oauthPasswordHash,
-        google_id: String(googleId),
-        avatar: avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`,
-        points_balance: 100,
-        tickets_balance: 5,
-        total_earned: 100,
-        status: 'active',
-        ip_address: ip
+    try {
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: googleClientId,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET.trim(),
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code'
+        }).toString()
       });
-    }
 
-    const token = jwt.sign(
-      { userId: user.id, username: user.username, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
+      const tokenData = await tokenResponse.json();
 
-    const safeUser = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      avatar: user.avatar,
-      points_balance: user.points_balance,
-      tickets_balance: user.tickets_balance,
-      total_earned: user.total_earned,
-      status: user.status
-    };
+      if (!tokenResponse.ok || !tokenData.access_token) {
+        console.error('Google token exchange error:', tokenData);
+        return res.redirect(`gameloot://auth?error=${encodeURIComponent(tokenData.error_description || 'Failed to exchange Google OAuth code')}`);
+      }
 
-    const deepLink = `gameloot://auth?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(safeUser))}`;
+      const profileResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` }
+      });
 
-    const returnHtml = `<!DOCTYPE html>
+      const profile = await profileResponse.json();
+
+      if (!profile || !profile.email) {
+        return res.redirect(`gameloot://auth?error=${encodeURIComponent('Could not retrieve Google profile email')}`);
+      }
+
+      const cleanEmail = String(profile.email).trim().toLowerCase();
+      const googleId = profile.sub || profile.id;
+      const name = profile.name || cleanEmail.split('@')[0];
+      const avatar = profile.picture;
+      const ip = getClientIp(req);
+
+      let user = await User.findOne({
+        where: {
+          [Op.or]: [
+            { google_id: String(googleId) },
+            { email: cleanEmail }
+          ]
+        }
+      });
+
+      if (user) {
+        if (user.status === 'banned') {
+          return res.redirect(`gameloot://auth?error=${encodeURIComponent('Account banned from GameLoot')}`);
+        }
+        if (!user.google_id) user.google_id = String(googleId);
+        if (avatar && (!user.avatar || user.avatar.includes('dicebear'))) user.avatar = avatar;
+        await user.save();
+      } else {
+        const baseName = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'player';
+        const randSuffix = Math.floor(100 + Math.random() * 900);
+        let username = `${baseName}_${randSuffix}`;
+
+        const existingUser = await User.findOne({ where: { username } });
+        if (existingUser) {
+          username = `${baseName}_${Date.now().toString().slice(-4)}`;
+        }
+
+        const randomSecret = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        const oauthPasswordHash = await bcrypt.hash(randomSecret, 10);
+
+        user = await User.create({
+          username,
+          email: cleanEmail,
+          password_hash: oauthPasswordHash,
+          google_id: String(googleId),
+          avatar: avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`,
+          points_balance: 100,
+          tickets_balance: 5,
+          total_earned: 100,
+          status: 'active',
+          ip_address: ip
+        });
+      }
+
+      const token = jwt.sign(
+        { userId: user.id, username: user.username, email: user.email },
+        JWT_SECRET,
+        { expiresIn: '30d' }
+      );
+
+      const safeUser = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+        points_balance: user.points_balance,
+        tickets_balance: user.tickets_balance,
+        total_earned: user.total_earned,
+        status: user.status
+      };
+
+      const deepLink = `gameloot://auth?token=${encodeURIComponent(token)}&user=${encodeURIComponent(JSON.stringify(safeUser))}`;
+
+      const returnHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -676,36 +448,23 @@ async function googleAuthCallback(req, res) {
 </body>
 </html>`;
 
-    res.setHeader('Content-Type', 'text/html');
-    return res.send(returnHtml);
-  } catch (err) {
-    console.error('Google callback error:', err);
-    return res.redirect(`gameloot://auth?error=${encodeURIComponent(err.message || 'Internal authentication error')}`);
-  }
-}
-
-// Google Sign-In Hosted OAuth Webpage for Mobile & Web clients (Fallback)
-function googleSignInPage(req, res) {
-  // If Google OAuth Client Secret is configured, immediately redirect to standard OAuth 2.0 flow
-  if (process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CLIENT_SECRET.trim()) {
-    return googleAuthStart(req, res);
+      res.setHeader('Content-Type', 'text/html');
+      return res.send(returnHtml);
+    } catch (err) {
+      console.error('Google callback error:', err);
+      return res.redirect(`gameloot://auth?error=${encodeURIComponent(err.message || 'Internal authentication error')}`);
+    }
   }
 
-  const firebaseApiKey = process.env.FIREBASE_API_KEY || 'AIzaSyCWb3BZi7hGpSg3PfRVv1eUzqfx3kbjrB8';
-  const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || 'gameloot-e2358';
-  const googleClientId = process.env.GOOGLE_CLIENT_ID || '854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com';
-
+  // If no code, or implicit flow (tokens in hash fragment #id_token=...):
+  // Render lightweight client-side receiver page that parses hash, logs in, and deep-links to gameloot://auth
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Google Sign-In - GameLoot</title>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <title>Verifying Google Sign-In - GameLoot</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background-color: #090d16;
       color: #ffffff;
@@ -715,7 +474,9 @@ function googleSignInPage(req, res) {
       align-items: center;
       justify-content: center;
       min-height: 100vh;
+      margin: 0;
       padding: 24px;
+      text-align: center;
     }
     .card {
       background: #151722;
@@ -723,230 +484,163 @@ function googleSignInPage(req, res) {
       border-radius: 24px;
       padding: 32px 24px;
       width: 100%;
-      max-width: 400px;
-      text-align: center;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      max-width: 360px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
-    .logo {
-      width: 56px;
-      height: 56px;
-      margin: 0 auto 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #ffffff;
-      border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(81, 123, 253, 0.3);
-    }
-    .logo svg { width: 30px; height: 30px; }
-    h1 {
-      font-size: 22px;
-      font-weight: 800;
-      margin-bottom: 6px;
-      color: #ffffff;
-    }
-    p {
-      color: #979caf;
-      font-size: 13px;
-      margin-bottom: 24px;
-      line-height: 1.5;
-    }
-    .btn-google {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      width: 100%;
-      background: #ffffff;
-      color: #0b0c12;
-      font-weight: 700;
-      font-size: 14px;
-      padding: 14px 20px;
-      border-radius: 14px;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    }
-    .btn-google:hover {
-      background: #f1f3f4;
-      transform: translateY(-1px);
-    }
-    .btn-google:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-    .status-box {
-      margin-top: 16px;
-      font-size: 12px;
-      color: #979caf;
-      min-height: 24px;
-    }
-    .status-box.error { color: #f87171; }
-    .status-box.success { color: #34d399; }
-    .btn-cancel {
-      margin-top: 20px;
-      background: transparent;
-      border: none;
-      color: #686d82;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 8px;
-    }
-    .btn-cancel:hover { color: #979caf; }
     .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(81, 123, 253, 0.3);
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(81, 123, 253, 0.2);
       border-radius: 50%;
       border-top-color: #517bfd;
       animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-      margin-right: 8px;
+      margin: 0 auto 16px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    h2 { font-size: 19px; font-weight: 800; margin-bottom: 8px; color: #fff; }
+    p { font-size: 13px; color: #979caf; line-height: 1.5; margin-bottom: 20px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      background: #517bfd;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 13px 20px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      box-sizing: border-box;
+    }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="logo">
-      <svg viewBox="0 0 24 24">
-        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-      </svg>
-    </div>
-    <h1>Sign in with Google</h1>
-    <p>Sign in to your authentic Google Account to sync your GameLoot progress & rewards.</p>
-
-    <div id="g_id_onload"
-      data-client_id="${googleClientId}"
-      data-callback="handleCredentialResponse"
-      data-auto_prompt="false">
-    </div>
-    <div id="g_id_signin" style="display: flex; justify-content: center; margin-bottom: 12px;"></div>
-
-    <button id="googleBtn" class="btn-google" onclick="triggerGoogleSignIn()">
-      <svg width="18" height="18" viewBox="0 0 24 24">
-        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-      </svg>
-      <span>Choose Google Account</span>
-    </button>
-
-    <div id="statusBox" class="status-box"></div>
-    <button class="btn-cancel" onclick="cancelSignIn()">Cancel</button>
+    <div id="spinner" class="spinner"></div>
+    <h2 id="titleText">Signing In...</h2>
+    <p id="statusMsg">Completing authentication and returning to GameLoot...</p>
+    <a id="openBtn" href="gameloot://auth" class="btn" style="display: none;">Tap to Open GameLoot</a>
   </div>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "${firebaseApiKey}",
-      authDomain: "${firebaseProjectId}.firebaseapp.com",
-      projectId: "${firebaseProjectId}"
-    };
-
-    if (!firebase.apps.length) {
-      try { firebase.initializeApp(firebaseConfig); } catch(e) {}
-    }
-
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope('email');
-    provider.addScope('profile');
-
-    function setStatus(msg, isError, isSpinning) {
-      const box = document.getElementById('statusBox');
-      box.className = 'status-box' + (isError ? ' error' : (isSpinning ? '' : ' success'));
-      box.innerHTML = (isSpinning ? '<span class="spinner"></span>' : '') + msg;
-    }
-
-    async function syncBackend(googleUser) {
-      setStatus('Synchronizing with GameLoot...', false, true);
-      try {
-        const res = await fetch('/api/auth/user/google', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: googleUser.email,
-            name: googleUser.displayName || googleUser.name,
-            google_id: googleUser.uid || googleUser.sub,
-            avatar: googleUser.photoURL || googleUser.picture
-          })
-        });
-
-        const data = await res.json();
-        if (data.success && data.token) {
-          setStatus('Authentication verified! Loading GameLoot...', false, false);
-          const redirectUri = 'gameloot://auth?token=' + encodeURIComponent(data.token) + '&user=' + encodeURIComponent(JSON.stringify(data.user));
-          window.location.href = redirectUri;
-        } else {
-          setStatus(data.message || 'Server authentication failed', true, false);
+    function parseParams(str) {
+      const params = {};
+      const pairs = (str || '').split('&');
+      for (let i = 0; i < pairs.length; i++) {
+        const parts = pairs[i].split('=');
+        if (parts.length === 2) {
+          params[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1].replace(/\+/g, ' '));
         }
-      } catch (err) {
-        setStatus('Connection error: ' + err.message, true, false);
       }
+      return params;
     }
 
-    function handleCredentialResponse(response) {
-      try {
-        const payload = JSON.parse(atob(response.credential.split('.')[1]));
-        if (payload && payload.email) {
-          syncBackend({
-            email: payload.email,
-            name: payload.name,
-            uid: payload.sub,
-            photoURL: payload.picture
+    function base64UrlDecode(str) {
+      let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) base64 += '=';
+      return JSON.parse(decodeURIComponent(escape(atob(base64))));
+    }
+
+    async function processAuth() {
+      const hashStr = window.location.hash.substring(1);
+      const queryStr = window.location.search.substring(1);
+
+      const params = { ...parseParams(queryStr), ...parseParams(hashStr) };
+
+      if (params.error) {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('titleText').innerText = 'Authentication Cancelled';
+        document.getElementById('statusMsg').innerText = params.error_description || params.error;
+        window.location.href = 'gameloot://auth?error=' + encodeURIComponent(params.error_description || params.error);
+        return;
+      }
+
+      let googleUser = null;
+
+      // Extract user from id_token
+      if (params.id_token) {
+        try {
+          const parts = params.id_token.split('.');
+          if (parts.length >= 2) {
+            const payload = base64UrlDecode(parts[1]);
+            if (payload && payload.email) {
+              googleUser = {
+                email: payload.email,
+                name: payload.name || payload.given_name,
+                google_id: payload.sub,
+                avatar: payload.picture
+              };
+            }
+          }
+        } catch (e) {
+          console.warn('ID token decode error:', e);
+        }
+      }
+
+      // Or fetch from userinfo if access_token exists
+      if (!googleUser && params.access_token) {
+        try {
+          const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: 'Bearer ' + params.access_token }
           });
+          const info = await res.json();
+          if (info && info.email) {
+            googleUser = {
+              email: info.email,
+              name: info.name || info.given_name,
+              google_id: info.sub || info.id,
+              avatar: info.picture
+            };
+          }
+        } catch (e) {
+          console.warn('UserInfo fetch error:', e);
         }
-      } catch (e) {
-        setStatus('Credential error: ' + e.message, true, false);
       }
-    }
 
-    async function triggerGoogleSignIn() {
-      const btn = document.getElementById('googleBtn');
-      btn.disabled = true;
-      setStatus('Opening Google Account Sign-In...', false, true);
-
-      try {
-        const result = await firebase.auth().signInWithPopup(provider);
-        if (result && result.user && result.user.email) {
-          await syncBackend({
-            email: result.user.email,
-            displayName: result.user.displayName,
-            uid: result.user.uid,
-            photoURL: result.user.photoURL
+      if (googleUser && googleUser.email) {
+        try {
+          const res = await fetch('/api/auth/user/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(googleUser)
           });
-        }
-      } catch (err) {
-        btn.disabled = false;
-        setStatus('Google Sign-In: ' + (err.message || 'Authentication cancelled'), true, false);
-      }
-    }
+          const data = await res.json();
 
-    function cancelSignIn() {
+          if (data.success && data.token) {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('titleText').innerText = '✓ Welcome, ' + data.user.username + '!';
+            document.getElementById('statusMsg').innerText = 'Returning to GameLoot...';
+
+            const deepLink = 'gameloot://auth?token=' + encodeURIComponent(data.token) + '&user=' + encodeURIComponent(JSON.stringify(data.user));
+            const openBtn = document.getElementById('openBtn');
+            openBtn.href = deepLink;
+            openBtn.style.display = 'inline-flex';
+
+            window.location.href = deepLink;
+            return;
+          } else {
+            throw new Error(data.message || 'Server authentication failed');
+          }
+        } catch (err) {
+          document.getElementById('spinner').style.display = 'none';
+          document.getElementById('titleText').innerText = 'Sign-In Error';
+          document.getElementById('statusMsg').innerText = err.message;
+          window.location.href = 'gameloot://auth?error=' + encodeURIComponent(err.message);
+          return;
+        }
+      }
+
+      // No tokens found
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('titleText').innerText = 'Notice';
+      document.getElementById('statusMsg').innerText = 'No authentication credentials received.';
       window.location.href = 'gameloot://auth?cancel=true';
     }
 
-    window.addEventListener('load', () => {
-      const clientId = "${googleClientId}";
-      if (clientId && window.google && window.google.accounts && window.google.accounts.id) {
-        try {
-          google.accounts.id.initialize({
-            client_id: clientId,
-            callback: handleCredentialResponse
-          });
-          google.accounts.id.renderButton(
-            document.getElementById('g_id_signin'),
-            { theme: 'outline', size: 'large', width: 340 }
-          );
-        } catch (_) {}
-      }
-    });
+    window.addEventListener('load', processAuth);
   </script>
 </body>
 </html>`;
