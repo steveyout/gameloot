@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,21 +9,22 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Modal,
-  SafeAreaView,
-  Alert
+  Linking
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gamepad2, Sparkles, Lock, Mail, User, Shield, FileText, X } from 'lucide-react-native';
+import { Gamepad2, Sparkles, Lock, Mail, User, Shield, FileText } from 'lucide-react-native';
 import { userLogin, userRegister, userGoogleLogin } from '../api/clientApi';
+import { API_BASE_URL } from '../api/config';
 import { logEvent } from '../services/firebase';
 import LegalModal from '../components/LegalModal';
 
-const GOOGLE_WEB_CLIENT_ID = '854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com';
-const GOOGLE_REDIRECT_URI = 'https://gameloot-e2358.firebaseapp.com/__/auth/handler';
+// Completes auth session automatically if redirected back into web browser
+WebBrowser.maybeCompleteAuthSession();
 
-// Dynamically check for Android Native Google Play Services module
+const GOOGLE_WEB_CLIENT_ID = '854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com';
+
+// Dynamically load Native Google Play Services module
 let NativeGoogleSignin = null;
 let NativeStatusCodes = null;
 
@@ -39,15 +40,9 @@ try {
     });
   }
 } catch (_) {
-  // Running inside Expo Go sandbox without compiled native code
   NativeGoogleSignin = null;
   NativeStatusCodes = null;
 }
-
-const GOOGLE_USER_AGENT =
-  Platform.OS === 'ios'
-    ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
-    : 'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36';
 
 function base64Decode(str) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
@@ -90,26 +85,77 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // In-App Google Sign-In Popup State (Fallback for Expo Go)
-  const [googleModalVisible, setGoogleModalVisible] = useState(false);
-  const [verifyingGoogle, setVerifyingGoogle] = useState(false);
-  const [googleAuthNonce, setGoogleAuthNonce] = useState(
-    () => Math.random().toString(36).substring(2) + Date.now().toString(36)
-  );
-  const isProcessingGoogleAuth = useRef(false);
-
   // Public Legal modal state
   const [legalModalVisible, setLegalModalVisible] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState('privacy');
 
-  const googleAuthUrl =
-    `https://accounts.google.com/o/oauth2/v2/auth?` +
-    `client_id=${encodeURIComponent(GOOGLE_WEB_CLIENT_ID)}` +
-    `&redirect_uri=${encodeURIComponent(GOOGLE_REDIRECT_URI)}` +
-    `&response_type=token%20id_token` +
-    `&scope=${encodeURIComponent('openid email profile')}` +
-    `&prompt=select_account` +
-    `&nonce=${encodeURIComponent(googleAuthNonce)}`;
+  const handleAuthRedirectUrl = (url) => {
+    if (!url) {
+      setGoogleLoading(false);
+      return;
+    }
+    try {
+      if (url.startsWith('gameloot://auth') || url.includes('gameloot://auth')) {
+        const query = url.includes('?') ? url.split('?')[1] : '';
+
+        const getParam = (name) => {
+          const match = query.match(new RegExp('(?:^|[?&])' + name + '=([^&]*)'));
+          return match ? decodeURIComponent(match[1]) : null;
+        };
+
+        const token = getParam('token');
+        const userParam = getParam('user');
+        const error = getParam('error');
+        const cancel = getParam('cancel');
+
+        setGoogleLoading(false);
+
+        if (cancel) return;
+
+        if (error) {
+          onErrorAlert(error || 'Google authentication failed.');
+          return;
+        }
+
+        if (token && userParam) {
+          const parsedUser = JSON.parse(userParam);
+          logEvent('login_success', {
+            provider: 'google.chrome',
+            user_id: parsedUser?.id,
+            email: parsedUser?.email,
+            app: 'gameloot'
+          });
+          onAuthSuccess(parsedUser, token);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to parse Google OAuth redirect URL:', err.message);
+      setGoogleLoading(false);
+    }
+  };
+
+  // Deep link listener for OAuth return
+  useEffect(() => {
+    const handleDeepLink = ({ url }) => {
+      handleAuthRedirectUrl(url);
+    };
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) {
+          handleAuthRedirectUrl(url);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      if (subscription && typeof subscription.remove === 'function') {
+        subscription.remove();
+      }
+    };
+  }, [onAuthSuccess, onErrorAlert]);
 
   const handleOpenLegal = (tab = 'privacy') => {
     setLegalModalTab(tab);
@@ -117,7 +163,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   };
 
   const handleSubmit = async () => {
-    if (loading || googleLoading || verifyingGoogle) return;
+    if (loading || googleLoading) return;
     if (!username.trim() || !password.trim()) {
       onErrorAlert('Please enter your username and password');
       return;
@@ -155,195 +201,142 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   };
 
   /**
+   * Chrome Custom Tab Fallback for Google Sign-In
+   * Avoids WebViews / iframes entirely
+   */
+  const handleChromeGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const authUrl = `${API_BASE_URL}/auth/google/signin`;
+      const redirectUrl = 'gameloot://auth';
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+
+      if (result.type === 'success' && result.url) {
+        handleAuthRedirectUrl(result.url);
+      } else {
+        setGoogleLoading(false);
+      }
+    } catch (err) {
+      console.warn('Chrome Google Sign-In error:', err.message);
+      setGoogleLoading(false);
+      try {
+        await Linking.openURL(`${API_BASE_URL}/auth/google/signin`);
+      } catch (linkErr) {
+        onErrorAlert('Could not launch Chrome Google Sign-In: ' + (err.message || linkErr.message));
+      }
+    }
+  };
+
+  /**
    * Google Sign-In Handler
-   * 1. If running with native Google Play Services (Dev Build / APK), opens the exact native bottom sheet dialog
-   * 2. If running inside Expo Go, falls back to the in-app popup modal
+   * 1. Uses Native Google Play Services bottom sheet picker
+   * 2. On selecting an account, immediately logs into backend and enters app
+   * 3. If native fails or running in Expo Go, falls back to Chrome method (NO IFRAME / NO WEBVIEW)
    */
   const handleGoogleSignIn = async () => {
-    if (loading || googleLoading || verifyingGoogle) return;
+    if (loading || googleLoading) return;
 
-    // Check if native Google Play Services module is available (Development Build or APK)
     if (NativeGoogleSignin && typeof NativeGoogleSignin.signIn === 'function') {
       try {
         setGoogleLoading(true);
         await NativeGoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
         const response = await NativeGoogleSignin.signIn();
 
-        // Support both old and new response structures of @react-native-google-signin/google-signin
+        if (response?.type === 'cancelled') {
+          setGoogleLoading(false);
+          return;
+        }
+
         const userInfo = response?.data || response;
         const user = userInfo?.user || userInfo;
+        const idToken = response?.data?.idToken || response?.idToken || userInfo?.idToken;
 
-        if (user && user.email) {
-          const res = await userGoogleLogin({
-            email: user.email,
-            name: user.name || user.givenName,
-            google_id: user.id,
-            avatar: user.photo
-          });
+        let email = user?.email;
+        let name = user?.name || user?.givenName;
+        let googleId = user?.id;
+        let avatar = user?.photo;
 
-          if (res && res.success && res.token) {
-            logEvent('login_success', {
-              provider: 'google.native',
-              user_id: res.user?.id,
-              email: res.user?.email,
-              app: 'gameloot'
-            });
-            onAuthSuccess(res.user, res.token);
-            return;
-          } else {
-            onErrorAlert(res?.message || 'Google account verification failed on GameLoot server.');
+        if (!email && idToken) {
+          const decoded = decodeJwtPayload(idToken);
+          if (decoded) {
+            email = decoded.email;
+            name = name || decoded.name;
+            googleId = googleId || decoded.sub;
+            avatar = avatar || decoded.picture;
           }
+        }
+
+        if (!email && !idToken && typeof NativeGoogleSignin.getTokens === 'function') {
+          try {
+            const tokens = await NativeGoogleSignin.getTokens();
+            if (tokens?.idToken) {
+              const decoded = decodeJwtPayload(tokens.idToken);
+              if (decoded) {
+                email = decoded.email;
+                name = name || decoded.name;
+                googleId = googleId || decoded.sub;
+                avatar = avatar || decoded.picture;
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (email) {
+          try {
+            const res = await userGoogleLogin({
+              email,
+              name: name || email.split('@')[0],
+              google_id: googleId || (google_ + Date.now()),
+              avatar: avatar || null
+            });
+
+            if (res && res.success && res.token) {
+              logEvent('login_success', {
+                provider: 'google.native',
+                user_id: res.user?.id,
+                email: res.user?.email,
+                app: 'gameloot'
+              });
+              setGoogleLoading(false);
+              onAuthSuccess(res.user, res.token);
+              return;
+            } else {
+              setGoogleLoading(false);
+              onErrorAlert(res?.message || 'Google account verification failed on GameLoot server.');
+              return;
+            }
+          } catch (apiErr) {
+            setGoogleLoading(false);
+            onErrorAlert(apiErr.message || 'Failed to authenticate with GameLoot server.');
+            return;
+          }
+        } else {
+          console.warn('Native Google Sign-In returned without email, using Chrome fallback');
+          await handleChromeGoogleSignIn();
+          return;
         }
       } catch (err) {
         if (
-          err.code === NativeStatusCodes?.SIGN_IN_CANCELLED ||
-          err.message?.includes('cancelled') ||
-          err.message?.includes('canceled')
+          err?.code === NativeStatusCodes?.SIGN_IN_CANCELLED ||
+          err?.code === '12501' ||
+          err?.message?.includes('cancelled') ||
+          err?.message?.includes('canceled')
         ) {
-          // User closed bottom sheet dialog
+          setGoogleLoading(false);
           return;
         }
 
-        console.warn('Native Google Play Services Sign-In exception:', err.message);
-
-        // If native module fails (e.g. SHA-1 mismatch or Expo Go environment), fall back to in-app popup modal
-        launchInAppGooglePopup();
+        console.warn('Native Google Sign-In error, using Chrome method fallback:', err.message);
+        await handleChromeGoogleSignIn();
+        return;
       } finally {
         setGoogleLoading(false);
       }
-      return;
     }
 
-    // Expo Go sandbox environment: launch in-app popup modal without opening external browsers
-    launchInAppGooglePopup();
-  };
-
-  const launchInAppGooglePopup = () => {
-    const newNonce = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    setGoogleAuthNonce(newNonce);
-    isProcessingGoogleAuth.current = false;
-    setVerifyingGoogle(false);
-    setGoogleModalVisible(true);
-  };
-
-  const handleInterceptGoogleUrl = async (url) => {
-    if (!url) return;
-    if (
-      url.includes('firebaseapp.com/__/auth/handler') ||
-      url.includes('id_token=') ||
-      url.includes('access_token=')
-    ) {
-      if (isProcessingGoogleAuth.current) return;
-      isProcessingGoogleAuth.current = true;
-      setVerifyingGoogle(true);
-
-      try {
-        const hashIdx = url.indexOf('#');
-        const queryIdx = url.indexOf('?');
-        let paramStr = '';
-        if (hashIdx !== -1) paramStr += '&' + url.substring(hashIdx + 1);
-        if (queryIdx !== -1) {
-          const end = hashIdx !== -1 && hashIdx > queryIdx ? hashIdx : url.length;
-          paramStr += '&' + url.substring(queryIdx + 1, end);
-        }
-
-        const params = {};
-        paramStr.split('&').forEach((part) => {
-          if (!part) return;
-          const [k, v] = part.split('=');
-          if (k) params[decodeURIComponent(k)] = decodeURIComponent(v || '');
-        });
-
-        if (params.error) {
-          setVerifyingGoogle(false);
-          setGoogleModalVisible(false);
-          if (params.error !== 'access_denied') {
-            onErrorAlert(params.error_description || params.error || 'Google sign-in was cancelled or failed.');
-          }
-          return;
-        }
-
-        let googleUser = null;
-
-        if (params.id_token) {
-          googleUser = decodeJwtPayload(params.id_token);
-        }
-
-        if ((!googleUser || !googleUser.email) && params.access_token) {
-          try {
-            const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-              headers: { Authorization: `Bearer ${params.access_token}` }
-            });
-            const info = await userinfoRes.json();
-            if (info && info.email) {
-              googleUser = {
-                email: info.email,
-                name: info.name || info.given_name,
-                sub: info.sub || info.id,
-                picture: info.picture
-              };
-            }
-          } catch (fetchErr) {
-            console.warn('Failed to fetch userinfo from Google:', fetchErr.message);
-          }
-        }
-
-        if (googleUser && googleUser.email) {
-          const res = await userGoogleLogin({
-            email: googleUser.email,
-            name: googleUser.name,
-            google_id: googleUser.sub || googleUser.id,
-            avatar: googleUser.picture
-          });
-
-          if (res && res.success && res.token) {
-            logEvent('login_success', {
-              provider: 'google.popup',
-              user_id: res.user?.id,
-              email: res.user?.email,
-              app: 'gameloot'
-            });
-            setGoogleModalVisible(false);
-            setVerifyingGoogle(false);
-            onAuthSuccess(res.user, res.token);
-            return;
-          } else {
-            onErrorAlert(res?.message || 'Failed to authenticate Google user with GameLoot server.');
-          }
-        } else {
-          onErrorAlert('Could not retrieve verified email from Google.');
-        }
-      } catch (err) {
-        console.warn('Google popup auth error:', err.message);
-        onErrorAlert(err.message || 'Authentication error occurred.');
-      } finally {
-        setVerifyingGoogle(false);
-        setGoogleModalVisible(false);
-        isProcessingGoogleAuth.current = false;
-      }
-    }
-  };
-
-  const handleShouldStartLoadWithRequest = (request) => {
-    if (
-      request.url.includes('firebaseapp.com/__/auth/handler') ||
-      request.url.includes('id_token=') ||
-      request.url.includes('access_token=')
-    ) {
-      handleInterceptGoogleUrl(request.url);
-      return false;
-    }
-    return true;
-  };
-
-  const handleNavigationStateChange = (navState) => {
-    if (
-      navState.url.includes('firebaseapp.com/__/auth/handler') ||
-      navState.url.includes('id_token=') ||
-      navState.url.includes('access_token=')
-    ) {
-      handleInterceptGoogleUrl(navState.url);
-    }
+    // Expo Go fallback: use Chrome Custom Tabs
+    await handleChromeGoogleSignIn();
   };
 
   return (
@@ -420,7 +413,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
-                  editable={!loading && !googleLoading && !verifyingGoogle}
+                  editable={!loading && !googleLoading}
                 />
               </View>
             </View>
@@ -438,7 +431,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
                     onChangeText={setEmail}
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    editable={!loading && !googleLoading && !verifyingGoogle}
+                    editable={!loading && !googleLoading}
                   />
                 </View>
               </View>
@@ -455,16 +448,16 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
-                  editable={!loading && !googleLoading && !verifyingGoogle}
+                  editable={!loading && !googleLoading}
                 />
               </View>
             </View>
 
             {/* Standard Email Submit Button */}
             <TouchableOpacity
-              style={[styles.submitBtn, (loading || googleLoading || verifyingGoogle) && styles.submitBtnDisabled]}
+              style={[styles.submitBtn, (loading || googleLoading) && styles.submitBtnDisabled]}
               onPress={handleSubmit}
-              disabled={loading || googleLoading || verifyingGoogle}
+              disabled={loading || googleLoading}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -491,17 +484,17 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Google Sign In Button - Triggers Native Bottom Sheet or In-App Popup */}
+            {/* Google Sign In Button */}
             <TouchableOpacity
-              style={[styles.googleBtn, (loading || googleLoading || verifyingGoogle) && styles.googleBtnDisabled]}
+              style={[styles.googleBtn, (loading || googleLoading) && styles.googleBtnDisabled]}
               onPress={handleGoogleSignIn}
-              disabled={loading || googleLoading || verifyingGoogle}
+              disabled={loading || googleLoading}
               activeOpacity={0.85}
             >
               {googleLoading ? (
                 <View style={styles.loadingRow}>
                   <ActivityIndicator size="small" color="#517bfd" style={{ marginRight: 8 }} />
-                  <Text style={styles.googleBtnText}>Opening Google Account Picker...</Text>
+                  <Text style={styles.googleBtnText}>Signing in with Google...</Text>
                 </View>
               ) : (
                 <>
@@ -556,74 +549,6 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* In-App Google Sign-In Popup Dialog (Expo Go fallback) */}
-      <Modal
-        visible={googleModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => {
-          setGoogleModalVisible(false);
-          setVerifyingGoogle(false);
-        }}
-      >
-        <SafeAreaView style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderLeft}>
-                <View style={styles.googleBadge}>
-                  <Text style={styles.googleBadgeLetter}>G</Text>
-                </View>
-                <View>
-                  <Text style={styles.modalTitleText}>Sign in with Google</Text>
-                  <Text style={styles.modalSubtitleText}>Select your Google Account</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => {
-                  setGoogleModalVisible(false);
-                  setVerifyingGoogle(false);
-                }}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
-                <X size={18} color="#979caf" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Modal Body with WebView */}
-            <View style={styles.modalBody}>
-              <WebView
-                key={googleAuthNonce}
-                source={{ uri: googleAuthUrl }}
-                userAgent={GOOGLE_USER_AGENT}
-                javaScriptEnabled={true}
-                domStorageEnabled={true}
-                thirdPartyCookiesEnabled={true}
-                sharedCookiesEnabled={true}
-                startInLoadingState={true}
-                renderLoading={() => (
-                  <View style={styles.webViewLoader}>
-                    <ActivityIndicator size="large" color="#517bfd" />
-                    <Text style={styles.webViewLoaderText}>Connecting to Google Account Services...</Text>
-                  </View>
-                )}
-                onNavigationStateChange={handleNavigationStateChange}
-                onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
-                style={styles.webView}
-              />
-
-              {verifyingGoogle && (
-                <View style={styles.verifyingOverlay}>
-                  <ActivityIndicator size="large" color="#517bfd" />
-                  <Text style={styles.verifyingText}>Logging in to GameLoot...</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </SafeAreaView>
-      </Modal>
 
       {/* Public In-App Legal Documents Reader Modal */}
       <LegalModal
@@ -866,107 +791,5 @@ const styles = StyleSheet.create({
   publicLegalDot: {
     color: '#686d82',
     fontSize: 12
-  },
-
-  // In-App Popup Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 420,
-    height: '84%',
-    backgroundColor: '#151722',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#23263b',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#23263b',
-    backgroundColor: '#191b29'
-  },
-  modalHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12
-  },
-  googleBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  googleBadgeLetter: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#4285F4'
-  },
-  modalTitleText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#ffffff'
-  },
-  modalSubtitleText: {
-    fontSize: 11,
-    color: '#979caf'
-  },
-  modalCloseBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  modalBody: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    position: 'relative'
-  },
-  webView: {
-    flex: 1
-  },
-  webViewLoader: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#151722',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12
-  },
-  webViewLoaderText: {
-    color: '#979caf',
-    fontSize: 13,
-    fontWeight: '600'
-  },
-  verifyingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(21, 23, 34, 0.95)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-    zIndex: 99
-  },
-  verifyingText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '700'
   }
 });

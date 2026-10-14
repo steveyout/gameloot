@@ -686,9 +686,14 @@ async function googleAuthCallback(req, res) {
 
 // Google Sign-In Hosted OAuth Webpage for Mobile & Web clients (Fallback)
 function googleSignInPage(req, res) {
+  // If Google OAuth Client Secret is configured, immediately redirect to standard OAuth 2.0 flow
+  if (process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CLIENT_SECRET.trim()) {
+    return googleAuthStart(req, res);
+  }
+
   const firebaseApiKey = process.env.FIREBASE_API_KEY || 'AIzaSyCWb3BZi7hGpSg3PfRVv1eUzqfx3kbjrB8';
   const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || 'gameloot-e2358';
-  const googleClientId = process.env.GOOGLE_CLIENT_ID || '';
+  const googleClientId = process.env.GOOGLE_CLIENT_ID || '854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com';
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -777,7 +782,8 @@ function googleSignInPage(req, res) {
       color: #979caf;
       min-height: 24px;
     }
-    .status-box.error { color: #f87171; }\n    .status-box.success { color: #34d399; }
+    .status-box.error { color: #f87171; }
+    .status-box.success { color: #34d399; }
     .btn-cancel {
       margin-top: 20px;
       background: transparent;
@@ -806,43 +812,144 @@ function googleSignInPage(req, res) {
 <body>
   <div class="card">
     <div class="logo">
-      <svg viewBox=\"0 0 24 24\">
-        <path fill=\"#4285F4\" d=\"M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z\"/>
-        <path fill=\"#34A853\" d=\"M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z\"/>
-        <path fill=\"#FBBC05\" d=\"M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z\"/>
-        <path fill=\"#EA4335\" d=\"M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z\"/>
+      <svg viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
       </svg>
     </div>
     <h1>Sign in with Google</h1>
     <p>Sign in to your authentic Google Account to sync your GameLoot progress & rewards.</p>
 
-    <div id=\"g_id_onload\"
-      data-client_id=\"${googleClientId}\"
-      data-callback=\"handleCredentialResponse\"
-      data-auto_prompt=\"false\">
+    <div id="g_id_onload"
+      data-client_id="${googleClientId}"
+      data-callback="handleCredentialResponse"
+      data-auto_prompt="false">
     </div>
-    <div id=\"g_id_signin\" style=\"display: flex; justify-content: center; margin-bottom: 12px;\"></div>
+    <div id="g_id_signin" style="display: flex; justify-content: center; margin-bottom: 12px;"></div>
 
-    <button id=\"googleBtn\" class=\"btn-google\" onclick=\"triggerGoogleSignIn()\">
-      <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\">
-        <path fill=\"#4285F4\" d=\"M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z\"/>
-        <path fill=\"#34A853\" d=\"M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z\"/>
-        <path fill=\"#FBBC05\" d=\"M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z\"/>
-        <path fill=\"#EA4335\" d=\"M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z\"/>
+    <button id="googleBtn" class="btn-google" onclick="triggerGoogleSignIn()">
+      <svg width="18" height="18" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
       </svg>
       <span>Choose Google Account</span>
     </button>
 
-    <div id=\"statusBox\" class=\"status-box\"></div>
-    <button class=\"btn-cancel\" onclick=\"cancelSignIn()\">Cancel</button>
+    <div id="statusBox" class="status-box"></div>
+    <button class="btn-cancel" onclick="cancelSignIn()">Cancel</button>
   </div>
 
   <script>
     const firebaseConfig = {
-      apiKey: \"${firebaseApiKey}\",
-      authDomain: \"${firebaseProjectId}.firebaseapp.com\",
-      projectId: \"${firebaseProjectId}\"
-    };\n\n    if (!firebase.apps.length) {\n      try { firebase.initializeApp(firebaseConfig); } catch(e) {}\n    }\n\n    const provider = new firebase.auth.GoogleAuthProvider();\n    provider.addScope('email');\n    provider.addScope('profile');\n\n    function setStatus(msg, isError, isSpinning) {\n      const box = document.getElementById('statusBox');\n      box.className = 'status-box' + (isError ? ' error' : (isSpinning ? '' : ' success'));\n      box.innerHTML = (isSpinning ? '<span class=\"spinner\"></span>' : '') + msg;\n    }\n\n    async function syncBackend(googleUser) {\n      setStatus('Synchronizing with GameLoot...', false, true);\n      try {\n        const res = await fetch('/api/auth/user/google', {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify({\n            email: googleUser.email,\n            name: googleUser.displayName || googleUser.name,\n            google_id: googleUser.uid || googleUser.sub,\n            avatar: googleUser.photoURL || googleUser.picture\n          })\n        });\n\n        const data = await res.json();\n        if (data.success && data.token) {\n          setStatus('Authentication verified! Loading GameLoot...', false, false);\n          const redirectUri = 'gameloot://auth?token=' + encodeURIComponent(data.token) + '&user=' + encodeURIComponent(JSON.stringify(data.user));\n          window.location.href = redirectUri;\n        } else {\n          setStatus(data.message || 'Server authentication failed', true, false);\n        }\n      } catch (err) {\n        setStatus('Connection error: ' + err.message, true, false);\n      }\n    }\n\n    function handleCredentialResponse(response) {\n      try {\n        const payload = JSON.parse(atob(response.credential.split('.')[1]));\n        if (payload && payload.email) {\n          syncBackend({\n            email: payload.email,\n            name: payload.name,\n            uid: payload.sub,\n            photoURL: payload.picture\n          });\n        }\n      } catch (e) {\n        setStatus('Credential error: ' + e.message, true, false);\n      }\n    }\n\n    async function triggerGoogleSignIn() {\n      const btn = document.getElementById('googleBtn');\n      btn.disabled = true;\n      setStatus('Opening Google Account Sign-In...', false, true);\n\n      try {\n        const result = await firebase.auth().signInWithPopup(provider);\n        if (result && result.user && result.user.email) {\n          await syncBackend({\n            email: result.user.email,\n            displayName: result.user.displayName,\n            uid: result.user.uid,\n            photoURL: result.user.photoURL\n          });\n        }\n      } catch (err) {\n        btn.disabled = false;\n        setStatus('Google Sign-In: ' + (err.message || 'Authentication cancelled'), true, false);\n      }\n    }\n\n    function cancelSignIn() {\n      window.location.href = 'gameloot://auth?cancel=true';\n    }\n\n    window.addEventListener('load', () => {\n      const clientId = \"${googleClientId}\";\n      if (clientId && window.google && window.google.accounts && window.google.accounts.id) {\n        try {\n          google.accounts.id.initialize({\n            client_id: clientId,\n            callback: handleCredentialResponse\n          });\n          google.accounts.id.renderButton(\n            document.getElementById('g_id_signin'),\n            { theme: 'outline', size: 'large', width: 340 }\n          );\n        } catch (_) {}\n      }\n    });\n  </script>\n</body>\n</html>`;
+      apiKey: "${firebaseApiKey}",
+      authDomain: "${firebaseProjectId}.firebaseapp.com",
+      projectId: "${firebaseProjectId}"
+    };
+
+    if (!firebase.apps.length) {
+      try { firebase.initializeApp(firebaseConfig); } catch(e) {}
+    }
+
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+
+    function setStatus(msg, isError, isSpinning) {
+      const box = document.getElementById('statusBox');
+      box.className = 'status-box' + (isError ? ' error' : (isSpinning ? '' : ' success'));
+      box.innerHTML = (isSpinning ? '<span class="spinner"></span>' : '') + msg;
+    }
+
+    async function syncBackend(googleUser) {
+      setStatus('Synchronizing with GameLoot...', false, true);
+      try {
+        const res = await fetch('/api/auth/user/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: googleUser.email,
+            name: googleUser.displayName || googleUser.name,
+            google_id: googleUser.uid || googleUser.sub,
+            avatar: googleUser.photoURL || googleUser.picture
+          })
+        });
+
+        const data = await res.json();
+        if (data.success && data.token) {
+          setStatus('Authentication verified! Loading GameLoot...', false, false);
+          const redirectUri = 'gameloot://auth?token=' + encodeURIComponent(data.token) + '&user=' + encodeURIComponent(JSON.stringify(data.user));
+          window.location.href = redirectUri;
+        } else {
+          setStatus(data.message || 'Server authentication failed', true, false);
+        }
+      } catch (err) {
+        setStatus('Connection error: ' + err.message, true, false);
+      }
+    }
+
+    function handleCredentialResponse(response) {
+      try {
+        const payload = JSON.parse(atob(response.credential.split('.')[1]));
+        if (payload && payload.email) {
+          syncBackend({
+            email: payload.email,
+            name: payload.name,
+            uid: payload.sub,
+            photoURL: payload.picture
+          });
+        }
+      } catch (e) {
+        setStatus('Credential error: ' + e.message, true, false);
+      }
+    }
+
+    async function triggerGoogleSignIn() {
+      const btn = document.getElementById('googleBtn');
+      btn.disabled = true;
+      setStatus('Opening Google Account Sign-In...', false, true);
+
+      try {
+        const result = await firebase.auth().signInWithPopup(provider);
+        if (result && result.user && result.user.email) {
+          await syncBackend({
+            email: result.user.email,
+            displayName: result.user.displayName,
+            uid: result.user.uid,
+            photoURL: result.user.photoURL
+          });
+        }
+      } catch (err) {
+        btn.disabled = false;
+        setStatus('Google Sign-In: ' + (err.message || 'Authentication cancelled'), true, false);
+      }
+    }
+
+    function cancelSignIn() {
+      window.location.href = 'gameloot://auth?cancel=true';
+    }
+
+    window.addEventListener('load', () => {
+      const clientId = "${googleClientId}";
+      if (clientId && window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleCredentialResponse
+          });
+          google.accounts.id.renderButton(
+            document.getElementById('g_id_signin'),
+            { theme: 'outline', size: 'large', width: 340 }
+          );
+        } catch (_) {}
+      }
+    });
+  </script>
+</body>
+</html>`;
 
   res.setHeader('Content-Type', 'text/html');
   return res.send(html);
