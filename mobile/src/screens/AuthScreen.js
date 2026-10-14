@@ -13,10 +13,20 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Gamepad2, Sparkles, Lock, Mail, User, Shield, FileText } from 'lucide-react-native';
-import { userLogin, userRegister } from '../api/clientApi';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { userLogin, userRegister, userGoogleLogin } from '../api/clientApi';
 import { API_BASE_URL } from '../api/config';
 import { logEvent } from '../services/firebase';
 import LegalModal from '../components/LegalModal';
+
+// Configure Google Play Services native in-app account picker
+try {
+  GoogleSignin.configure({
+    webClientId: '854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com',
+    scopes: ['email', 'profile'],
+    offlineAccess: false,
+  });
+} catch (_) {}
 
 export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled = false }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -30,7 +40,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   const [legalModalVisible, setLegalModalVisible] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState('privacy');
 
-  // Listen for Google OAuth deep link redirects (e.g. gameloot://auth?token=...&user=...)
+  // Fallback deep link handler for OAuth redirects
   useEffect(() => {
     const handleDeepLink = ({ url }) => {
       if (!url) return;
@@ -38,7 +48,6 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
         if (url.startsWith('gameloot://auth') || url.includes('gameloot://auth')) {
           const query = url.includes('?') ? url.split('?')[1] : '';
 
-          // Helper to extract query parameters safely
           const getParam = (name) => {
             const match = query.match(new RegExp('(?:^|[?&])' + name + '=([^&]*)'));
             return match ? decodeURIComponent(match[1]) : null;
@@ -51,9 +60,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
 
           setGoogleLoading(false);
 
-          if (cancel) {
-            return;
-          }
+          if (cancel) return;
 
           if (error) {
             onErrorAlert(error || 'Google authentication failed.');
@@ -121,7 +128,11 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
       }
 
       if (res && res.success && res.token) {
-        logEvent(isLogin ? 'login_success' : 'sign_up_success', {"method":"credentials","user_id":res.user?.id,"app":"gameloot"});
+        logEvent(isLogin ? 'login_success' : 'sign_up_success', {
+          method: 'credentials',
+          user_id: res.user?.id,
+          app: 'gameloot'
+        });
         onAuthSuccess(res.user, res.token);
       } else {
         onErrorAlert(res?.message || 'Authentication failed. Please check credentials.');
@@ -134,18 +145,63 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
   };
 
   /**
-   * Trigger Google OAuth Immediately without opening any in-app modal
+   * Native Google Sign-In In-App Modal / Bottom Sheet
+   * Pops up the native Google account picker sheet directly in the app (No Web Browser)
    */
   const handleGoogleSignIn = async () => {
     if (loading || googleLoading) return;
     setGoogleLoading(true);
+
     try {
-      const authUrl = `${API_BASE_URL}/auth/google`;
-      await Linking.openURL(authUrl);
+      if (GoogleSignin && typeof GoogleSignin.hasPlayServices === 'function') {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        const response = await GoogleSignin.signIn();
+        const googleUser = response?.data?.user || response?.user;
+
+        if (googleUser && googleUser.email) {
+          const res = await userGoogleLogin({
+            email: googleUser.email,
+            name: googleUser.name || googleUser.givenName || googleUser.email.split('@')[0],
+            google_id: googleUser.id,
+            avatar: googleUser.photo
+          });
+
+          if (res && res.success && res.token) {
+            logEvent('login_success', {
+              provider: 'google.native',
+              user_id: res.user?.id,
+              email: res.user?.email,
+              app: 'gameloot'
+            });
+            onAuthSuccess(res.user, res.token);
+            setGoogleLoading(false);
+            return;
+          } else {
+            throw new Error(res?.message || 'Server authentication failed');
+          }
+        }
+      }
     } catch (err) {
-      setGoogleLoading(false);
-      onErrorAlert('Could not launch Google authentication: ' + err.message);
+      if (err.code === statusCodes?.SIGN_IN_CANCELLED) {
+        setGoogleLoading(false);
+        return;
+      } else if (err.code === statusCodes?.IN_PROGRESS) {
+        return;
+      }
+
+      console.warn('Native Google Sign-In notice:', err.message);
+      // Fallback for environments where native play services aren't linked (e.g. Expo Go)
+      try {
+        const authUrl = `${API_BASE_URL}/auth/google`;
+        await Linking.openURL(authUrl);
+      } catch (linkErr) {
+        onErrorAlert('Google Sign-In: ' + (err.message || linkErr.message));
+        setGoogleLoading(false);
+      }
+      return;
     }
+
+    setGoogleLoading(false);
   };
 
   return (
@@ -293,7 +349,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Google Sign In Button - Triggers Google OAuth Immediately */}
+            {/* Google Sign In Button - Triggers Google Native Modal */}
             <TouchableOpacity
               style={[styles.googleBtn, (loading || googleLoading) && styles.googleBtnDisabled]}
               onPress={handleGoogleSignIn}
