@@ -272,12 +272,12 @@ async function userMe(req, res) {
 
 // Start Google OAuth Flow - Triggers Google Auth Immediately without In-App Modal
 function googleAuthStart(req, res) {
-  const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  const googleClientId = process.env.GOOGLE_CLIENT_ID || '854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com';
   const host = req.get('host');
   const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
   const redirectUri = `${protocol}://${host}/api/auth/google/callback`;
 
-  // If GOOGLE_CLIENT_ID is configured, do immediate HTTP 302 redirect to Google OAuth 2.0 Consent
+  // If both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are configured, do immediate HTTP 302 redirect to Google OAuth 2.0 Consent
   if (googleClientId && googleClientId.trim() && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CLIENT_SECRET.trim()) {
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(googleClientId.trim())}` +
@@ -290,7 +290,7 @@ function googleAuthStart(req, res) {
     return res.redirect(googleAuthUrl);
   }
 
-  // Automatic Firebase Google Auth - Immediately initiates Google Sign-In redirect
+  // Automatic Firebase & Google Identity Services Auth - Solves the redirect loop
   const firebaseApiKey = process.env.FIREBASE_API_KEY || 'AIzaSyCWb3BZi7hGpSg3PfRVv1eUzqfx3kbjrB8';
   const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || 'gameloot-e2358';
 
@@ -302,6 +302,7 @@ function googleAuthStart(req, res) {
   <title>Google Sign-In - GameLoot</title>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -316,38 +317,73 @@ function googleAuthStart(req, res) {
       padding: 24px;
       text-align: center;
     }
+    .card {
+      background: #151722;
+      border: 1px solid #23263b;
+      border-radius: 24px;
+      padding: 32px 24px;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
     .spinner {
-      width: 44px;
-      height: 44px;
-      border: 4px solid rgba(81, 123, 253, 0.2);
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(81, 123, 253, 0.2);
       border-radius: 50%;
       border-top-color: #517bfd;
       animation: spin 0.8s linear infinite;
-      margin-bottom: 20px;
+      margin: 0 auto 16px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-    p { font-size: 13px; color: #979caf; max-width: 300px; line-height: 1.5; }
-    .btn-manual {
-      display: none;
-      margin-top: 24px;
-      padding: 12px 24px;
-      background: #517bfd;
-      color: #fff;
+    h2 { font-size: 19px; font-weight: 800; margin-bottom: 8px; color: #fff; }
+    p { font-size: 13px; color: #979caf; line-height: 1.5; margin-bottom: 20px; }
+    .btn-google {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      background: #ffffff;
+      color: #0b0c12;
       font-weight: 700;
-      border-radius: 12px;
-      text-decoration: none;
       font-size: 14px;
+      padding: 13px 20px;
+      border-radius: 12px;
       border: none;
       cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
+    .btn-google:hover { background: #f1f3f4; }
+    .btn-google svg { width: 18px; height: 18px; }
+    #g_id_signin { display: flex; justify-content: center; margin-top: 14px; }
   </style>
 </head>
 <body>
-  <div class="spinner"></div>
-  <h2>Connecting to Google...</h2>
-  <p id="statusMsg">Opening Google Account Sign-In</p>
-  <button id="manualBtn" class="btn-manual" onclick="startSignIn()">Continue with Google</button>
+  <div class="card">
+    <div id="spinner" class="spinner"></div>
+    <h2 id="titleText">Authenticating...</h2>
+    <p id="statusMsg">Connecting to Google Account Services...</p>
+
+    <div id="g_id_onload"
+      data-client_id="${googleClientId}"
+      data-callback="handleCredentialResponse"
+      data-auto_prompt="true"
+      data-cancel_on_tap_outside="false">
+    </div>
+    <div id="g_id_signin"></div>
+
+    <button id="manualBtn" class="btn-google" style="display: none;" onclick="triggerSignIn()">
+      <svg viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+      </svg>
+      <span>Sign In with Google</span>
+    </button>
+  </div>
 
   <script>
     const firebaseConfig = {
@@ -364,8 +400,21 @@ function googleAuthStart(req, res) {
     provider.addScope('email');
     provider.addScope('profile');
 
+    let authCompleted = false;
+
+    function setStatus(msg, showSpinner = true, showManual = false) {
+      document.getElementById('statusMsg').innerText = msg;
+      document.getElementById('spinner').style.display = showSpinner ? 'block' : 'none';
+      if (showManual) {
+        document.getElementById('manualBtn').style.display = 'inline-flex';
+      }
+    }
+
     async function handleUserResult(googleUser) {
-      document.getElementById('statusMsg').innerText = 'Signing into GameLoot...';
+      if (authCompleted) return;
+      authCompleted = true;
+
+      setStatus('Logging into GameLoot...', true, false);
       try {
         const res = await fetch('/api/auth/user/google', {
           method: 'POST',
@@ -380,46 +429,106 @@ function googleAuthStart(req, res) {
 
         const data = await res.json();
         if (data.success && data.token) {
-          document.getElementById('statusMsg').innerText = 'Authenticated! Returning to app...';
+          setStatus('Authentication verified! Returning to app...', false, false);
+          document.getElementById('titleText').innerText = '✓ Welcome, ' + data.user.username + '!';
           const redirectUri = 'gameloot://auth?token=' + encodeURIComponent(data.token) + '&user=' + encodeURIComponent(JSON.stringify(data.user));
           window.location.href = redirectUri;
           setTimeout(() => {
             const btn = document.getElementById('manualBtn');
-            btn.style.display = 'inline-block';
+            btn.style.display = 'inline-flex';
             btn.innerText = 'Tap to Open GameLoot';
             btn.onclick = () => { window.location.href = redirectUri; };
-          }, 1500);
+          }, 1000);
         } else {
-          document.getElementById('statusMsg').innerText = data.message || 'Login failed';
+          setStatus(data.message || 'Server authentication failed', false, true);
         }
       } catch (err) {
-        document.getElementById('statusMsg').innerText = 'Authentication error: ' + err.message;
+        setStatus('Authentication error: ' + err.message, false, true);
       }
     }
 
+    // Google Identity Services (GIS) One-Tap / Button Callback
+    function handleCredentialResponse(response) {
+      try {
+        const payload = JSON.parse(atob(response.credential.split('.')[1]));
+        if (payload && payload.email) {
+          handleUserResult({
+            email: payload.email,
+            name: payload.name,
+            sub: payload.sub,
+            picture: payload.picture
+          });
+        }
+      } catch (e) {
+        setStatus('Credential error: ' + e.message, false, true);
+      }
+    }
+
+    // 1. Listen for Firebase Auth state change (picks up session after Google redirect)
+    firebase.auth().onAuthStateChanged((user) => {
+      if (user && user.email) {
+        handleUserResult(user);
+      }
+    });
+
+    // 2. Check getRedirectResult without infinite loop
     firebase.auth().getRedirectResult()
       .then((result) => {
         if (result && result.user && result.user.email) {
           handleUserResult(result.user);
         } else {
-          startSignIn();
+          attemptAutoAuth();
         }
       })
       .catch((err) => {
-        document.getElementById('statusMsg').innerText = err.message || 'Sign in error';
-        document.getElementById('manualBtn').style.display = 'inline-block';
+        console.warn('Redirect result check:', err.message);
+        attemptAutoAuth();
       });
 
-    function startSignIn() {
-      firebase.auth().signInWithRedirect(provider).catch((e) => {
-        firebase.auth().signInWithPopup(provider)
-          .then((res) => { if (res && res.user) handleUserResult(res.user); })
-          .catch((popErr) => {
-            document.getElementById('statusMsg').innerText = popErr.message;
-            document.getElementById('manualBtn').style.display = 'inline-block';
-          });
-      });
+    function attemptAutoAuth() {
+      // Check if we already attempted a redirect in this session to prevent loop
+      const attempted = sessionStorage.getItem('gameloot_google_auth_attempted');
+      if (!attempted) {
+        sessionStorage.setItem('gameloot_google_auth_attempted', 'true');
+        firebase.auth().signInWithRedirect(provider).catch(() => {
+          setStatus('Please select your Google account below', false, true);
+        });
+      } else {
+        sessionStorage.removeItem('gameloot_google_auth_attempted');
+        setStatus('Please select your Google account below', false, true);
+      }
     }
+
+    function triggerSignIn() {
+      setStatus('Opening Google Account Picker...', true, false);
+      firebase.auth().signInWithPopup(provider)
+        .then((res) => {
+          if (res && res.user) handleUserResult(res.user);
+        })
+        .catch((err) => {
+          if (err.code === 'auth/popup-blocked') {
+            firebase.auth().signInWithRedirect(provider);
+          } else {
+            setStatus(err.message || 'Sign in was cancelled', false, true);
+          }
+        });
+    }
+
+    window.addEventListener('load', () => {
+      const clientId = "${googleClientId}";
+      if (clientId && window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleCredentialResponse
+          });
+          google.accounts.id.renderButton(
+            document.getElementById('g_id_signin'),
+            { theme: 'outline', size: 'large', width: 310 }
+          );
+        } catch (_) {}
+      }
+    });
   </script>
 </body>
 </html>`;
