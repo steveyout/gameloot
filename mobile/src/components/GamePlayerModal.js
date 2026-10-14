@@ -230,7 +230,7 @@ export default function GamePlayerModal({
               renderLoading={() => (
                 <View style={styles.loadingBox}>
                   <ActivityIndicator size="large" color="#06b6d4" />
-                  <Text style={styles.loadingText}>Loading HTML5 canvas...</Text>
+                  <Text style={styles.loadingText}>Loading game canvas...</Text>
                 </View>
               )}
             />

@@ -154,7 +154,7 @@ export default function WalletScreen({
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={styles.securityTitle}>Loyalty Reward Transparency</Text>
           <Text style={[styles.securityDesc, { color: isDark ? '#a7f3d0' : '#065f46' }]}>
-            GameLoot provides verified advertising revenue sharing from HTML5 game sponsorships and rewarded drops. Micro-rewards reflect genuine activity without real-money purchase requirements.
+            GameLoot provides verified advertising revenue sharing from game sponsorships and rewarded drops. Micro-rewards reflect genuine activity without real-money purchase requirements.
           </Text>
         </View>
       </View>

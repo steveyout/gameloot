@@ -44,7 +44,7 @@ export default function ForcedUpdateModal({
   const latestVer = updateInfo?.latest_version || '1.1.0';
   const notes = updateInfo?.release_notes || [
     '• Performance enhancements and security fixes',
-    '• New HTML5 games added to library',
+    '• New games added to library',
     '• Faster wallet payout processing'
   ].join('\n');
 

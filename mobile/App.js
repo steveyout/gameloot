@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Platform, Animated, StatusBar as NativeStatusBar } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import io from 'socket.io-client';
 import * as NavigationBar from 'expo-navigation-bar';
 
 // Custom Hooks & Services
 import { useAppUpdate } from './src/hooks/useAppUpdate';
-import { userLogin, getNotifications } from './src/api/clientApi';
+import { userLogin, getNotifications, getUserProfile } from './src/api/clientApi';
 import { SOCKET_URL } from './src/api/config';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
@@ -30,15 +31,21 @@ import SplashScreen from './src/components/SplashScreen';
 // Screens
 import AuthScreen from './src/screens/AuthScreen';
 import LobbyScreen from './src/screens/LobbyScreen';
+import SearchScreen from './src/screens/SearchScreen';
 import EarnHubScreen from './src/screens/EarnHubScreen';
 import RewardsScreen from './src/screens/RewardsScreen';
 import WalletScreen from './src/screens/WalletScreen';
+
+const AUTH_TOKEN_KEY = '@gameloot_auth_token';
+const AUTH_USER_KEY = '@gameloot_auth_user';
+const RECENT_GAMES_KEY = '@gameloot_recent_games';
 
 function MainApp() {
   const { theme, colors, isDark } = useTheme();
   const activeColors = colors || theme || {};
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
   const [activeTab, setActiveTab] = useState('lobby');
   const [alert, setAlert] = useState(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
@@ -75,6 +82,65 @@ function MainApp() {
     dismissOptionalBanner,
     currentVersion
   } = useAppUpdate();
+
+  // Restore authenticated session from persistent AsyncStorage
+  useEffect(() => {
+    let isMounted = true;
+
+    const restoreSession = async () => {
+      try {
+        const [savedToken, savedUserJson] = await Promise.all([
+          AsyncStorage.getItem(AUTH_TOKEN_KEY),
+          AsyncStorage.getItem(AUTH_USER_KEY)
+        ]);
+
+        if (savedToken && isMounted) {
+          setToken(savedToken);
+
+          if (savedUserJson) {
+            try {
+              const parsedUser = JSON.parse(savedUserJson);
+              if (parsedUser && parsedUser.id) {
+                setUser(parsedUser);
+              }
+            } catch (_) {}
+          }
+
+          // Validate token and fetch fresh balance/profile from server
+          try {
+            const profileRes = await getUserProfile(savedToken);
+            if (profileRes && profileRes.success && profileRes.user && isMounted) {
+              setUser(profileRes.user);
+              await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(profileRes.user));
+            }
+          } catch (profileErr) {
+            const errStr = (profileErr?.message || '').toLowerCase();
+            // If token is invalid or expired (401), clear session
+            if (errStr.includes('401') || errStr.includes('unauthorized') || errStr.includes('invalid')) {
+              await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY]);
+              if (isMounted) {
+                setToken(null);
+                setUser(null);
+              }
+            }
+            // If network timeout or offline, preserve existing cached session
+          }
+        }
+      } catch (err) {
+        console.warn('Session restore error:', err.message);
+      } finally {
+        if (isMounted) {
+          setIsRestoringSession(false);
+        }
+      }
+    };
+
+    restoreSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Explicit Native Status Bar Sync
   useEffect(() => {
@@ -201,7 +267,7 @@ function MainApp() {
         setUnreadNotificationsCount((prev) => prev + 1);
         showAlert(
           notif.message,
-          notif.type === 'bonus' ? 'points' : notif.type === 'alert' ? 'error' : 'info',
+          notif.type === 'bonus' ? 'points' : notif.type === 'alert' ? 'error' : 'info',\
           notif.title,
           notif.bonus_points > 0 ? notif.bonus_points : null
         );
@@ -234,21 +300,54 @@ function MainApp() {
     }
   };
 
-  const handleAuthSuccess = (userData, authToken) => {
+  const handleAuthSuccess = async (userData, authToken) => {
     setUser(userData);
     setToken(authToken);
+    try {
+      await AsyncStorage.setItem(AUTH_TOKEN_KEY, authToken);
+      await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
+    } catch (e) {
+      console.warn('Failed to persist auth session:', e.message);
+    }
     showAlert(`Welcome back, ${userData.username}!`, 'success', 'Session Authenticated');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setUser(null);
     setToken(null);
+    try {
+      await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY]);
+    } catch (e) {
+      console.warn('Failed to clear session:', e.message);
+    }
     showAlert('Signed out of GameLoot', 'info');
+  };
+
+  // Launch game & persist to recent games list
+  const handleSelectGame = async (game) => {
+    setActiveGame(game);
+    try {
+      const stored = await AsyncStorage.getItem(RECENT_GAMES_KEY);
+      let list = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(list)) list = [];
+      list = [game, ...list.filter((g) => g.id !== game.id)].slice(0, 8);
+      await AsyncStorage.setItem(RECENT_GAMES_KEY, JSON.stringify(list));
+    } catch (_) {}
+  };
+
+  const persistUserUpdate = (updater) => {
+    setUser((prev) => {
+      const next = updater(prev);
+      if (next) {
+        AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(next)).catch(() => {});
+      }
+      return next;
+    });
   };
 
   const handleRewardClaimed = ({ points, newBalance, gameTitle, title }) => {
     if (newBalance !== undefined && user) {
-      setUser((prev) => ({ ...prev, points_balance: newBalance }));
+      persistUserUpdate((prev) => ({ ...prev, points_balance: newBalance }));
     }
     const name = gameTitle || title || 'Task';
     if (points > 0) {
@@ -270,7 +369,7 @@ function MainApp() {
 
   const handleStreakClaimed = ({ points, newBalance, day }) => {
     if (newBalance !== undefined && user) {
-      setUser((prev) => ({ ...prev, points_balance: newBalance }));
+      persistUserUpdate((prev) => ({ ...prev, points_balance: newBalance }));
     }
     triggerCelebration(points, `Day ${day} Streak 🔥`);
     showAlert(
@@ -283,7 +382,7 @@ function MainApp() {
 
   const handleWheelWon = ({ points, newBalance, label }) => {
     if (newBalance !== undefined && user) {
-      setUser((prev) => ({ ...prev, points_balance: newBalance }));
+      persistUserUpdate((prev) => ({ ...prev, points_balance: newBalance }));
     }
     if (points > 0) {
       triggerCelebration(points, `Lucky Wheel: ${label}`);
@@ -304,7 +403,7 @@ function MainApp() {
 
   const handleNotificationBonusClaimed = ({ points, newBalance, title }) => {
     if (newBalance !== undefined && user) {
-      setUser((prev) => ({ ...prev, points_balance: newBalance }));
+      persistUserUpdate((prev) => ({ ...prev, points_balance: newBalance }));
     }
     triggerCelebration(points, 'Bonus Drop 🎁');
     showAlert(
@@ -317,7 +416,7 @@ function MainApp() {
 
   const handleRedemptionSuccess = ({ rewardTitle, cashUsd, newBalance }) => {
     if (newBalance !== undefined && user) {
-      setUser((prev) => ({ ...prev, points_balance: newBalance }));
+      persistUserUpdate((prev) => ({ ...prev, points_balance: newBalance }));
     }
     showAlert(
       `$${Number(cashUsd).toFixed(2)} (${rewardTitle}) request submitted for 24h payout.`,
@@ -358,12 +457,12 @@ function MainApp() {
       />
 
       {/* Main View Container */}
-      {!user ? (
+      {!user && !isRestoringSession ? (
         <AuthScreen
           onAuthSuccess={handleAuthSuccess}
           onErrorAlert={(msg) => showAlert(msg, 'error', 'Error')}
         />
-      ) : (
+      ) : user ? (
         <View style={[styles.contentWrap, { backgroundColor: activeColors.background || '#090d16' }]}>
           {/* Top Status Header with Bell & Settings icons */}
           <Header
@@ -386,7 +485,7 @@ function MainApp() {
           {/* Active Screen Tab with smooth animated transition */}
           <View style={[styles.screenContainer, { backgroundColor: activeColors.background || '#090d16' }]}>
             <Animated.View
-              style={[
+              style={[\
                 styles.animatedScreenWrap,
                 {
                   opacity: screenFade,
@@ -399,13 +498,19 @@ function MainApp() {
             >
               {activeTab === 'lobby' && (
                 <LobbyScreen
-                  onSelectGame={(g) => setActiveGame(g)}
+                  onSelectGame={handleSelectGame}
                   onOpenAdReward={() => setShowAdReward(true)}
                   onOpenDailyStreak={() => setShowDailyStreak(true)}
                   onOpenLuckyWheel={() => setShowLuckyWheel(true)}
                   onCheckUpdate={handleManualUpdateCheck}
                   isCheckingUpdate={isCheckingUpdate}
                   updateInfo={updateInfo}
+                />
+              )}
+
+              {activeTab === 'search' && (
+                <SearchScreen
+                  onSelectGame={handleSelectGame}
                 />
               )}
 
@@ -445,9 +550,9 @@ function MainApp() {
           {/* Bottom Navigation Bar with tactile spring physics */}
           <Navbar activeTab={activeTab} onTabSelect={setActiveTab} />
         </View>
-      )}
+      ) : null}
 
-      {/* HTML5 Game Player Container */}
+      {/* Game Player Container */}
       <GamePlayerModal
         visible={!!activeGame}
         game={activeGame}
@@ -483,7 +588,7 @@ function MainApp() {
         onRewardClaimed={handleRewardClaimed}
       />
 
-      {/* Google AdMob Rewarded Video Simulation */}
+      {/* Rewarded Video Ad Modal */}
       <AdRewardModal
         visible={showAdReward}
         token={token}
@@ -536,7 +641,7 @@ function MainApp() {
       />
 
       {/* Animated Startup Splash Screen */}
-      {showSplash && (
+      {(showSplash || isRestoringSession) && (
         <SplashScreen onFinish={() => setShowSplash(false)} />
       )}
     </SafeAreaView>

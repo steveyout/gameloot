@@ -306,7 +306,7 @@ export default function SwappableDrawerModal({
     const refCode = user ? `LOOT-${(user.id * 73 + 1200).toString(36).toUpperCase()}` : 'LOOT-VIP';
     try {
       await Share.share({
-        message: `🎮 Play HTML5 games and earn real rewards with me on GameLoot! Use my invite code ${refCode} to get a +100 PTS welcome bonus: https://gameloot.app/invite/${refCode}`
+        message: `🎮 Play games and earn real rewards with me on GameLoot! Use my invite code ${refCode} to get a +100 PTS welcome bonus: https://gameloot.app/invite/${refCode}`
       });
     } catch (err) {}
   };

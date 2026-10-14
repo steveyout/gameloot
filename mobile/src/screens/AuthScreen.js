@@ -127,7 +127,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
             <Gamepad2 size={36} color="#ffffff" />
           </LinearGradient>
           <Text style={styles.brandTitle}>GAMELOOT</Text>
-          <Text style={styles.brandSubtitle}>Play HTML5 Games • Earn Real Cash</Text>
+          <Text style={styles.brandSubtitle}>Play Games • Earn Real Cash</Text>
           <View style={styles.bonusBanner}>
             <Sparkles size={14} color="#fbbf24" />
             <Text style={styles.bonusText}>NEW PLAYERS: 100 PTS SIGNUP BONUS</Text>

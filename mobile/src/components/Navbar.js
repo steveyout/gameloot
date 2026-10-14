@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
-import { Gamepad2, Sparkles, Gift, WalletCards } from 'lucide-react-native';
+import { Gamepad2, Search, Sparkles, Gift, WalletCards } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 
@@ -8,7 +8,8 @@ export default function Navbar({ activeTab, onTabSelect }) {
   const { colors, isDark } = useTheme();
 
   const tabs = [
-    { id: 'lobby', label: 'Games', icon: Gamepad2, glow: '#06b6d4' },
+    { id: 'lobby', label: 'Home', icon: Gamepad2, glow: '#06b6d4' },
+    { id: 'search', label: 'Search', icon: Search, glow: '#38bdf8' },
     { id: 'earn', label: 'Earn Hub', icon: Sparkles, glow: '#a855f7' },
     { id: 'rewards', label: 'Cashout', icon: Gift, glow: '#f59e0b' },
     { id: 'wallet', label: 'Wallet', icon: WalletCards, glow: '#10b981' }
@@ -53,8 +54,8 @@ function NavTabButton({ tab, isActive, onPress, IconComponent, colors, isDark })
     if (isActive) {
       Animated.parallel([
         Animated.sequence([
-          Animated.timing(scale, { toValue: 1.18, duration: 120, useNativeDriver: true }),
-          Animated.spring(scale, { toValue: 1.05, friction: 4, tension: 80, useNativeDriver: true })
+          Animated.timing(scale, { toValue: 1.15, duration: 120, useNativeDriver: true }),
+          Animated.spring(scale, { toValue: 1.04, friction: 4, tension: 80, useNativeDriver: true })\
         ]),
         Animated.spring(iconTranslate, { toValue: -2, friction: 5, tension: 70, useNativeDriver: true })
       ]).start();
@@ -71,7 +72,7 @@ function NavTabButton({ tab, isActive, onPress, IconComponent, colors, isDark })
   };
 
   const handlePressOut = () => {
-    Animated.spring(scale, { toValue: isActive ? 1.05 : 1, friction: 5, useNativeDriver: true }).start();
+    Animated.spring(scale, { toValue: isActive ? 1.04 : 1, friction: 5, useNativeDriver: true }).start();
   };
 
   const idleColor = colors?.textSecondary || (isDark ? '#64748b' : '#64748b');
@@ -100,11 +101,11 @@ function NavTabButton({ tab, isActive, onPress, IconComponent, colors, isDark })
             colors={[`${tab.glow}33`, `${tab.glow}11`]}
             style={[styles.glowBadge, { borderColor: tab.glow }]}
           >
-            <IconComponent size={21} color={tab.glow} />
+            <IconComponent size={19} color={tab.glow} />
           </LinearGradient>
         ) : (
           <View style={styles.idleBadge}>
-            <IconComponent size={20} color={idleColor} />
+            <IconComponent size={19} color={idleColor} />
           </View>
         )}
       </Animated.View>
@@ -115,6 +116,7 @@ function NavTabButton({ tab, isActive, onPress, IconComponent, colors, isDark })
           { color: idleColor },
           isActive && { color: tab.glow, fontWeight: '800' }
         ]}
+        numberOfLines={1}
       >
         {tab.label}
       </Text>
@@ -126,53 +128,4 @@ function NavTabButton({ tab, isActive, onPress, IconComponent, colors, isDark })
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    height: Platform.OS === 'android' ? 68 : 78,
-    paddingBottom: Platform.OS === 'android' ? 8 : 18,
-    paddingHorizontal: 12,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 20
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 4
-  },
-  iconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  glowBadge: {
-    width: 44,
-    height: 32,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  idleBadge: {
-    width: 44,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  tabLabel: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    marginTop: 3
-  },
-  activeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 2
-  }
-});
+const styles = StyleSheet.create({\n  container: {\n    height: Platform.OS === 'android' ? 68 : 78,\n    paddingBottom: Platform.OS === 'android' ? 8 : 18,\n    paddingHorizontal: 6,\n    borderTopWidth: 1,\n    flexDirection: 'row',\n    alignItems: 'center',\n    justifyContent: 'space-around',\n    shadowOffset: { width: 0, height: -4 },\n    shadowOpacity: 0.15,\n    shadowRadius: 8,\n    elevation: 20\n  },\n  tabItem: {\n    flex: 1,\n    alignItems: 'center',\n    justifyContent: 'center',\n    paddingVertical: 4\n  },\n  iconWrap: {\n    alignItems: 'center',\n    justifyContent: 'center'\n  },\n  glowBadge: {\n    width: 40,\n    height: 30,\n    borderRadius: 12,\n    borderWidth: 1.5,\n    justifyContent: 'center',\n    alignItems: 'center'\n  },\n  idleBadge: {\n    width: 40,\n    height: 30,\n    justifyContent: 'center',\n    alignItems: 'center'\n  },\n  tabLabel: {\n    fontSize: 10,\n    fontWeight: '600',\n    marginTop: 3,\n    letterSpacing: -0.2\n  },\n  activeDot: {\n    width: 4,\n    height: 4,\n    borderRadius: 2,\n    marginTop: 2\n  }\n});\n
