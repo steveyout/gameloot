@@ -38,6 +38,13 @@ router.get('/redemptions', adminController.getRedemptions);
 router.patch('/redemptions/:id', adminController.updateRedemptionStatus);
 router.post('/redemptions/bulk-action', adminController.bulkActionRedemptions);
 
+// 5b. Payout Options & Reward Catalog Management
+router.get('/reward-items', adminController.getRewardItems);
+router.post('/reward-items', adminController.createRewardItem);
+router.put('/reward-items/:id', adminController.updateRewardItem);
+router.delete('/reward-items/:id', adminController.deleteRewardItem);
+router.patch('/reward-items/:id/toggle', adminController.toggleRewardItem);
+
 // 6. Fraud Detection & Anti-Cheat Review
 router.get('/fraud', adminController.getFraudLogs);
 router.patch('/fraud/:id', adminController.updateFraudStatus);
@@ -48,6 +55,7 @@ router.put('/settings', adminController.updateSettings);
 
 // 8. Trivia Quizzes CRUD
 router.get('/quizzes', earningController.getQuizzes);
+router.post('/quizzes/generate-ai', earningController.generateAiQuiz);
 router.post('/quizzes', earningController.createQuiz);
 router.put('/quizzes/:id', earningController.updateQuiz);
 router.delete('/quizzes/:id', earningController.deleteQuiz);

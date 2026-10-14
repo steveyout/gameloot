@@ -62,11 +62,23 @@ async function getGames(req, res) {
 
 async function getRewards(req, res) {
   try {
+    const payoutSetting = await SystemSetting.findOne({ where: { setting_key: 'payouts_enabled' } });
+    const payoutsEnabled = payoutSetting ? payoutSetting.setting_value === 'true' : false;
+
+    if (!payoutsEnabled) {
+      return res.json({
+        success: true,
+        rewards: [],
+        payouts_enabled: false,
+        message: 'Cashouts and reward redemptions are currently disabled.'
+      });
+    }
+
     const rewards = await RewardItem.findAll({
       where: { is_active: true },
       order: [['cost_points', 'ASC']]
     });
-    return res.json({ success: true, rewards });
+    return res.json({ success: true, rewards, payouts_enabled: true });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to load rewards', error: err.message });
   }
@@ -232,6 +244,16 @@ async function claimSurvey(req, res) {
 // Session Start
 async function startSession(req, res) {
   try {
+    // Check maintenance mode
+    const maintSetting = await SystemSetting.findOne({ where: { setting_key: 'maintenance_mode' } });
+    if (maintSetting && maintSetting.setting_value === 'true') {
+      return res.status(503).json({
+        success: false,
+        maintenance_mode: true,
+        message: 'GameLoot is currently undergoing scheduled maintenance. Game sessions are paused.'
+      });
+    }
+
     const { game_id } = req.body;
     if (!game_id) return res.status(400).json({ success: false, message: 'game_id required' });
 
@@ -398,13 +420,21 @@ async function claimSession(req, res) {
 // User Redeem Rewards (Cashout request)
 async function redeemReward(req, res) {
   try {
+    const payoutSetting = await SystemSetting.findOne({ where: { setting_key: 'payouts_enabled' } });
+    if (!payoutSetting || payoutSetting.setting_value !== 'true') {
+      return res.status(403).json({
+        success: false,
+        message: 'Cashouts and reward redemptions are currently disabled.'
+      });
+    }
+
     const { reward_item_id, payout_details } = req.body;
     if (!reward_item_id || !payout_details) {
       return res.status(400).json({ success: false, message: 'reward_item_id and payout_details required' });
     }
 
     const reward = await RewardItem.findOne({ where: { id: reward_item_id, is_active: true } });
-    if (!reward) return res.status(404).json({ success: false, message: 'Reward item unavailable' });
+    if (!reward) return res.status(404).json({ success: false, message: 'Reward item unavailable or currently disabled' });
 
     const user = await User.findByPk(req.user.userId);
     if (user.status !== 'active') {
@@ -480,7 +510,8 @@ async function checkAppUpdate(req, res) {
           'app_update_url',
           'app_download_apk_url',
           'app_release_notes',
-          'maintenance_mode'
+          'maintenance_mode',
+          'payouts_enabled'
         ]
       }
     });
@@ -493,6 +524,8 @@ async function checkAppUpdate(req, res) {
     const latestVersionCode = parseInt(settings.app_version_code || '11', 10);
     const isForceUpdateConfig = settings.app_force_update === 'true';
     const maintenanceMode = settings.maintenance_mode === 'true';
+    // Cashouts/rewards default to false for pure Play App mode unless explicitly enabled
+    const payoutsEnabled = settings.payouts_enabled === 'true';
 
     // SemVer comparator helper
     const parseVer = (v) => (v || '0.0.0').split('.').map(n => parseInt(n, 10) || 0);
@@ -529,7 +562,8 @@ async function checkAppUpdate(req, res) {
       update_url: settings.app_update_url || 'https://play.google.com/store/apps/details?id=com.gameloot.app',
       download_apk_url: settings.app_download_apk_url || 'https://gameloot.app/releases/GameLoot-v1.1.0.apk',
       release_notes: settings.app_release_notes || '• Performance updates and bug fixes.',
-      maintenance_mode: maintenanceMode
+      maintenance_mode: maintenanceMode,
+      payouts_enabled: payoutsEnabled
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Version check failed', error: err.message });

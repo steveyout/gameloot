@@ -18,6 +18,7 @@ import Navbar from './src/components/Navbar';
 import AlertBanner from './src/components/AlertBanner';
 import PointsCelebration from './src/components/PointsCelebration';
 import ForcedUpdateModal, { OptionalUpdateBanner } from './src/components/ForcedUpdateModal';
+import MaintenanceModal from './src/components/MaintenanceModal';
 import GamePlayerModal from './src/components/GamePlayerModal';
 import QuizModal from './src/components/QuizModal';
 import SurfModal from './src/components/SurfModal';
@@ -35,6 +36,8 @@ import SearchScreen from './src/screens/SearchScreen';
 import EarnHubScreen from './src/screens/EarnHubScreen';
 import RewardsScreen from './src/screens/RewardsScreen';
 import WalletScreen from './src/screens/WalletScreen';
+import FavoritesScreen from './src/screens/FavoritesScreen';
+import LeaderboardScreen from './src/screens/LeaderboardScreen';
 
 const AUTH_TOKEN_KEY = '@gameloot_auth_token';
 const AUTH_USER_KEY = '@gameloot_auth_user';
@@ -70,18 +73,27 @@ function MainApp() {
   const [showDailyStreak, setShowDailyStreak] = useState(false);
   const [showLuckyWheel, setShowLuckyWheel] = useState(false);
 
-  // App Update Checker & Forced Update Hook
+  // App Update Checker & Forced Update Hook & Maintenance Guard
   const {
     updateInfo,
     isChecking: isCheckingUpdate,
     showForcedModal,
     showOptionalBanner,
+    isMaintenanceMode,
+    payoutsEnabled,
     checkForUpdate,
     openUpdateUrl,
     openApkDownloadUrl,
     dismissOptionalBanner,
     currentVersion
   } = useAppUpdate();
+
+  // If administrator disables payouts, automatically route away from rewards or earn tab
+  useEffect(() => {
+    if (!payoutsEnabled && (activeTab === 'rewards' || activeTab === 'earn')) {
+      setActiveTab('lobby');
+    }
+  }, [payoutsEnabled, activeTab]);
 
   // Restore authenticated session from persistent AsyncStorage
   useEffect(() => {
@@ -267,7 +279,7 @@ function MainApp() {
         setUnreadNotificationsCount((prev) => prev + 1);
         showAlert(
           notif.message,
-          notif.type === 'bonus' ? 'points' : notif.type === 'alert' ? 'error' : 'info',\
+          notif.type === 'bonus' ? 'points' : notif.type === 'alert' ? 'error' : 'info',
           notif.title,
           notif.bonus_points > 0 ? notif.bonus_points : null
         );
@@ -287,16 +299,18 @@ function MainApp() {
   }, [token, user?.id]);
 
   const handleManualUpdateCheck = async () => {
-    showAlert('Checking server for updates...', 'info', 'Version Guard');
+    showAlert('Checking server status & updates...', 'info', 'Status Guard');
     const result = await checkForUpdate();
-    if (result && result.has_update) {
-      if (result.update_required) {
+    if (result && result.success) {
+      if (result.maintenance_mode) {
+        showAlert('System is currently undergoing scheduled maintenance.', 'error', 'Maintenance Active');
+      } else if (result.update_required) {
         showAlert(`Critical update v${result.latest_version} required!`, 'error', 'Update Mandatory');
-      } else {
+      } else if (result.has_update) {
         showAlert(`New version v${result.latest_version} available.`, 'info', 'Update Available');
+      } else {
+        showAlert(`Systems operational & running latest version (v${currentVersion}).`, 'success', 'All Good');
       }
-    } else {
-      showAlert(`You are running the latest version (v${currentVersion}).`, 'success', 'Up to Date');
     }
   };
 
@@ -325,6 +339,10 @@ function MainApp() {
 
   // Launch game & persist to recent games list
   const handleSelectGame = async (game) => {
+    if (isMaintenanceMode) {
+      showAlert('Game sessions are temporarily paused during scheduled maintenance.', 'error', 'Maintenance Active');
+      return;
+    }
     setActiveGame(game);
     try {
       const stored = await AsyncStorage.getItem(RECENT_GAMES_KEY);
@@ -461,6 +479,7 @@ function MainApp() {
         <AuthScreen
           onAuthSuccess={handleAuthSuccess}
           onErrorAlert={(msg) => showAlert(msg, 'error', 'Error')}
+          payoutsEnabled={payoutsEnabled}
         />
       ) : user ? (
         <View style={[styles.contentWrap, { backgroundColor: activeColors.background || '#090d16' }]}>
@@ -469,6 +488,7 @@ function MainApp() {
             user={user}
             pointsBalance={user.points_balance || 0}
             unreadNotificationsCount={unreadNotificationsCount}
+            payoutsEnabled={payoutsEnabled}
             onOpenNotifications={() => {
               setDrawerTab('notifications');
               setShowDrawer(true);
@@ -485,7 +505,7 @@ function MainApp() {
           {/* Active Screen Tab with smooth animated transition */}
           <View style={[styles.screenContainer, { backgroundColor: activeColors.background || '#090d16' }]}>
             <Animated.View
-              style={[\
+              style={[
                 styles.animatedScreenWrap,
                 {
                   opacity: screenFade,
@@ -505,12 +525,27 @@ function MainApp() {
                   onCheckUpdate={handleManualUpdateCheck}
                   isCheckingUpdate={isCheckingUpdate}
                   updateInfo={updateInfo}
+                  payoutsEnabled={payoutsEnabled}
                 />
               )}
 
               {activeTab === 'search' && (
                 <SearchScreen
                   onSelectGame={handleSelectGame}
+                />
+              )}
+
+              {activeTab === 'favorites' && (
+                <FavoritesScreen
+                  onSelectGame={handleSelectGame}
+                  onNavigateExplore={() => setActiveTab('search')}
+                />
+              )}
+
+              {activeTab === 'leaderboard' && (
+                <LeaderboardScreen
+                  onSelectGame={handleSelectGame}
+                  user={user}
                 />
               )}
 
@@ -534,21 +569,27 @@ function MainApp() {
                 />
               )}
 
-              {activeTab === 'wallet' && (
+              {(activeTab === 'wallet' || activeTab === 'profile') && (
                 <WalletScreen
                   user={user}
                   token={token}
+                  payoutsEnabled={payoutsEnabled}
                   onRefreshUser={(u) => setUser(u)}
                   onCheckUpdate={handleManualUpdateCheck}
                   isCheckingUpdate={isCheckingUpdate}
                   updateInfo={updateInfo}
+                  onLogout={handleLogout}
                 />
               )}
             </Animated.View>
           </View>
 
-          {/* Bottom Navigation Bar with tactile spring physics */}
-          <Navbar activeTab={activeTab} onTabSelect={setActiveTab} />
+          {/* Bottom Navigation Bar with tactile spring physics & dynamic tab filtering */}
+          <Navbar
+            activeTab={activeTab}
+            onTabSelect={setActiveTab}
+            payoutsEnabled={payoutsEnabled}
+          />
         </View>
       ) : null}
 
@@ -605,6 +646,11 @@ function MainApp() {
         onClose={() => setShowDrawer(false)}
         onBonusClaimed={handleNotificationBonusClaimed}
         onNavigateTab={(tab) => {
+          if ((tab === 'rewards' || tab === 'earn') && !payoutsEnabled) {
+            showAlert('Cashouts & task rewards are currently paused.', 'info', 'Notice');
+            setShowDrawer(false);
+            return;
+          }
           setActiveTab(tab);
           setShowDrawer(false);
         }}
@@ -638,6 +684,13 @@ function MainApp() {
         updateInfo={updateInfo}
         onUpdatePress={openUpdateUrl}
         onApkDownloadPress={openApkDownloadUrl}
+      />
+
+      {/* CRITICAL: Maintenance Mode Screen (Non-Dismissible when Maintenance is Active) */}
+      <MaintenanceModal
+        visible={isMaintenanceMode}
+        onRetry={handleManualUpdateCheck}
+        isChecking={isCheckingUpdate}
       />
 
       {/* Animated Startup Splash Screen */}

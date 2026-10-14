@@ -73,7 +73,7 @@ export default function LoginView() {
             <h1 className="text-2xl font-black tracking-tight text-white m-0">
               GAMELOOT <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">HQ</span>
             </h1>
-            <p className="text-sm text-slate-400 mt-1">Play-to-Earn HTML5 Games Control Engine</p>
+            <p className="text-sm text-slate-400 mt-1">Games Arcade Control Engine</p>
           </div>
 
           {errorMsg && (

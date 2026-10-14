@@ -95,9 +95,9 @@ export default function SearchScreen({ onSelectGame }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Search Header Bar */}
+      {/* Search Header Bar - Learning OS Style */}
       <View style={[styles.headerContainer, { backgroundColor: colors.surfaceCard, borderBottomColor: colors.border }]}>
-        <View style={[styles.searchBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
+        <View style={[styles.searchBar, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
           <Search size={18} color={colors.primary} style={styles.searchIcon} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
@@ -122,7 +122,7 @@ export default function SearchScreen({ onSelectGame }) {
           <TouchableOpacity
             style={[
               styles.sortChip,
-              { backgroundColor: colors.background, borderColor: colors.border },
+              { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
               sortBy === 'popular' && { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }
             ]}
             onPress={() => setSortBy('popular')}
@@ -137,14 +137,14 @@ export default function SearchScreen({ onSelectGame }) {
           <TouchableOpacity
             style={[
               styles.sortChip,
-              { backgroundColor: colors.background, borderColor: colors.border },
-              sortBy === 'reward' && { backgroundColor: 'rgba(6, 182, 212, 0.2)', borderColor: '#06b6d4' }
+              { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
+              sortBy === 'reward' && { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }
             ]}
             onPress={() => setSortBy('reward')}
             activeOpacity={0.75}
           >
-            <Sparkles size={11} color={sortBy === 'reward' ? '#06b6d4' : colors.textSecondary} />
-            <Text style={[styles.sortChipText, { color: sortBy === 'reward' ? '#06b6d4' : colors.textSecondary }]}>
+            <Sparkles size={11} color={sortBy === 'reward' ? colors.primary : colors.textSecondary} />
+            <Text style={[styles.sortChipText, { color: sortBy === 'reward' ? colors.primary : colors.textSecondary }]}>
               High Reward
             </Text>
           </TouchableOpacity>
@@ -152,14 +152,14 @@ export default function SearchScreen({ onSelectGame }) {
           <TouchableOpacity
             style={[
               styles.sortChip,
-              { backgroundColor: colors.background, borderColor: colors.border },
-              sortBy === 'rating' && { backgroundColor: 'rgba(245, 158, 11, 0.2)', borderColor: '#f59e0b' }
+              { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
+              sortBy === 'rating' && { backgroundColor: `${colors.gold}22`, borderColor: colors.gold }
             ]}
             onPress={() => setSortBy('rating')}
             activeOpacity={0.75}
           >
-            <Star size={11} color={sortBy === 'rating' ? '#f59e0b' : colors.textSecondary} />
-            <Text style={[styles.sortChipText, { color: sortBy === 'rating' ? '#f59e0b' : colors.textSecondary }]}>
+            <Star size={11} color={sortBy === 'rating' ? colors.gold : colors.textSecondary} />
+            <Text style={[styles.sortChipText, { color: sortBy === 'rating' ? colors.gold : colors.textSecondary }]}>
               Top Rated
             </Text>
           </TouchableOpacity>
@@ -167,14 +167,14 @@ export default function SearchScreen({ onSelectGame }) {
           <TouchableOpacity
             style={[
               styles.sortChip,
-              { backgroundColor: colors.background, borderColor: colors.border },
-              sortBy === 'featured' && { backgroundColor: 'rgba(239, 68, 68, 0.2)', borderColor: '#ef4444' }
+              { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
+              sortBy === 'featured' && { backgroundColor: `${colors.accent}22`, borderColor: colors.accent }
             ]}
             onPress={() => setSortBy('featured')}
             activeOpacity={0.75}
           >
-            <Flame size={11} color={sortBy === 'featured' ? '#ef4444' : colors.textSecondary} />
-            <Text style={[styles.sortChipText, { color: sortBy === 'featured' ? '#ef4444' : colors.textSecondary }]}>
+            <Flame size={11} color={sortBy === 'featured' ? colors.accent : colors.textSecondary} />
+            <Text style={[styles.sortChipText, { color: sortBy === 'featured' ? colors.accent : colors.textSecondary }]}>
               Featured
             </Text>
           </TouchableOpacity>
@@ -189,7 +189,7 @@ export default function SearchScreen({ onSelectGame }) {
           <TouchableOpacity
             style={[
               styles.catPill,
-              { backgroundColor: colors.background, borderColor: colors.border },
+              { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
               !selectedCat && { backgroundColor: colors.primary, borderColor: colors.primary }
             ]}
             onPress={() => setSelectedCat(null)}
@@ -213,7 +213,7 @@ export default function SearchScreen({ onSelectGame }) {
                 key={c.id}
                 style={[
                   styles.catPill,
-                  { backgroundColor: colors.background, borderColor: colors.border },
+                  { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
                   isActive && { backgroundColor: colors.primary, borderColor: colors.primary }
                 ]}
                 onPress={() => setSelectedCat(c.id)}
@@ -256,7 +256,7 @@ export default function SearchScreen({ onSelectGame }) {
           <SkeletonGameList count={5} />
         ) : filteredAndSortedGames.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
-            <View style={styles.emptyIconWrap}>
+            <View style={[styles.emptyIconWrap, { backgroundColor: `${colors.primary}18` }]}>
               <Gamepad2 size={38} color={colors.primary} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No games found</Text>
@@ -296,13 +296,10 @@ export default function SearchScreen({ onSelectGame }) {
 
                   <View style={styles.gameInfo}>
                     <View style={styles.gameTopMeta}>
-                      <LinearGradient
-                        colors={['rgba(6, 182, 212, 0.25)', 'rgba(37, 99, 235, 0.25)']}
-                        style={styles.gameRatePill}
-                      >
-                        <Sparkles size={10} color="#06b6d4" />
-                        <Text style={styles.gameRateText}>{game.reward_rate || 1} PTS/MIN</Text>
-                      </LinearGradient>
+                      <View style={[styles.gameRatePill, { backgroundColor: `${colors.primary}18`, borderColor: `${colors.primary}44` }]}>
+                        <Sparkles size={10} color={colors.primary} />
+                        <Text style={[styles.gameRateText, { color: colors.primary }]}>{game.reward_rate || 1} PTS/MIN</Text>
+                      </View>
 
                       <View style={styles.ratingChip}>
                         <Star size={10} color="#fbbf24" fill="#fbbf24" />
@@ -310,9 +307,9 @@ export default function SearchScreen({ onSelectGame }) {
                       </View>
 
                       {game.featured ? (
-                        <View style={styles.featuredBadge}>
-                          <Flame size={9} color="#ef4444" />
-                          <Text style={styles.featuredBadgeText}>HOT</Text>
+                        <View style={[styles.featuredBadge, { backgroundColor: `${colors.accent}20`, borderColor: colors.accent }]}>
+                          <Flame size={9} color={colors.accent} />
+                          <Text style={[styles.featuredBadgeText, { color: colors.accent }]}>HOT</Text>
                         </View>
                       ) : null}
                     </View>
@@ -326,7 +323,7 @@ export default function SearchScreen({ onSelectGame }) {
                     </Text>
                   </View>
 
-                  <View style={styles.playMiniBtn}>
+                  <View style={[styles.playMiniBtn, { backgroundColor: colors.primary }]}>
                     <Play size={14} color="#ffffff" fill="#ffffff" />
                   </View>
                 </View>
@@ -352,7 +349,7 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
+    borderRadius: 16,
     paddingHorizontal: 12,
     height: 46,
     borderWidth: 1,
@@ -428,9 +425,9 @@ const styles = StyleSheet.create({
     gap: 12
   },
   gameCardWrapper: {
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: 'hidden',
-    shadowColor: '#000000',
+    shadowColor: '#517bfd',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -439,14 +436,14 @@ const styles = StyleSheet.create({
   gameCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 10,
     borderWidth: 1
   },
   gameThumb: {
     width: 68,
     height: 68,
-    borderRadius: 12
+    borderRadius: 14
   },
   gameInfo: {
     flex: 1,
@@ -466,11 +463,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(6, 182, 212, 0.4)'
+    borderWidth: 1
   },
   gameRateText: {
-    color: '#38bdf8',
     fontSize: 9.5,
     fontWeight: '800'
   },
@@ -488,15 +483,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.45)'
+    borderWidth: 1
   },
   featuredBadgeText: {
-    color: '#ef4444',
     fontSize: 8.5,
     fontWeight: '900'
   },
@@ -511,51 +503,49 @@ const styles = StyleSheet.create({
   playMiniBtn: {
     width: 38,
     height: 38,
-    borderRadius: 12,
-    backgroundColor: '#06b6d4',
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#06b6d4',
+    shadowColor: '#517bfd',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
     shadowRadius: 5,
     elevation: 3
   },
   emptyState: {
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
     marginTop: 20
   },
   emptyIconWrap: {
-    width: 68,
-    height: 68,
-    borderRadius: 20,
-    backgroundColor: 'rgba(6, 182, 212, 0.15)',
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14
+    marginBottom: 12
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '800',
-    marginBottom: 6
+    marginBottom: 4
   },
   emptySubtitle: {
-    fontSize: 13,
+    fontSize: 11.5,
     textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 16
+    lineHeight: 16
   },
   resetBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: 12
   },
   resetBtnText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800'
   }
 });

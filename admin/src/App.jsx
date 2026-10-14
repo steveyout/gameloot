@@ -126,7 +126,7 @@ function MainLayout() {
   const getTabTitle = () => {
     switch (activeTab) {
       case 'dashboard': return 'Command Center Overview';
-      case 'games': return 'HTML5 Game Embeds';
+      case 'games': return 'Games Catalog';
       case 'notifications': return 'Push & In-App Broadcasts';
       case 'quizzes': return 'Trivia & Knowledge Quizzes';
       case 'surf': return 'Web Surfing & Sponsor Tasks';
@@ -195,7 +195,7 @@ function MainLayout() {
         </main>
       </div>
 
-      {/* Global Interactive HTML5 Game Simulator Modal */}
+      {/* Global Interactive Games Game Simulator Modal */}
       {simulatorGame && (
         <GameSimulatorModal
           game={simulatorGame}

@@ -91,7 +91,7 @@ export default function GamesView({ onTestGame }) {
 
   const handleDelete = async (id, title) => {
     const ok = await confirm({
-      title: 'Delete HTML5 Game?',
+      title: 'Delete Game?',
       message: `Are you sure you want to delete "${title}"? This will remove its embedded play container from the platform.`,
       confirmText: 'Delete Game',
       type: 'danger'
@@ -230,7 +230,7 @@ export default function GamesView({ onTestGame }) {
           className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0"
         >
           <Plus className="w-4 h-4" />
-          <span>Add HTML5 Game Embed</span>
+          <span>Add Game Embed</span>
         </button>
       </div>
 
@@ -338,7 +338,7 @@ export default function GamesView({ onTestGame }) {
         <div className="p-12 rounded-2xl border border-slate-800 bg-slate-900/40 text-center">
           <Gamepad2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <h3 className="text-sm font-bold text-white mb-1">No Games Found</h3>
-          <p className="text-xs text-slate-400 mb-4">Start by adding an embedded HTML5 game or clear filters.</p>
+          <p className="text-xs text-slate-400 mb-4">Start by adding an game or clear filters.</p>
           <button
             onClick={() => { setEditingGame(null); setModalOpen(true); }}
             className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold cursor-pointer"

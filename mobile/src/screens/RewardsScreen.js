@@ -11,7 +11,7 @@ import {
   RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gift, Sparkles, CheckCircle2, X, AlertCircle, ShieldCheck, ArrowRight, Wallet } from 'lucide-react-native';
+import { Gift, Sparkles, CheckCircle2, X, AlertCircle, ShieldCheck, ArrowRight, Wallet, Clock } from 'lucide-react-native';
 import { getRewards, redeemReward } from '../api/clientApi';
 import AnimatedCard from '../components/AnimatedCard';
 import { useTheme } from '../context/ThemeContext';
@@ -20,6 +20,7 @@ import { SkeletonRewardList } from '../components/SkeletonLoader';
 export default function RewardsScreen({ user, token, onRedemptionSuccess, onErrorAlert }) {
   const { colors, isDark } = useTheme();
   const [rewards, setRewards] = useState([]);
+  const [payoutsPaused, setPayoutsPaused] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedReward, setSelectedReward] = useState(null);
@@ -31,6 +32,7 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
       setLoading(true);
       const res = await getRewards();
       if (res.success) {
+        setPayoutsPaused(res.payouts_enabled === false);
         setRewards(res.rewards || []);
       }
     } catch (err) {
@@ -51,6 +53,10 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
   };
 
   const handleOpenRedeem = (item) => {
+    if (payoutsPaused) {
+      onErrorAlert('Cashouts are currently paused by administration. Please check back soon.');
+      return;
+    }
     if ((user?.points_balance || 0) < item.cost_points) {
       onErrorAlert(`Insufficient points. You need ${item.cost_points.toLocaleString()} PTS (Balance: ${(user?.points_balance || 0).toLocaleString()} PTS)`);
       return;
@@ -114,97 +120,112 @@ export default function RewardsScreen({ user, token, onRedemptionSuccess, onErro
         </View>
       </LinearGradient>
 
-      {/* Reward Catalog Section */}
-      <View style={styles.sectionHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Gift size={18} color="#f59e0b" />
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Cashout Method</Text>
+      {/* Payouts Paused Notice */}
+      {payoutsPaused ? (
+        <View style={[styles.pausedCard, { backgroundColor: colors.surfaceCard, borderColor: 'rgba(245, 158, 11, 0.4)' }]}>
+          <View style={styles.pausedIconWrap}>
+            <Clock size={28} color="#f59e0b" />
+          </View>
+          <Text style={[styles.pausedTitle, { color: colors.text }]}>Cashouts Temporarily Paused</Text>
+          <Text style={[styles.pausedSubtitle, { color: colors.textSecondary }]}>
+            Cashouts are currently paused for scheduled balance reconciliation. Your points are completely safe. Keep playing to earn and check back soon!
+          </Text>
         </View>
-        <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Honored within 24h</Text>
-      </View>
-
-      {loading ? (
-        <SkeletonRewardList count={4} />
       ) : (
-        <View style={styles.rewardGrid}>
-          {rewards.map((item) => {
-            const canAfford = userBalance >= item.cost_points;
-            const progress = Math.min(1, Math.max(0, userBalance / item.cost_points));
-            const pct = Math.round(progress * 100);
+        <>
+          {/* Reward Catalog Section */}
+          <View style={styles.sectionHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Gift size={18} color="#f59e0b" />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Cashout Method</Text>
+            </View>
+            <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Honored within 24h</Text>
+          </View>
 
-            return (
-              <AnimatedCard
-                key={item.id}
-                style={styles.rewardWrapper}
-                onPress={() => handleOpenRedeem(item)}
-              >
-                <View style={[
-                  styles.rewardCard,
-                  { backgroundColor: colors.surfaceCard, borderColor: colors.border },
-                  canAfford && styles.rewardCardAffordable
-                ]}>
-                  <View style={styles.rewardHeader}>
-                    <Image
-                      source={{ uri: item.icon_url }}
-                      style={styles.rewardIcon}
-                      resizeMode="contain"
-                    />
-                    <LinearGradient
-                      colors={canAfford ? ['#10b981', '#059669'] : ['#334155', '#1e293b']}
-                      style={styles.cashBadge}
-                    >
-                      <Text style={styles.cashBadgeText}>${Number(item.cash_value_usd).toFixed(2)} USD</Text>
-                    </LinearGradient>
-                  </View>
+          {loading ? (
+            <SkeletonRewardList count={4} />
+          ) : (
+            <View style={styles.rewardGrid}>
+              {rewards.map((item) => {
+                const canAfford = userBalance >= item.cost_points;
+                const progress = Math.min(1, Math.max(0, userBalance / item.cost_points));
+                const pct = Math.round(progress * 100);
 
-                  <Text style={[styles.rewardTitle, { color: colors.text }]}>{item.title}</Text>
-                  <Text style={[styles.rewardDesc, { color: colors.textSecondary }]} numberOfLines={2}>
-                    {item.description}
-                  </Text>
-
-                  {/* Progress towards target */}
-                  <View style={styles.progressContainer}>
-                    <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceSubtle }]}>
-                      <View
-                        style={[
-                          styles.progressBarFill,
-                          {
-                            width: `${pct}%`,
-                            backgroundColor: canAfford ? '#10b981' : colors.primary
-                          }
-                        ]}
-                      />
-                    </View>
-                    <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-                      {canAfford ? '✓ Ready to Claim!' : `${pct}% (${(item.cost_points - userBalance).toLocaleString()} PTS needed)`}
-                    </Text>
-                  </View>
-
-                  <View style={[styles.rewardFooter, { borderTopColor: colors.border }]}>
-                    <View style={styles.costBadge}>
-                      <Sparkles size={12} color="#fbbf24" />
-                      <Text style={styles.costText}>{item.cost_points.toLocaleString()} PTS</Text>
-                    </View>
-
-                    {canAfford ? (
-                      <LinearGradient
-                        colors={['#10b981', '#059669']}
-                        style={styles.redeemBtnActive}
-                      >
-                        <Text style={styles.redeemBtnTextActive}>Claim Cashout</Text>
-                        <ArrowRight size={12} color="#ffffff" />
-                      </LinearGradient>
-                    ) : (
-                      <View style={[styles.redeemBtnDisabled, { backgroundColor: colors.surfaceSubtle }]}>
-                        <Text style={[styles.redeemBtnTextDisabled, { color: colors.textMuted }]}>Need PTS</Text>
+                return (
+                  <AnimatedCard
+                    key={item.id}
+                    style={styles.rewardWrapper}
+                    onPress={() => handleOpenRedeem(item)}
+                  >
+                    <View style={[
+                      styles.rewardCard,
+                      { backgroundColor: colors.surfaceCard, borderColor: colors.border },
+                      canAfford && styles.rewardCardAffordable
+                    ]}>
+                      <View style={styles.rewardHeader}>
+                        <Image
+                          source={{ uri: item.icon_url }}
+                          style={styles.rewardIcon}
+                          resizeMode="contain"
+                        />
+                        <LinearGradient
+                          colors={canAfford ? ['#10b981', '#059669'] : ['#334155', '#1e293b']}
+                          style={styles.cashBadge}
+                        >
+                          <Text style={styles.cashBadgeText}>${Number(item.cash_value_usd).toFixed(2)} USD</Text>
+                        </LinearGradient>
                       </View>
-                    )}
-                  </View>
-                </View>
-              </AnimatedCard>
-            );
-          })}
-        </View>
+
+                      <Text style={[styles.rewardTitle, { color: colors.text }]}>{item.title}</Text>
+                      <Text style={[styles.rewardDesc, { color: colors.textSecondary }]} numberOfLines={2}>
+                        {item.description}
+                      </Text>
+
+                      {/* Progress towards target */}
+                      <View style={styles.progressContainer}>
+                        <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceSubtle }]}>
+                          <View
+                            style={[
+                              styles.progressBarFill,
+                              {
+                                width: `${pct}%`,
+                                backgroundColor: canAfford ? '#10b981' : colors.primary
+                              }
+                            ]}
+                          />
+                        </View>
+                        <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                          {canAfford ? '✓ Ready to Claim!' : `${pct}% (${(item.cost_points - userBalance).toLocaleString()} PTS needed)`}
+                        </Text>
+                      </View>
+
+                      <View style={[styles.rewardFooter, { borderTopColor: colors.border }]}>
+                        <View style={styles.costBadge}>
+                          <Sparkles size={12} color="#fbbf24" />
+                          <Text style={styles.costText}>{item.cost_points.toLocaleString()} PTS</Text>
+                        </View>
+
+                        {canAfford ? (
+                          <LinearGradient
+                            colors={['#10b981', '#059669']}
+                            style={styles.redeemBtnActive}
+                          >
+                            <Text style={styles.redeemBtnTextActive}>Claim Cashout</Text>
+                            <ArrowRight size={12} color="#ffffff" />
+                          </LinearGradient>
+                        ) : (
+                          <View style={[styles.redeemBtnDisabled, { backgroundColor: colors.surfaceSubtle }]}>
+                            <Text style={[styles.redeemBtnTextDisabled, { color: colors.textMuted }]}>Need PTS</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </AnimatedCard>
+                );
+              })}
+            </View>
+          )}
+        </>
       )}
 
       {/* Redemption Dialog Modal */}
@@ -336,6 +357,32 @@ const styles = StyleSheet.create({
     color: '#10b981',
     fontSize: 10,
     fontWeight: '700'
+  },
+  pausedCard: {
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    marginTop: 10
+  },
+  pausedIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12
+  },
+  pausedTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 6
+  },
+  pausedSubtitle: {
+    fontSize: 12.5,
+    textAlign: 'center',
+    lineHeight: 18
   },
   sectionHeader: {
     flexDirection: 'row',

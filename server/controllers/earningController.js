@@ -1,5 +1,6 @@
 const { Quiz, SurfTask, Survey, User, PointTransaction } = require('../models');
 const { sendNotification } = require('../services/socket');
+const { generateQuizWithAi } = require('../services/aiTriviaService');
 
 // ========================
 // QUIZZES
@@ -82,6 +83,30 @@ async function deleteQuiz(req, res) {
     return res.json({ success: true, message: 'Quiz deleted' });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to delete quiz', error: err.message });
+  }
+}
+
+async function generateAiQuiz(req, res) {
+  try {
+    const { topic, category, questions_count, difficulty, reward_points } = req.body;
+    const generated = await generateQuizWithAi({
+      topic,
+      category,
+      questions_count,
+      difficulty,
+      reward_points
+    });
+
+    return res.json({
+      success: true,
+      quiz: generated
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to generate trivia via AI',
+      error: err.message
+    });
   }
 }
 
@@ -247,6 +272,7 @@ module.exports = {
   createQuiz,
   updateQuiz,
   deleteQuiz,
+  generateAiQuiz,
   getSurfTasks,
   createSurfTask,
   updateSurfTask,

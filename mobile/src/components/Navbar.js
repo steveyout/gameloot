@@ -1,47 +1,60 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
-import { Gamepad2, Search, Sparkles, Gift, WalletCards } from 'lucide-react-native';
+import { Gamepad2, Search, Heart, Trophy, User, Sparkles, Gift, WalletCards } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 
-export default function Navbar({ activeTab, onTabSelect }) {
+export default function Navbar({ activeTab, onTabSelect, payoutsEnabled = false }) {
   const { colors, isDark } = useTheme();
 
-  const tabs = [
-    { id: 'lobby', label: 'Home', icon: Gamepad2, glow: '#06b6d4' },
-    { id: 'search', label: 'Search', icon: Search, glow: '#38bdf8' },
-    { id: 'earn', label: 'Earn Hub', icon: Sparkles, glow: '#a855f7' },
+  // Learning OS Color Accents: Electric Blue (#517BFD), Berry Rose (#D25087), Slate Blue (#3659C2)
+  const rewardTabs = [
+    { id: 'lobby', label: 'Home', icon: Gamepad2, glow: '#517bfd' },
+    { id: 'search', label: 'Search', icon: Search, glow: '#3659c2' },
+    { id: 'earn', label: 'Earn Hub', icon: Sparkles, glow: '#d25087' },
     { id: 'rewards', label: 'Cashout', icon: Gift, glow: '#f59e0b' },
     { id: 'wallet', label: 'Wallet', icon: WalletCards, glow: '#10b981' }
   ];
 
-  return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: isDark ? '#090d16' : (colors.surfaceCard || '#ffffff'),
-          borderTopColor: colors.border || (isDark ? '#1e293b' : '#e2e8f0'),
-          shadowColor: isDark ? '#000000' : '#64748b'
-        }
-      ]}
-    >
-      {tabs.map((tab) => {
-        const isActive = activeTab === tab.id;
-        const IconComponent = tab.icon;
+  const playAppTabs = [
+    { id: 'lobby', label: 'Home', icon: Gamepad2, glow: '#517bfd' },
+    { id: 'search', label: 'Search', icon: Search, glow: '#3659c2' },
+    { id: 'favorites', label: 'My Games', icon: Heart, glow: '#d25087' },
+    { id: 'leaderboard', label: 'Top Rated', icon: Trophy, glow: '#f59e0b' },
+    { id: 'wallet', label: 'Profile', icon: User, glow: '#517bfd' }
+  ];
 
-        return (
-          <NavTabButton
-            key={tab.id}
-            tab={tab}
-            isActive={isActive}
-            onPress={() => onTabSelect(tab.id)}
-            IconComponent={IconComponent}
-            colors={colors}
-            isDark={isDark}
-          />
-        );
-      })}
+  const tabs = payoutsEnabled ? rewardTabs : playAppTabs;
+
+  return (
+    <View style={styles.outerWrapper}>
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: isDark ? 'rgba(21, 23, 34, 0.96)' : 'rgba(255, 255, 255, 0.97)',
+            borderColor: colors.border,
+            shadowColor: isDark ? '#000000' : '#517bfd'
+          }
+        ]}
+      >
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const IconComponent = tab.icon;
+
+          return (
+            <NavTabButton
+              key={tab.id}
+              tab={tab}
+              isActive={isActive}
+              onPress={() => onTabSelect(tab.id)}
+              IconComponent={IconComponent}
+              colors={colors}
+              isDark={isDark}
+            />
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -55,7 +68,7 @@ function NavTabButton({ tab, isActive, onPress, IconComponent, colors, isDark })
       Animated.parallel([
         Animated.sequence([
           Animated.timing(scale, { toValue: 1.15, duration: 120, useNativeDriver: true }),
-          Animated.spring(scale, { toValue: 1.04, friction: 4, tension: 80, useNativeDriver: true })\
+          Animated.spring(scale, { toValue: 1.04, friction: 4, tension: 80, useNativeDriver: true })
         ]),
         Animated.spring(iconTranslate, { toValue: -2, friction: 5, tension: 70, useNativeDriver: true })
       ]).start();
@@ -75,7 +88,7 @@ function NavTabButton({ tab, isActive, onPress, IconComponent, colors, isDark })
     Animated.spring(scale, { toValue: isActive ? 1.04 : 1, friction: 5, useNativeDriver: true }).start();
   };
 
-  const idleColor = colors?.textSecondary || (isDark ? '#64748b' : '#64748b');
+  const idleColor = colors?.textSecondary || '#979caf';
 
   return (
     <TouchableOpacity
@@ -98,8 +111,8 @@ function NavTabButton({ tab, isActive, onPress, IconComponent, colors, isDark })
       >
         {isActive ? (
           <LinearGradient
-            colors={[`${tab.glow}33`, `${tab.glow}11`]}
-            style={[styles.glowBadge, { borderColor: tab.glow }]}
+            colors={[`${tab.glow}28`, `${tab.glow}10`]}
+            style={[styles.glowBadge, { borderColor: `${tab.glow}66` }]}
           >
             <IconComponent size={19} color={tab.glow} />
           </LinearGradient>
@@ -128,4 +141,59 @@ function NavTabButton({ tab, isActive, onPress, IconComponent, colors, isDark })
   );
 }
 
-const styles = StyleSheet.create({\n  container: {\n    height: Platform.OS === 'android' ? 68 : 78,\n    paddingBottom: Platform.OS === 'android' ? 8 : 18,\n    paddingHorizontal: 6,\n    borderTopWidth: 1,\n    flexDirection: 'row',\n    alignItems: 'center',\n    justifyContent: 'space-around',\n    shadowOffset: { width: 0, height: -4 },\n    shadowOpacity: 0.15,\n    shadowRadius: 8,\n    elevation: 20\n  },\n  tabItem: {\n    flex: 1,\n    alignItems: 'center',\n    justifyContent: 'center',\n    paddingVertical: 4\n  },\n  iconWrap: {\n    alignItems: 'center',\n    justifyContent: 'center'\n  },\n  glowBadge: {\n    width: 40,\n    height: 30,\n    borderRadius: 12,\n    borderWidth: 1.5,\n    justifyContent: 'center',\n    alignItems: 'center'\n  },\n  idleBadge: {\n    width: 40,\n    height: 30,\n    justifyContent: 'center',\n    alignItems: 'center'\n  },\n  tabLabel: {\n    fontSize: 10,\n    fontWeight: '600',\n    marginTop: 3,\n    letterSpacing: -0.2\n  },\n  activeDot: {\n    width: 4,\n    height: 4,\n    borderRadius: 2,\n    marginTop: 2\n  }\n});\n
+const styles = StyleSheet.create({
+  outerWrapper: {
+    paddingHorizontal: 12,
+    paddingBottom: Platform.OS === 'android' ? 8 : 16,
+    backgroundColor: 'transparent'
+  },
+  container: {
+    height: 64,
+    borderRadius: 22,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 12
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4
+  },
+  iconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  glowBadge: {
+    width: 38,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  idleBadge: {
+    width: 38,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  tabLabel: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    marginTop: 2,
+    letterSpacing: -0.2
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 2
+  }
+});

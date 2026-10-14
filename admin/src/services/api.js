@@ -89,6 +89,13 @@ export const getRedemptions = (params = {}) => {
 export const updateRedemptionStatus = (id, status, admin_notes) => apiRequest(`/admin/redemptions/${id}`, 'PATCH', { status, admin_notes });
 export const bulkRedemptionsAction = (ids, action, admin_notes = '') => apiRequest('/admin/redemptions/bulk-action', 'POST', { ids, action, admin_notes });
 
+// Reward Items Catalog (Payout Options)
+export const getRewardItems = () => apiRequest('/admin/reward-items');
+export const createRewardItem = (data) => apiRequest('/admin/reward-items', 'POST', data);
+export const updateRewardItem = (id, data) => apiRequest(`/admin/reward-items/${id}`, 'PUT', data);
+export const deleteRewardItem = (id) => apiRequest(`/admin/reward-items/${id}`, 'DELETE');
+export const toggleRewardItem = (id) => apiRequest(`/admin/reward-items/${id}/toggle`, 'PATCH');
+
 // Anti-Cheat & Fraud logs
 export const getFraudLogs = () => apiRequest('/admin/fraud');
 export const updateFraudStatus = (id, status) => apiRequest(`/admin/fraud/${id}`, 'PATCH', { status });
@@ -97,8 +104,9 @@ export const updateFraudStatus = (id, status) => apiRequest(`/admin/fraud/${id}`
 export const getSettings = () => apiRequest('/admin/settings');
 export const updateSettings = (settings) => apiRequest('/admin/settings', 'PUT', { settings });
 
-// Trivia Quizzes CRUD
+// Trivia Quizzes CRUD & AI Generation
 export const getQuizzes = () => apiRequest('/admin/quizzes');
+export const generateAiQuiz = (data) => apiRequest('/admin/quizzes/generate-ai', 'POST', data);
 export const createQuiz = (data) => apiRequest('/admin/quizzes', 'POST', data);
 export const updateQuiz = (id, data) => apiRequest(`/admin/quizzes/${id}`, 'PUT', data);
 export const deleteQuiz = (id) => apiRequest(`/admin/quizzes/${id}`, 'DELETE');

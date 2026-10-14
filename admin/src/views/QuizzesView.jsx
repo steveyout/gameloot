@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   HelpCircle, Plus, Edit3, Trash2, CheckCircle2, 
-  Sparkles, Clock, Award, Check, X, Play, Search, ListChecks
+  Sparkles, Clock, Award, Check, X, Play, Search, ListChecks, Wand2
 } from 'lucide-react';
 import { getQuizzes, createQuiz, updateQuiz, deleteQuiz } from '../services/api';
 import QuizModal from '../components/QuizModal';
+import AiQuizGeneratorModal from '../components/AiQuizGeneratorModal';
 import { useAlert } from '../context/AlertContext';
 import confetti from 'canvas-confetti';
 
@@ -17,6 +18,7 @@ export default function QuizzesView() {
   const [statusFilter, setStatusFilter] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState(null);
 
   // Simulator state
@@ -46,7 +48,7 @@ export default function QuizzesView() {
 
   const handleSaveQuiz = async (formData) => {
     try {
-      if (editingQuiz) {
+      if (editingQuiz && editingQuiz.id) {
         await updateQuiz(editingQuiz.id, formData);
         success(`Quiz "${formData.title}" updated.`);
       } else {
@@ -57,6 +59,22 @@ export default function QuizzesView() {
     } catch (err) {
       error(err.message);
     }
+  };
+
+  const handleAiPublish = async (quizData) => {
+    try {
+      await createQuiz(quizData);
+      success(`AI Trivia "${quizData.title}" published (+${quizData.reward_points} PTS)!`);
+      fetchQuizzes();
+    } catch (err) {
+      error('Failed to publish AI trivia: ' + err.message);
+      throw err;
+    }
+  };
+
+  const handleAiCustomizeInEditor = (quizData) => {
+    setEditingQuiz(quizData);
+    setModalOpen(true);
   };
 
   const handleToggleActive = async (quiz) => {
@@ -149,14 +167,25 @@ export default function QuizzesView() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => { setEditingQuiz(null); setModalOpen(true); }}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-lg shadow-purple-600/25 flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Trivia Quiz</span>
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setAiModalOpen(true)}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-lg shadow-purple-600/30 flex items-center gap-2 transition-all cursor-pointer shrink-0 border border-pink-400/30 hover:scale-[1.02]"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+            <span>Generate Trivia via AI</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setEditingQuiz(null); setModalOpen(true); }}
+            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs border border-slate-700 flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4 text-purple-400" />
+            <span>Manual Quiz</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter / Search Bar */}
@@ -213,15 +242,25 @@ export default function QuizzesView() {
           <HelpCircle className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <h3 className="text-sm font-bold text-white mb-1">No Quizzes Found</h3>
           <p className="text-xs text-slate-400 mb-4">
-            {search ? 'No quizzes match your filter criteria.' : 'Click "New Trivia Quiz" to launch your first quiz question set.'}
+            {search ? 'No quizzes match your filter criteria.' : 'Click "Generate Trivia via AI" or "Manual Quiz" to launch your first quiz.'}
           </p>
-          <button
-            type="button"
-            onClick={() => { setEditingQuiz(null); setModalOpen(true); }}
-            className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold cursor-pointer"
-          >
-            Add First Quiz
-          </button>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAiModalOpen(true)}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-semibold cursor-pointer flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Generate via AI</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEditingQuiz(null); setModalOpen(true); }}
+              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold cursor-pointer"
+            >
+              Add First Quiz Manually
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -334,7 +373,15 @@ export default function QuizzesView() {
         </div>
       )}
 
-      {/* Quiz Modal */}
+      {/* AI Trivia Generator Modal */}
+      <AiQuizGeneratorModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        onPublishQuiz={handleAiPublish}
+        onOpenInEditor={handleAiCustomizeInEditor}
+      />
+
+      {/* Manual Quiz Modal */}
       <QuizModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}

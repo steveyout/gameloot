@@ -5,7 +5,7 @@ import { uploadImage } from '../services/api';
 
 const PRESET_GAMES = [
   {
-    title: 'Flappy Bird Classic HTML5',
+    title: 'Flappy Bird Classic',
     embed_url: 'https://flappybird.io/',
     category: 'arcade',
     orientation: 'portrait',
@@ -14,7 +14,7 @@ const PRESET_GAMES = [
     description: 'Tap to flap through treacherous green pipes in the world-famous arcade frenzy.'
   },
   {
-    title: 'Pacman HTML5 Retro',
+    title: 'Pacman Retro',
     embed_url: 'https://freepacman.org/',
     category: 'arcade',
     orientation: 'landscape',
@@ -176,7 +176,7 @@ export default function GameModal({ isOpen, onClose, onSave, game, categories })
               </div>
               <div>
                 <h3 className="text-base font-bold text-white m-0">
-                  {game ? 'Edit HTML5 Game Embed' : 'Add New HTML5 Game Embed'}
+                  {game ? 'Edit Game Embed' : 'Add New Game Embed'}
                 </h3>
                 <p className="text-xs text-slate-400 m-0">Configure title, embed iframe URL, images & reward economics</p>
               </div>
@@ -257,7 +257,7 @@ export default function GameModal({ isOpen, onClose, onSave, game, categories })
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1">
                 <Link2 className="w-3.5 h-3.5 text-cyan-400" />
-                <span>HTML5 Embed / Iframe URL *</span>
+                <span>Game Embed URL *</span>
               </label>
               <input
                 type="url"

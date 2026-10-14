@@ -12,11 +12,11 @@ import {
   Modal
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gamepad2, Sparkles, Lock, Mail, User, ShieldCheck, X, Check, Shield, FileText } from 'lucide-react-native';
+import { Gamepad2, Sparkles, Lock, Mail, User, X, Shield, FileText } from 'lucide-react-native';
 import { userLogin, userRegister, userGoogleLogin } from '../api/clientApi';
 import LegalModal from '../components/LegalModal';
 
-export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
+export default function AuthScreen({ onAuthSuccess, onErrorAlert, payoutsEnabled = false }) {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -72,8 +72,13 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
   };
 
   const handleGoogleSignInPrompt = () => {
-    // Open one-tap simulated OAuth modal
-    setGoogleEmail(username.includes('@') ? username : 'player@gmail.com');
+    // If user already typed an email into the input form, use it immediately!
+    const candidateEmail = (email || username || '').trim();
+    if (candidateEmail.includes('@')) {
+      executeGoogleAuth(candidateEmail, candidateEmail.split('@')[0]);
+      return;
+    }
+    setGoogleEmail('player@gmail.com');
     setGoogleName(username || 'Loyal Player');
     setGoogleModalVisible(true);
   };
@@ -86,10 +91,12 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
 
     setGoogleLoading(true);
     try {
+      const gId = 'g_' + Math.abs(targetEmail.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(36);
       const res = await userGoogleLogin({
         email: targetEmail.trim(),
         name: targetName.trim() || 'GameLoot Player',
-        googleId: 'g_' + Math.abs(targetEmail.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(36),
+        google_id: gId,
+        googleId: gId,
         avatar: `https://api.dicebear.com/7.x/bottts/png?seed=${encodeURIComponent(targetEmail)}`
       });
 
@@ -97,10 +104,10 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
         setGoogleModalVisible(false);
         onAuthSuccess(res.user, res.token);
       } else {
-        onErrorAlert(res?.message || 'Google authentication failed.');
+        onErrorAlert(res?.message || 'Google authentication failed');
       }
     } catch (err) {
-      onErrorAlert(err.message || 'Google OAuth failed');
+      onErrorAlert(err.message || 'Error connecting to Google authentication service');
     } finally {
       setGoogleLoading(false);
     }
@@ -108,62 +115,75 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.container}
     >
       <ScrollView
         contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Brand Header */}
+        {/* Brand Header - Learning OS Style */}
         <View style={styles.brandContainer}>
           <LinearGradient
-            colors={['#06b6d4', '#3b82f6']}
+            colors={['#517bfd', '#3659c2']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.logoBadge}
           >
             <Gamepad2 size={36} color="#ffffff" />
           </LinearGradient>
-          <Text style={styles.brandTitle}>GAMELOOT</Text>
-          <Text style={styles.brandSubtitle}>Play Games • Earn Real Cash</Text>
+          <Text style={styles.brandTitle}>GameLoot</Text>
+          <Text style={styles.brandSubtitle}>
+            {payoutsEnabled
+              ? 'Instant Games Arcade • Play & Earn Real Rewards'
+              : 'Instant Games Arcade • Play & Compete'}
+          </Text>
+
           <View style={styles.bonusBanner}>
-            <Sparkles size={14} color="#fbbf24" />
-            <Text style={styles.bonusText}>NEW PLAYERS: 100 PTS SIGNUP BONUS</Text>
+            <Sparkles size={13} color="#517bfd" />
+            <Text style={styles.bonusText}>
+              {payoutsEnabled
+                ? 'NEW PLAYERS GET +100 PTS ON SIGN UP'
+                : 'FREE TO PLAY • UNLIMITED INSTANT GAMES'}
+            </Text>
           </View>
         </View>
 
-        {/* Auth Card */}
+        {/* Auth Form Card */}
         <View style={styles.card}>
-          {/* Tabs */}
+          {/* Toggle Tab Bar */}
           <View style={styles.tabBar}>
             <TouchableOpacity
               style={[styles.tabBtn, isLogin && styles.tabBtnActive]}
               onPress={() => setIsLogin(true)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.tabBtnText, isLogin && styles.tabBtnTextActive]}>Sign In</Text>
+              <Text style={[styles.tabBtnText, isLogin && styles.tabBtnTextActive]}>
+                Sign In
+              </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               style={[styles.tabBtn, !isLogin && styles.tabBtnActive]}
               onPress={() => setIsLogin(false)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.tabBtnText, !isLogin && styles.tabBtnTextActive]}>Register</Text>
+              <Text style={[styles.tabBtnText, !isLogin && styles.tabBtnTextActive]}>
+                Register
+              </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Form */}
+          {/* Form Fields */}
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Username</Text>
               <View style={styles.inputWrap}>
-                <User size={16} color="#64748b" style={styles.inputIcon} />
+                <User size={16} color="#979caf" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Enter username"
-                  placeholderTextColor="#475569"
+                  placeholderTextColor="#686d82"
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
@@ -176,11 +196,11 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Email Address</Text>
                 <View style={styles.inputWrap}>
-                  <Mail size={16} color="#64748b" style={styles.inputIcon} />
+                  <Mail size={16} color="#979caf" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="Enter email address"
-                    placeholderTextColor="#475569"
+                    placeholderTextColor="#686d82"
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
@@ -194,11 +214,11 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
               <View style={styles.inputWrap}>
-                <Lock size={16} color="#64748b" style={styles.inputIcon} />
+                <Lock size={16} color="#979caf" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Enter password"
-                  placeholderTextColor="#475569"
+                  placeholderTextColor="#686d82"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
@@ -215,7 +235,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={['#06b6d4', '#2563eb']}
+                colors={['#517bfd', '#3659c2']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.btnGradient}
@@ -242,7 +262,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
             <TouchableOpacity
               style={styles.googleBtn}
               onPress={handleGoogleSignInPrompt}
-              disabled={loading}
+              disabled={loading || googleLoading}
               activeOpacity={0.85}
             >
               <View style={styles.googleLogoWrap}>
@@ -273,14 +293,6 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
           </View>
         </View>
 
-        {/* Transparent Loyalty Rewards Note */}
-        <View style={styles.complianceBox}>
-          <ShieldCheck size={14} color="#10b981" />
-          <Text style={styles.complianceText}>
-            Advertiser-funded loyalty rewards. Low payout threshold ($1.00 min). No in-app purchases required to play or earn.
-          </Text>
-        </View>
-
         {/* Public Legal Access Row - 100% accessible without login */}
         <View style={styles.publicLegalRow}>
           <TouchableOpacity
@@ -288,7 +300,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
             onPress={() => handleOpenLegal('privacy')}
             activeOpacity={0.7}
           >
-            <Shield size={13} color="#06b6d4" />
+            <Shield size={13} color="#517bfd" />
             <Text style={styles.publicLegalBtnText}>Privacy Policy</Text>
           </TouchableOpacity>
           <Text style={styles.publicLegalDot}>•</Text>
@@ -297,7 +309,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
             onPress={() => handleOpenLegal('terms')}
             activeOpacity={0.7}
           >
-            <FileText size={13} color="#06b6d4" />
+            <FileText size={13} color="#517bfd" />
             <Text style={styles.publicLegalBtnText}>Terms of Service</Text>
           </TouchableOpacity>
         </View>
@@ -318,19 +330,41 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.modalTitle}>Sign in with Google</Text>
-                <Text style={styles.modalSubtitle}>to continue to GameLoot Rewards</Text>
+                <Text style={styles.modalSubtitle}>to continue to GameLoot</Text>
               </View>
               <TouchableOpacity onPress={() => setGoogleModalVisible(false)} style={styles.modalCloseBtn}>
-                <X size={18} color="#94a3b8" />
+                <X size={18} color="#979caf" />
               </TouchableOpacity>
             </View>
 
+            {/* Quick 1-Tap Account Selector */}
+            <TouchableOpacity
+              style={styles.quickAccountBtn}
+              onPress={() => executeGoogleAuth('player@gmail.com', 'Player One')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.quickAvatar}>
+                <Text style={styles.quickAvatarText}>P</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.quickName}>Continue as Player One</Text>
+                <Text style={styles.quickEmail}>player@gmail.com</Text>
+              </View>
+              <Text style={styles.quickArrow}>→</Text>
+            </TouchableOpacity>
+
+            <View style={[styles.dividerRow, { marginVertical: 12 }]}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR USE ANOTHER EMAIL</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
             {/* Enter Google Account Details */}
-            <View style={{ gap: 10, marginTop: 8 }}>
+            <View style={{ gap: 10 }}>
               <TextInput
                 style={styles.modalInput}
                 placeholder="Google email address"
-                placeholderTextColor="#64748b"
+                placeholderTextColor="#686d82"
                 value={googleEmail}
                 onChangeText={setGoogleEmail}
                 keyboardType="email-address"
@@ -339,7 +373,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
               <TextInput
                 style={styles.modalInput}
                 placeholder="Full Name (optional)"
-                placeholderTextColor="#64748b"
+                placeholderTextColor="#686d82"
                 value={googleName}
                 onChangeText={setGoogleName}
               />
@@ -351,7 +385,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
               disabled={googleLoading}
             >
               <LinearGradient
-                colors={['#4285F4', '#2b6cb0']}
+                colors={['#517bfd', '#3659c2']}
                 style={styles.modalSubmitGradient}
               >
                 {googleLoading ? (
@@ -379,7 +413,7 @@ export default function AuthScreen({ onAuthSuccess, onErrorAlert }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#090d16'
+    backgroundColor: '#0b0c12'
   },
   scroll: {
     padding: 24,
@@ -397,7 +431,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
-    shadowColor: '#06b6d4',
+    shadowColor: '#517bfd',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -411,37 +445,37 @@ const styles = StyleSheet.create({
   },
   brandSubtitle: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: '#979caf',
     marginTop: 2
   },
   bonusBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    backgroundColor: 'rgba(81, 123, 253, 0.12)',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: 12,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)'
+    borderColor: 'rgba(81, 123, 253, 0.3)'
   },
   bonusText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#fbbf24'
+    fontWeight: '800',
+    color: '#517bfd'
   },
   card: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#151722',
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#1e293b'
+    borderColor: '#23263b'
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
+    backgroundColor: '#1d2030',
+    borderRadius: 14,
     padding: 4,
     marginBottom: 20
   },
@@ -449,18 +483,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 8
+    borderRadius: 10
   },
   tabBtnActive: {
-    backgroundColor: '#06b6d4'
+    backgroundColor: '#517bfd'
   },
   tabBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#94a3b8'
+    color: '#979caf'
   },
   tabBtnTextActive: {
-    color: '#090d16'
+    color: '#ffffff'
   },
   form: {
     gap: 14
@@ -471,15 +505,15 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#cbd5e1'
+    color: '#979caf'
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
+    backgroundColor: '#1d2030',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#343852',
     paddingHorizontal: 12
   },
   inputIcon: {
@@ -522,12 +556,12 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#334155'
+    backgroundColor: '#23263b'
   },
   dividerText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#64748b',
+    color: '#686d82',
     paddingHorizontal: 8,
     letterSpacing: 0.5
   },
@@ -539,7 +573,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    shadowColor: '#ffffff',
+    shadowColor: '#517bfd',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -549,7 +583,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#4285F4',
+    backgroundColor: '#517bfd',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10
@@ -561,7 +595,7 @@ const styles = StyleSheet.create({
     lineHeight: 16
   },
   googleBtnText: {
-    color: '#1f2937',
+    color: '#060507',
     fontSize: 13,
     fontWeight: '700'
   },
@@ -571,38 +605,21 @@ const styles = StyleSheet.create({
   },
   legalNoticeText: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: '#979caf',
     textAlign: 'center',
     lineHeight: 16
   },
   legalNoticeLink: {
-    color: '#06b6d4',
+    color: '#517bfd',
     fontWeight: '700',
     textDecorationLine: 'underline'
-  },
-  complianceBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 18,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.2)'
-  },
-  complianceText: {
-    fontSize: 10,
-    color: '#6ee7b7',
-    lineHeight: 14,
-    flex: 1
   },
   publicLegalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    marginTop: 16,
+    marginTop: 20,
     paddingVertical: 8
   },
   publicLegalBtn: {
@@ -613,12 +630,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8
   },
   publicLegalBtnText: {
-    color: '#06b6d4',
+    color: '#517bfd',
     fontSize: 12,
     fontWeight: '700'
   },
   publicLegalDot: {
-    color: '#475569',
+    color: '#686d82',
     fontSize: 12
   },
   modalBackdrop: {
@@ -629,10 +646,10 @@ const styles = StyleSheet.create({
     padding: 20
   },
   modalCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#151722',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#343852',
     padding: 22,
     width: '100%',
     maxWidth: 380,
@@ -651,7 +668,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#4285F4',
+    backgroundColor: '#517bfd',
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -668,25 +685,61 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     fontSize: 11,
-    color: '#94a3b8'
+    color: '#979caf'
   },
   modalCloseBtn: {
     padding: 6
   },
-  modalInput: {
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
+  quickAccountBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1d2030',
+    padding: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#343852'
+  },
+  quickAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#517bfd',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  quickAvatarText: {
+    color: '#ffffff',
+    fontWeight: '900',
+    fontSize: 14
+  },
+  quickName: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  quickEmail: {
+    color: '#979caf',
+    fontSize: 10
+  },
+  quickArrow: {
+    color: '#517bfd',
+    fontSize: 16,
+    fontWeight: '900'
+  },
+  modalInput: {
+    backgroundColor: '#1d2030',
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
     color: '#ffffff',
-    fontSize: 12
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: '#343852'
   },
   modalSubmitBtn: {
     borderRadius: 14,
     overflow: 'hidden',
-    marginTop: 16
+    marginTop: 14
   },
   modalSubmitGradient: {
     paddingVertical: 12,

@@ -151,7 +151,7 @@ export default function DashboardView({ onSelectTab, onTestGame }) {
             {Number(kpis.total_plays || 0).toLocaleString()}
           </div>
           <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-2">
-            <span>{kpis.active_games || 0} live HTML5 games available</span>
+            <span>{kpis.active_games || 0} live games available</span>
           </div>
         </motion.div>
       </div>
@@ -209,7 +209,7 @@ export default function DashboardView({ onSelectTab, onTestGame }) {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-white m-0 flex items-center gap-2">
               <Flame className="w-4 h-4 text-amber-400" />
-              <span>Top Played HTML5 Games</span>
+              <span>Top Played Games</span>
             </h3>
             <button
               onClick={() => onSelectTab('games')}

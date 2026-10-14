@@ -44,7 +44,7 @@ const QUICK_TEMPLATES = [
   },
   {
     title: '🎮 New Release: Cyber Speed Racer & Hexagon Mania',
-    message: 'Two brand new HTML5 games have been added to the library with high reward rates. Jump in and set the high score!',
+    message: 'Two brand new games have been added to the library with high reward rates. Jump in and set the high score!',
     type: 'reward',
     bonus_points: 15,
     action_screen: 'lobby'

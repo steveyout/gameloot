@@ -82,7 +82,7 @@ export default function GameSimulatorModal({ game, onClose }) {
                 <h3 className="text-sm font-bold text-white flex items-center gap-2 m-0">
                   <span>{game.title}</span>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-800/80 text-cyan-400 font-mono">
-                    Live HTML5 Embed Simulator
+                    Live Game Embed Simulator
                   </span>
                 </h3>
                 <p className="text-xs text-slate-400 m-0 truncate max-w-md">

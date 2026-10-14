@@ -79,7 +79,7 @@ export default function CategoriesView() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-bold text-white m-0">Game Categories</h2>
-          <p className="text-xs text-slate-400 m-0">Organize embedded HTML5 games into discoverable genres</p>
+          <p className="text-xs text-slate-400 m-0">Organize games into discoverable genres</p>
         </div>
 
         <button

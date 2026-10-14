@@ -22,7 +22,15 @@ async function ensureSafeSchema(sequelize) {
       console.warn('⚠️ [Schema Guard - users.google_id]:', uErr.message);
     }
 
-    // 1b. Users table: ip_address column widening (prevent proxy list truncation errors)
+    // 1b. Users table: password_hash column nullable for OAuth
+    try {
+      await sequelize.query("ALTER TABLE `users` MODIFY COLUMN `password_hash` VARCHAR(255) NULL");
+      console.log('✅ [Schema Guard] `users.password_hash` verified as nullable.');
+    } catch (pErr) {
+      console.warn('⚠️ [Schema Guard - users.password_hash]:', pErr.message);
+    }
+
+    // 1c. Users table: ip_address column widening (prevent proxy list truncation errors)
     try {
       const [ipCols] = await sequelize.query("SHOW COLUMNS FROM `users` LIKE 'ip_address'");
       if (ipCols && ipCols.length > 0) {
@@ -57,6 +65,20 @@ async function ensureSafeSchema(sequelize) {
       }
     } catch (gErr2) {
       console.warn('⚠️ [Schema Guard - games.banner_url]:', gErr2.message);
+    }
+
+    // 2b. Reward Items table: is_active column
+    try {
+      const [rewardCols] = await sequelize.query("SHOW COLUMNS FROM `reward_items` LIKE 'is_active'");
+      if (!rewardCols || rewardCols.length === 0) {
+        console.log('📦 [Schema Guard] Safely adding `is_active` column to reward_items table...');
+        await sequelize.query("ALTER TABLE `reward_items` ADD COLUMN `is_active` TINYINT(1) DEFAULT 1");
+        console.log('✅ [Schema Guard] `reward_items.is_active` column successfully added.');
+      } else {
+        console.log('✅ [Schema Guard] `reward_items.is_active` column verified.');
+      }
+    } catch (rErr) {
+      console.warn('⚠️ [Schema Guard - reward_items.is_active]:', rErr.message);
     }
 
     // 3. Point Transactions table: widen type from enum to VARCHAR(50) to allow wheel_bonus, streak_bonus, etc.

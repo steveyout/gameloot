@@ -41,7 +41,8 @@ export default function LobbyScreen({
   onOpenLuckyWheel,
   onCheckUpdate,
   isCheckingUpdate,
-  updateInfo
+  updateInfo,
+  payoutsEnabled = false
 }) {
   const { colors, isDark } = useTheme();
   const [games, setGames] = useState([]);
@@ -121,21 +122,21 @@ export default function LobbyScreen({
       }
       showsVerticalScrollIndicator={false}
     >
-      {/* Gamification Hooks: Daily Streak & Lucky Wheel */}
+      {/* Gamification Hooks: Daily Streak & Lucky Wheel (Learning OS Berry & Cobalt cards) */}
       <View style={styles.hooksRow}>
         <AnimatedCard
           style={styles.hookCardWrapper}
           onPress={onOpenDailyStreak}
         >
           <LinearGradient
-            colors={['#ea580c', '#991b1b', '#450a0a']}
+            colors={['#d25087', '#9d174d']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.hookCard}
           >
             <View style={styles.hookTopRow}>
               <View style={styles.hookIconWrap}>
-                <Flame size={20} color="#ffffff" />
+                <Flame size={18} color="#ffffff" />
               </View>
               <View style={styles.hookBadgePill}>
                 <Text style={styles.hookBadgeText}>STREAK</Text>
@@ -144,7 +145,9 @@ export default function LobbyScreen({
 
             <View style={styles.hookContent}>
               <Text style={styles.hookTitle}>Daily Streak</Text>
-              <Text style={styles.hookSub}>Claim up to +300 PTS 🔥</Text>
+              <Text style={styles.hookSub}>
+                {payoutsEnabled ? 'Claim up to +300 PTS 🔥' : 'Keep your win streak alive 🔥'}
+              </Text>
             </View>
 
             <View style={styles.hookActionRow}>
@@ -159,28 +162,30 @@ export default function LobbyScreen({
           onPress={onOpenLuckyWheel}
         >
           <LinearGradient
-            colors={['#7c3aed', '#4338ca', '#1e1b4b']}
+            colors={['#517bfd', '#3659c2']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.hookCard}
           >
             <View style={styles.hookTopRow}>
-              <View style={[styles.hookIconWrap, { backgroundColor: 'rgba(192, 132, 252, 0.3)' }]}>
-                <Disc size={20} color="#e9d5ff" />
+              <View style={[styles.hookIconWrap, { backgroundColor: 'rgba(255, 255, 255, 0.22)' }]}>
+                <Disc size={18} color="#ffffff" />
               </View>
-              <View style={[styles.hookBadgePill, { backgroundColor: 'rgba(168, 85, 247, 0.4)' }]}>
-                <Text style={styles.hookBadgeText}>JACKPOT</Text>
+              <View style={[styles.hookBadgePill, { backgroundColor: 'rgba(255, 255, 255, 0.25)' }]}>
+                <Text style={styles.hookBadgeText}>SPIN</Text>
               </View>
             </View>
 
             <View style={styles.hookContent}>
               <Text style={styles.hookTitle}>Lucky Wheel</Text>
-              <Text style={styles.hookSub}>Win 500 PTS Jackpot 🎡</Text>
+              <Text style={styles.hookSub}>
+                {payoutsEnabled ? 'Win 500 PTS Jackpot 🎡' : 'Spin for Mystery Perks 🎡'}
+              </Text>
             </View>
 
             <View style={styles.hookActionRow}>
               <Text style={styles.hookActionText}>Spin Free</Text>
-              <Sparkles size={11} color="#e9d5ff" />
+              <Sparkles size={11} color="#ffffff" />
             </View>
           </LinearGradient>
         </AnimatedCard>
@@ -191,36 +196,34 @@ export default function LobbyScreen({
         style={styles.chestWrapper}
         onPress={onOpenAdReward}
       >
-        <LinearGradient
-          colors={['#292524', '#1c1917', '#0c0a09']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.chestCard}
-        >
-          <View style={styles.chestGlowBorder} />
+        <View style={[styles.chestCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
           <View style={styles.chestLeft}>
             <LinearGradient
-              colors={['#f59e0b', '#d97706']}
+              colors={['#517bfd', '#3659c2']}
               style={styles.chestIconBadge}
             >
-              <Gift size={24} color="#ffffff" />
+              <Gift size={20} color="#ffffff" />
             </LinearGradient>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.chestTitle}>Daily Free Loot Chest</Text>
-                <View style={styles.adTag}>
-                  <Text style={styles.adTagText}>SPONSOR</Text>
+                <Text style={[styles.chestTitle, { color: colors.text }]}>Daily Free Loot Chest</Text>
+                <View style={[styles.adTag, { backgroundColor: `${colors.primary}18`, borderColor: colors.primary }]}>
+                  <Text style={[styles.adTagText, { color: colors.primary }]}>SPONSOR</Text>
                 </View>
               </View>
-              <Text style={styles.chestSubtitle}>Watch quick 15s video to unlock free points</Text>
+              <Text style={[styles.chestSubtitle, { color: colors.textSecondary }]}>
+                {payoutsEnabled
+                  ? 'Watch quick 15s video to unlock free points'
+                  : 'Watch quick 15s video to unlock bonus player perks'}
+              </Text>
             </View>
           </View>
 
-          <View style={styles.chestRewardBadge}>
-            <Sparkles size={13} color="#fef08a" />
-            <Text style={styles.chestRewardText}>+3 PTS</Text>
+          <View style={[styles.chestRewardBadge, { backgroundColor: `${colors.accent}18`, borderColor: colors.accent }]}>
+            <Sparkles size={12} color={colors.accent} />
+            <Text style={[styles.chestRewardText, { color: colors.accent }]}>{payoutsEnabled ? '+3 PTS' : 'BONUS'}</Text>
           </View>
-        </LinearGradient>
+        </View>
       </AnimatedCard>
 
       {/* Continue Playing (Recently Played Games) */}
@@ -228,8 +231,8 @@ export default function LobbyScreen({
         <View style={styles.sectionWrap}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderLeft}>
-              <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(6, 182, 212, 0.15)' }]}>
-                <RotateCcw size={15} color="#06b6d4" />
+              <View style={[styles.sectionIconWrap, { backgroundColor: `${colors.primary}18` }]}>
+                <RotateCcw size={15} color={colors.primary} />
               </View>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Continue Playing</Text>
             </View>
@@ -260,7 +263,7 @@ export default function LobbyScreen({
                       colors={['transparent', 'rgba(0, 0, 0, 0.7)']}
                       style={styles.continueThumbOverlay}
                     >
-                      <View style={styles.continuePlayIcon}>
+                      <View style={[styles.continuePlayIcon, { backgroundColor: colors.primary }]}>
                         <Play size={12} color="#ffffff" fill="#ffffff" />
                       </View>
                     </LinearGradient>
@@ -271,8 +274,10 @@ export default function LobbyScreen({
                       {game.title}
                     </Text>
                     <View style={styles.continueRateRow}>
-                      <Sparkles size={10} color="#06b6d4" />
-                      <Text style={styles.continueRateText}>{game.reward_rate || 1} PTS/MIN</Text>
+                      <Sparkles size={10} color={colors.primary} />
+                      <Text style={[styles.continueRateText, { color: colors.primary }]}>
+                        {payoutsEnabled ? `${game.reward_rate || 1} PTS/MIN` : (game.category_name || 'Instant Play')}
+                      </Text>
                     </View>
                   </View>
                 </View>
@@ -286,14 +291,14 @@ export default function LobbyScreen({
       <View style={styles.sectionWrap}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderLeft}>
-            <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-              <Flame size={16} color="#f59e0b" />
+            <View style={[styles.sectionIconWrap, { backgroundColor: `${colors.accent}18` }]}>
+              <Flame size={16} color={colors.accent} />
             </View>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Featured Games</Text>
           </View>
-          <View style={styles.featuredTagPill}>
-            <Sparkles size={11} color="#f59e0b" />
-            <Text style={styles.featuredTagText}>2X BOOST</Text>
+          <View style={[styles.featuredTagPill, { backgroundColor: `${colors.accent}18`, borderColor: `${colors.accent}55` }]}>
+            <Sparkles size={11} color={colors.accent} />
+            <Text style={[styles.featuredTagText, { color: colors.accent }]}>{payoutsEnabled ? '2X BOOST' : 'TOP PICK'}</Text>
           </View>
         </View>
 
@@ -310,44 +315,48 @@ export default function LobbyScreen({
                 resizeMode="cover"
               />
               <LinearGradient
-                colors={['transparent', 'rgba(15, 23, 42, 0.75)', isDark ? '#090d16' : '#0f172a']}
+                colors={['transparent', 'rgba(11, 12, 18, 0.75)', isDark ? '#0b0c12' : '#151722']}
                 locations={[0, 0.45, 1]}
                 style={styles.heroOverlay}
               >
                 <View style={styles.heroBadgeRow}>
                   <LinearGradient
-                    colors={['#f59e0b', '#ea580c']}
+                    colors={['#d25087', '#9d174d']}
                     style={styles.featuredBadge}
                   >
                     <Flame size={12} color="#ffffff" />
                     <Text style={styles.featuredText}>HOT DROP</Text>
                   </LinearGradient>
 
-                  <View style={styles.rateBadge}>
-                    <Sparkles size={12} color="#38bdf8" />
-                    <Text style={styles.rateText}>{heroGame.reward_rate || 2} PTS / MIN</Text>
+                  <View style={[styles.rateBadge, { backgroundColor: `${colors.primary}25`, borderColor: `${colors.primary}55` }]}>
+                    <Sparkles size={11} color={colors.primary} />
+                    <Text style={[styles.rateText, { color: colors.primary }]}>
+                      {payoutsEnabled ? `${heroGame.reward_rate || 2} PTS / MIN` : 'POPULAR'}
+                    </Text>
                   </View>
 
                   <View style={styles.playerCountBadge}>
-                    <Users size={11} color="#94a3b8" />
+                    <Users size={11} color="#979caf" />
                     <Text style={styles.playerCountText}>{(heroGame.play_count || 1840).toLocaleString()} plays</Text>
                   </View>
                 </View>
 
                 <Text style={styles.heroTitle}>{heroGame.title}</Text>
                 <Text style={styles.heroDesc} numberOfLines={2}>
-                  {heroGame.description || 'Jump into high-octane gameplay and accumulate reward points with every minute!'}
+                  {heroGame.description || 'Jump into high-octane gameplay with instant access on any device!'}
                 </Text>
 
                 <View style={styles.heroActionRow}>
                   <LinearGradient
-                    colors={['#06b6d4', '#2563eb']}
+                    colors={colors.primaryGradient || ['#517bfd', '#3659c2']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.playNowBtn}
                   >
                     <Play size={14} color="#ffffff" fill="#ffffff" style={{ marginRight: 6 }} />
-                    <Text style={styles.playNowText}>PLAY & EARN NOW</Text>
+                    <Text style={styles.playNowText}>
+                      {payoutsEnabled ? 'PLAY & EARN NOW' : 'PLAY NOW'}
+                    </Text>
                   </LinearGradient>
 
                   <View style={styles.ratingBadge}>
@@ -381,7 +390,7 @@ export default function LobbyScreen({
                       resizeMode="cover"
                     />
                     <LinearGradient
-                      colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.8)']}
+                      colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.85)']}
                       style={styles.showcaseGradient}
                     >
                       <View style={styles.showcaseTopRow}>
@@ -400,10 +409,10 @@ export default function LobbyScreen({
                           {game.title}
                         </Text>
                         <View style={styles.showcaseActionRow}>
-                          <Text style={styles.showcaseRateText}>
-                            +{game.reward_rate || 1} PTS/MIN
+                          <Text style={[styles.showcaseRateText, { color: colors.primary }]}>
+                            {payoutsEnabled ? `+${game.reward_rate || 1} PTS/MIN` : (game.category_name || 'Arcade')}
                           </Text>
-                          <View style={styles.showcasePlayBtn}>
+                          <View style={[styles.showcasePlayBtn, { backgroundColor: colors.primary }]}>
                             <Play size={11} color="#ffffff" fill="#ffffff" />
                           </View>
                         </View>
@@ -421,8 +430,8 @@ export default function LobbyScreen({
       <View style={styles.sectionWrap}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderLeft}>
-            <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
-              <Trophy size={16} color="#a855f7" />
+            <View style={[styles.sectionIconWrap, { backgroundColor: `${colors.primary}18` }]}>
+              <Trophy size={16} color={colors.primary} />
             </View>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Top Games</Text>
           </View>
@@ -438,7 +447,7 @@ export default function LobbyScreen({
             {topGames.map((game, index) => {
               const rank = index + 1;
               const isTopThree = rank <= 3;
-              const rankColor = rank === 1 ? '#eab308' : rank === 2 ? '#94a3b8' : rank === 3 ? '#d97706' : colors.textMuted;
+              const rankColor = rank === 1 ? '#eab308' : rank === 2 ? '#94a3b8' : rank === 3 ? '#d25087' : colors.textMuted;
 
               return (
                 <AnimatedCard
@@ -467,13 +476,12 @@ export default function LobbyScreen({
                     {/* Game Metadata */}
                     <View style={styles.topGameInfo}>
                       <View style={styles.topGameMetaRow}>
-                        <LinearGradient
-                          colors={['rgba(6, 182, 212, 0.25)', 'rgba(37, 99, 235, 0.25)']}
-                          style={styles.topRatePill}
-                        >
-                          <Sparkles size={9} color="#06b6d4" />
-                          <Text style={styles.topRateText}>{game.reward_rate || 1} PTS/MIN</Text>
-                        </LinearGradient>
+                        <View style={[styles.topRatePill, { backgroundColor: `${colors.primary}20` }]}>
+                          <Sparkles size={9} color={colors.primary} />
+                          <Text style={[styles.topRateText, { color: colors.primary }]}>
+                            {payoutsEnabled ? `${game.reward_rate || 1} PTS/MIN` : (game.category_name || 'Instant Play')}
+                          </Text>
+                        </View>
 
                         <View style={styles.ratingChip}>
                           <Star size={9} color="#fbbf24" fill="#fbbf24" />
@@ -491,7 +499,7 @@ export default function LobbyScreen({
                     </View>
 
                     {/* Instant Play Action */}
-                    <View style={styles.playMiniBtn}>
+                    <View style={[styles.playMiniBtn, { backgroundColor: colors.primary }]}>
                       <Play size={13} color="#ffffff" fill="#ffffff" />
                     </View>
                   </View>
@@ -500,36 +508,6 @@ export default function LobbyScreen({
             })}
           </View>
         )}
-      </View>
-
-      {/* App Version Info & Update Checker Box */}
-      <View style={[styles.updateStatusCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
-        <View style={styles.updateStatusTop}>
-          <View style={styles.verInfo}>
-            <Text style={[styles.verTitle, { color: colors.text }]}>App Version Guard</Text>
-            <Text style={[styles.verSub, { color: colors.textSecondary }]}>
-              Installed: v{updateInfo?.client_version || '1.0.0'} (Code {updateInfo?.client_version_code || 1})
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.checkUpdateBtn}
-            onPress={onCheckUpdate}
-            disabled={isCheckingUpdate}
-            activeOpacity={0.8}
-          >
-            <RefreshCw size={12} color="#090d16" style={{ marginRight: 4 }} />
-            <Text style={styles.checkUpdateBtnText}>
-              {isCheckingUpdate ? 'Checking...' : 'Check Update'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={[styles.updateStatusDetails, { borderTopColor: colors.border }]}>
-          <Text style={[styles.serverVerText, { color: colors.textSecondary }]}>
-            Latest Server Target: v{updateInfo?.latest_version || '1.1.0'} | Forced: {updateInfo?.force_update ? 'ENABLED' : 'DISABLED'}
-          </Text>
-        </View>
       </View>
     </ScrollView>
   );
@@ -540,71 +518,61 @@ const styles = StyleSheet.create({
     flex: 1
   },
   scroll: {
-    padding: 16,
     paddingBottom: 40
   },
   hooksRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 14
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    gap: 10
   },
   hookCardWrapper: {
     flex: 1,
-    borderRadius: 18,
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6
+    borderRadius: 20,
+    overflow: 'hidden'
   },
   hookCard: {
-    padding: 14,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 12,
+    borderRadius: 20,
     justifyContent: 'space-between',
-    minHeight: 120
+    minHeight: 110
   },
   hookTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
   hookIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
     justifyContent: 'center',
     alignItems: 'center'
   },
   hookBadgePill: {
-    backgroundColor: 'rgba(239, 68, 68, 0.35)',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
     paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)'
+    borderRadius: 8
   },
   hookBadgeText: {
     color: '#ffffff',
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '800',
     letterSpacing: 0.5
   },
   hookContent: {
-    marginTop: 8
+    marginTop: 6
   },
   hookTitle: {
     color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: -0.2
+    fontSize: 13,
+    fontWeight: '800'
   },
   hookSub: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.88)',
+    fontSize: 10.5,
     fontWeight: '600',
     marginTop: 2
   },
@@ -616,99 +584,77 @@ const styles = StyleSheet.create({
   },
   hookActionText: {
     color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '800'
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase'
   },
   chestWrapper: {
-    marginBottom: 18,
-    borderRadius: 18,
-    overflow: 'hidden',
-    shadowColor: '#f59e0b',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5
+    marginHorizontal: 14,
+    marginTop: 12,
+    borderRadius: 20,
+    overflow: 'hidden'
   },
   chestCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: '#78350f'
-  },
-  chestGlowBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.25)'
+    padding: 12,
+    borderRadius: 20,
+    borderWidth: 1
   },
   chestLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flex: 1
   },
   chestIconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#f59e0b',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 5,
-    elevation: 4
+    alignItems: 'center'
   },
   chestTitle: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900'
-  },
-  adTag: {
-    backgroundColor: 'rgba(245, 158, 11, 0.25)',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4
-  },
-  adTagText: {
-    color: '#fbbf24',
-    fontSize: 8.5,
+    fontSize: 13,
     fontWeight: '800'
   },
+  adTag: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 6,
+    borderWidth: 0.5
+  },
+  adTagText: {
+    fontSize: 8,
+    fontWeight: '900'
+  },
   chestSubtitle: {
-    color: '#94a3b8',
-    fontSize: 11,
+    fontSize: 10.5,
     marginTop: 2
   },
   chestRewardBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(245, 158, 11, 0.25)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#f59e0b',
-    marginLeft: 10
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1
   },
   chestRewardText: {
-    color: '#fef08a',
-    fontSize: 12.5,
+    fontSize: 10.5,
     fontWeight: '900'
   },
   sectionWrap: {
-    marginBottom: 20
+    marginTop: 22
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
-    paddingHorizontal: 2
+    paddingHorizontal: 14,
+    marginBottom: 10
   },
   sectionHeaderLeft: {
     flexDirection: 'row',
@@ -718,115 +664,48 @@ const styles = StyleSheet.create({
   sectionIconWrap: {
     width: 28,
     height: 28,
-    borderRadius: 8,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center'
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '900',
+    fontSize: 16,
+    fontWeight: '800',
     letterSpacing: -0.3
   },
   sectionSubBadge: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '600'
   },
   featuredTagPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    paddingHorizontal: 8,
+    gap: 3,
+    paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.35)'
-  },
-  featuredTagText: {
-    color: '#f59e0b',
-    fontSize: 10,
-    fontWeight: '900'
-  },
-  horizontalScroll: {
-    gap: 12,
-    paddingBottom: 6
-  },
-  continueCardWrapper: {
-    width: 140,
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4
-  },
-  continueCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
     borderWidth: 1
   },
-  continueThumbWrap: {
-    width: '100%',
-    height: 85,
-    position: 'relative'
-  },
-  continueThumb: {
-    width: '100%',
-    height: '100%'
-  },
-  continueThumbOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-    alignItems: 'flex-end',
-    padding: 6
-  },
-  continuePlayIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#06b6d4',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#06b6d4',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 3
-  },
-  continueMeta: {
-    padding: 8
-  },
-  continueTitle: {
-    fontSize: 12,
+  featuredTagText: {
+    fontSize: 9.5,
     fontWeight: '800'
   },
-  continueRateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 3
-  },
-  continueRateText: {
-    color: '#38bdf8',
-    fontSize: 10,
-    fontWeight: '700'
-  },
   heroCardWrapper: {
+    marginHorizontal: 14,
     borderRadius: 22,
     overflow: 'hidden',
-    marginBottom: 14,
-    shadowColor: '#06b6d4',
-    shadowOffset: { width: 0, height: 8 },
+    shadowColor: '#517bfd',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
-    shadowRadius: 14,
+    shadowRadius: 10,
     elevation: 8
   },
   heroCard: {
-    height: 220,
     borderRadius: 22,
+    borderWidth: 1,
     overflow: 'hidden',
-    borderWidth: 1.5
+    height: 240,
+    position: 'relative'
   },
   heroImage: {
     width: '100%',
@@ -841,20 +720,21 @@ const styles = StyleSheet.create({
   heroBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8
+    gap: 6,
+    marginBottom: 6,
+    flexWrap: 'wrap'
   },
   featuredBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
+    gap: 3,
+    paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 8
+    borderRadius: 6
   },
   featuredText: {
     color: '#ffffff',
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.5
   },
@@ -862,60 +742,57 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(6, 182, 212, 0.25)',
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(6, 182, 212, 0.4)'
+    borderRadius: 6,
+    borderWidth: 1
   },
   rateText: {
-    color: '#38bdf8',
     fontSize: 9.5,
     fontWeight: '800'
   },
   playerCountBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
-    paddingHorizontal: 8,
+    gap: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    paddingHorizontal: 6,
     paddingVertical: 3,
-    borderRadius: 8
+    borderRadius: 6
   },
   playerCountText: {
-    color: '#94a3b8',
+    color: '#979caf',
     fontSize: 9.5,
-    fontWeight: '700'
+    fontWeight: '600'
   },
   heroTitle: {
     color: '#ffffff',
     fontSize: 20,
     fontWeight: '900',
-    letterSpacing: -0.5
+    letterSpacing: -0.3
   },
   heroDesc: {
     color: '#cbd5e1',
     fontSize: 11.5,
     marginTop: 4,
-    lineHeight: 15
+    lineHeight: 16
   },
   heroActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10
+    marginTop: 12
   },
   playNowBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-    shadowColor: '#06b6d4',
-    shadowOffset: { width: 0, height: 3 },
+    paddingVertical: 9,
+    borderRadius: 14,
+    shadowColor: '#517bfd',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
-    shadowRadius: 6,
+    shadowRadius: 5,
     elevation: 4
   },
   playNowText: {
@@ -928,33 +805,80 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#334155'
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 10
   },
   ratingText: {
     color: '#fbbf24',
     fontSize: 12,
     fontWeight: '800'
   },
-  showcaseCardWrapper: {
-    width: 200,
+  horizontalScroll: {
+    paddingHorizontal: 14,
+    gap: 10
+  },
+  continueCardWrapper: {
+    width: 140,
     borderRadius: 18,
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5
+    overflow: 'hidden'
+  },
+  continueCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden'
+  },
+  continueThumbWrap: {
+    width: '100%',
+    height: 90,
+    position: 'relative'
+  },
+  continueThumb: {
+    width: '100%',
+    height: '100%'
+  },
+  continueThumbOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  continuePlayIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  continueMeta: {
+    padding: 8
+  },
+  continueTitle: {
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  continueRateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 3
+  },
+  continueRateText: {
+    fontSize: 9.5,
+    fontWeight: '700'
+  },
+  showcaseCardWrapper: {
+    width: 170,
+    height: 120,
+    borderRadius: 18,
+    overflow: 'hidden'
   },
   showcaseCard: {
-    height: 130,
+    width: '100%',
+    height: '100%',
     borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1
+    borderWidth: 1,
+    overflow: 'hidden'
   },
   showcaseThumbWrap: {
     width: '100%',
@@ -963,12 +887,11 @@ const styles = StyleSheet.create({
   },
   showcaseThumb: {
     width: '100%',
-    height: '100%',
-    position: 'absolute'
+    height: '100%'
   },
   showcaseGradient: {
     ...StyleSheet.absoluteFillObject,
-    padding: 10,
+    padding: 8,
     justifyContent: 'space-between'
   },
   showcaseTopRow: {
@@ -980,26 +903,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: 'rgba(245, 158, 11, 0.3)',
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 5,
     paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#f59e0b'
+    borderRadius: 5
   },
   showcaseBadgeText: {
-    color: '#fef08a',
+    color: '#fbbf24',
     fontSize: 8,
-    fontWeight: '900'
+    fontWeight: '800'
   },
   showcaseRating: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 4,
     paddingVertical: 2,
-    borderRadius: 6
+    borderRadius: 5
   },
   showcaseRatingText: {
     color: '#fbbf24',
@@ -1011,11 +932,8 @@ const styles = StyleSheet.create({
   },
   showcaseTitle: {
     color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '900',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3
+    fontSize: 12,
+    fontWeight: '800'
   },
   showcaseActionRow: {
     flexDirection: 'row',
@@ -1024,39 +942,34 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   showcaseRateText: {
-    color: '#38bdf8',
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '800'
   },
   showcasePlayBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#06b6d4',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center'
   },
   topGamesList: {
-    gap: 10
+    paddingHorizontal: 14,
+    gap: 8
   },
   topGameCardWrapper: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 3
+    borderRadius: 18,
+    overflow: 'hidden'
   },
   topGameCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
     padding: 10,
-    borderWidth: 1
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 10
   },
   rankContainer: {
-    width: 32,
+    width: 22,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -1064,35 +977,29 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   topGameThumb: {
-    width: 62,
-    height: 62,
-    borderRadius: 12,
-    marginLeft: 4
+    width: 48,
+    height: 48,
+    borderRadius: 12
   },
   topGameInfo: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 8
+    flex: 1
   },
   topGameMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 3
+    marginBottom: 2
   },
   topRatePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     paddingHorizontal: 6,
     paddingVertical: 1.5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(6, 182, 212, 0.4)'
+    borderRadius: 6
   },
   topRateText: {
-    color: '#38bdf8',
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '800'
   },
   ratingChip: {
@@ -1103,10 +1010,10 @@ const styles = StyleSheet.create({
   ratingChipText: {
     color: '#fbbf24',
     fontSize: 9,
-    fontWeight: '700'
+    fontWeight: '800'
   },
   topGameTitle: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '800'
   },
   topGameSub: {
@@ -1114,60 +1021,10 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   playMiniBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    backgroundColor: '#06b6d4',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#06b6d4',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 3
-  },
-  updateStatusCard: {
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    marginTop: 8
-  },
-  updateStatusTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between'
-  },
-  verInfo: {
-    flex: 1
-  },
-  verTitle: {
-    fontSize: 13,
-    fontWeight: '800'
-  },
-  verSub: {
-    fontSize: 11,
-    marginTop: 2
-  },
-  checkUpdateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#06b6d4',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 9
-  },
-  checkUpdateBtnText: {
-    color: '#090d16',
-    fontSize: 11,
-    fontWeight: '800'
-  },
-  updateStatusDetails: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1
-  },
-  serverVerText: {
-    fontSize: 10,
-    fontWeight: '600'
+    alignItems: 'center'
   }
 });

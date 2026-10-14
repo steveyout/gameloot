@@ -20,7 +20,7 @@ export default function Sidebar({
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'games', label: 'HTML5 Games', icon: Gamepad2 },
+    { id: 'games', label: 'Games Catalog', icon: Gamepad2 },
     { id: 'notifications', label: 'Push Broadcasts', icon: BellRing },
     { id: 'quizzes', label: 'Trivia Quizzes', icon: HelpCircle },
     { id: 'surf', label: 'Web Surfing', icon: Globe },
@@ -29,7 +29,7 @@ export default function Sidebar({
     { id: 'users', label: 'Players', icon: Users },
     { 
       id: 'redemptions', 
-      label: 'Payout Requests', 
+      label: 'Payouts & Rewards', 
       icon: Banknote,
       badge: counts?.pending_redemptions > 0 ? counts.pending_redemptions : null,
       badgeColor: 'bg-amber-500'
@@ -104,7 +104,7 @@ export default function Sidebar({
               Live
             </span>
           </div>
-          <p className="text-[11px] text-slate-400 m-0">Test HTML5 embed with loot HUD</p>
+          <p className="text-[11px] text-slate-400 m-0">Test game embed with loot HUD</p>
         </button>
       </div>
 

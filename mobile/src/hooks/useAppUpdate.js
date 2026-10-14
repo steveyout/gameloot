@@ -9,6 +9,8 @@ export function useAppUpdate() {
   const [isChecking, setIsChecking] = useState(false);
   const [showForcedModal, setShowForcedModal] = useState(false);
   const [showOptionalBanner, setShowOptionalBanner] = useState(false);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [payoutsEnabled, setPayoutsEnabled] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
 
   const performCheck = useCallback(async (isManual = false) => {
@@ -19,6 +21,14 @@ export function useAppUpdate() {
 
       if (data && data.success) {
         setUpdateInfo(data);
+
+        // Maintenance Mode
+        const inMaintenance = data.maintenance_mode === true || data.maintenance_mode === 'true';
+        setIsMaintenanceMode(inMaintenance);
+
+        // Payouts Availability
+        const payoutsActive = data.payouts_enabled !== false && data.payouts_enabled !== 'false';
+        setPayoutsEnabled(payoutsActive);
 
         if (data.update_required) {
           // Mandatory / Forced Update
@@ -36,7 +46,7 @@ export function useAppUpdate() {
       }
       return data;
     } catch (err) {
-      console.warn('Update check failed:', err.message);
+      console.warn('Update & status check failed:', err.message);
       setErrorMsg(err.message);
       return null;
     } finally {
@@ -59,7 +69,7 @@ export function useAppUpdate() {
     return () => subscription.remove();
   }, [performCheck]);
 
-  // 3. Real-time WebSocket listener for immediate instant force updates triggered by Admin
+  // 3. Real-time WebSocket listener for immediate instant force updates & maintenance toggles triggered by Admin
   useEffect(() => {
     let socket = null;
     try {
@@ -69,7 +79,20 @@ export function useAppUpdate() {
       });
 
       socket.on('app_force_update', (broadcastData) => {
-        console.log('⚡ [Socket] Received immediate app force update push:', broadcastData);
+        console.log('⚡ [Socket] Received app system update push:', broadcastData);
+
+        // Instantly react to maintenance_mode
+        if (broadcastData.maintenance_mode !== undefined) {
+          const isMaint = broadcastData.maintenance_mode === 'true' || broadcastData.maintenance_mode === true;
+          setIsMaintenanceMode(isMaint);
+        }
+
+        // Instantly react to payouts_enabled
+        if (broadcastData.payouts_enabled !== undefined) {
+          const isPayouts = broadcastData.payouts_enabled !== 'false' && broadcastData.payouts_enabled !== false;
+          setPayoutsEnabled(isPayouts);
+        }
+
         // Immediately re-verify against API
         performCheck(false);
       });
@@ -101,6 +124,8 @@ export function useAppUpdate() {
     isChecking,
     showForcedModal,
     showOptionalBanner,
+    isMaintenanceMode,
+    payoutsEnabled,
     errorMsg,
     checkForUpdate: () => performCheck(true),
     openUpdateUrl,

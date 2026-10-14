@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Image,
   ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,23 +19,35 @@ import {
   AlertCircle,
   ShieldCheck,
   Smartphone,
-  RefreshCw
+  RefreshCw,
+  User,
+  Trophy,
+  Gamepad2,
+  Flame,
+  Shield,
+  FileText,
+  LogOut
 } from 'lucide-react-native';
 import { getUserProfile } from '../api/clientApi';
 import { useTheme } from '../context/ThemeContext';
+import LegalModal from '../components/LegalModal';
 
 export default function WalletScreen({
   user,
   token,
+  payoutsEnabled = false,
   onRefreshUser,
   onCheckUpdate,
   isCheckingUpdate,
-  updateInfo
+  updateInfo,
+  onLogout
 }) {
   const { colors, isDark } = useTheme();
   const [profile, setProfile] = useState(user);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [legalModalVisible, setLegalModalVisible] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState('privacy');
 
   const fetchProfile = async () => {
     if (!token) return;
@@ -43,10 +56,10 @@ export default function WalletScreen({
       const res = await getUserProfile(token);
       if (res.success && res.user) {
         setProfile(res.user);
-        onRefreshUser(res.user);
+        if (onRefreshUser) onRefreshUser(res.user);
       }
-    } catch (err) {
-      console.warn('Error loading profile:', err.message);
+    } catch (e) {
+      console.warn('Failed to refresh profile:', e.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -62,9 +75,14 @@ export default function WalletScreen({
     fetchProfile();
   };
 
+  const handleOpenLegal = (tab) => {
+    setLegalModalTab(tab);
+    setLegalModalVisible(true);
+  };
+
   const balance = profile?.points_balance || user?.points_balance || 0;
-  const totalEarned = profile?.total_earned || user?.total_earned || 0;
-  const totalWithdrawn = profile?.total_withdrawn || user?.total_withdrawn || 0;
+  const cashUsd = (balance * 0.001).toFixed(2);
+  const playerRankTier = balance >= 5000 ? 'Master' : balance >= 2000 ? 'Diamond' : balance >= 500 ? 'Gold' : 'Arcade Rookie';
 
   return (
     <ScrollView
@@ -75,43 +93,77 @@ export default function WalletScreen({
       }
       showsVerticalScrollIndicator={false}
     >
-      {/* Wallet Card */}
-      <LinearGradient
-        colors={isDark ? ['#0f172a', '#1e293b'] : ['#ffffff', '#f1f5f9']}
-        style={[styles.walletCard, { borderColor: colors.border }]}
-      >
-        <View style={styles.walletHeader}>
-          <View style={styles.walletTitleRow}>
-            <Wallet size={18} color={colors.primary} />
-            <Text style={[styles.walletTitle, { color: colors.text }]}>Loyalty Vault</Text>
+      {/* Dynamic Profile or Wallet Card - Styled with high-contrast, crystal-clear typography */}
+      {payoutsEnabled ? (
+        <LinearGradient
+          colors={['#1c2242', '#121528']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.balanceCard, { borderColor: '#2e386b' }]}
+        >
+          <View style={styles.cardTopRow}>
+            <View>
+              <Text style={styles.cardSub}>LOYALTY VAULT</Text>
+              <Text style={styles.balanceBig}>{balance.toLocaleString()} PTS</Text>
+              <Text style={styles.balanceUsd}>
+                Available Cash Value: <Text style={{ color: '#34d399', fontWeight: '800' }}>${cashUsd} USD</Text>
+              </Text>
+            </View>
+            <View style={styles.vaultIconBadge}>
+              <Wallet size={24} color="#93c5fd" />
+            </View>
           </View>
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>Active Account</Text>
+        </LinearGradient>
+      ) : (
+        <LinearGradient
+          colors={['#1c2242', '#121528']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.balanceCard, { borderColor: '#2e386b' }]}
+        >
+          <View style={styles.profileHeaderRow}>
+            <Image
+              source={{ uri: profile?.avatar || user?.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=gameloot' }}
+              style={styles.profileAvatar}
+            />
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={styles.profileUsername}>
+                {profile?.username || user?.username || 'Player'}
+              </Text>
+              <Text style={styles.profileEmail}>
+                {profile?.email || user?.email || 'Registered Player'}
+              </Text>
+              <View style={styles.rankTag}>
+                <Trophy size={11} color="#93c5fd" />
+                <Text style={styles.rankTagText}>{playerRankTier}</Text>
+              </View>
+            </View>
           </View>
-        </View>
 
-        <Text style={styles.balanceBig}>{balance.toLocaleString()} PTS</Text>
-        <Text style={[styles.balanceUsd, { color: colors.textSecondary }]}>
-          Cash Value: ${(balance * 0.001).toFixed(3)} USD (1,000 PTS = $1.00 USD)
-        </Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Total Score</Text>
+              <Text style={[styles.statVal, { color: '#fbbf24' }]}>{balance.toLocaleString()} PTS</Text>
+            </View>
 
-        <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
-          <View style={styles.statBox}>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Lifetime Earned</Text>
-            <Text style={[styles.statVal, { color: colors.text }]}>+{totalEarned.toLocaleString()}</Text>
+            <View style={styles.statDivider} />
+
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Player Status</Text>
+              <Text style={[styles.statVal, { color: '#34d399' }]}>Active</Text>
+            </View>
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Level</Text>
+              <Text style={[styles.statVal, { color: '#60a5fa' }]}>Lv. {Math.floor(balance / 100) + 1}</Text>
+            </View>
           </View>
+        </LinearGradient>
+      )}
 
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-
-          <View style={styles.statBox}>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total Withdrawn</Text>
-            <Text style={[styles.statVal, { color: colors.text }]}>${Number(totalWithdrawn).toFixed(2)}</Text>
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* App Build & Version Checker Section */}
+      {/* App Build & Version Checker Section - Learning OS styling */}
       <View style={[styles.versionBox, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
         <View style={[styles.verHeader, { borderBottomColor: colors.border }]}>
           <Smartphone size={16} color={colors.primary} />
@@ -124,7 +176,7 @@ export default function WalletScreen({
         </View>
         <View style={styles.verRow}>
           <Text style={[styles.verKey, { color: colors.textSecondary }]}>Latest Release Target:</Text>
-          <Text style={[styles.verVal, { color: updateInfo?.has_update ? '#fbbf24' : '#10b981' }]}>
+          <Text style={[styles.verVal, { color: updateInfo?.has_update ? colors.gold : '#10b981' }]}>
             v{updateInfo?.latest_version || '1.1.0'} {updateInfo?.has_update ? '(New Version)' : '(Latest)'}
           </Text>
         </View>
@@ -136,28 +188,62 @@ export default function WalletScreen({
         </View>
 
         <TouchableOpacity
-          style={styles.verCheckBtn}
+          style={[styles.verCheckBtn, { backgroundColor: colors.primary }]}
           onPress={onCheckUpdate}
           disabled={isCheckingUpdate}
           activeOpacity={0.8}
         >
-          <RefreshCw size={14} color="#090d16" style={{ marginRight: 6 }} />
+          <RefreshCw size={14} color="#ffffff" style={{ marginRight: 6 }} />
           <Text style={styles.verCheckBtnText}>
             {isCheckingUpdate ? 'Checking Server...' : 'Trigger Update Check'}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Loyalty Reward Transparency Notice */}
-      <View style={[styles.securityCard, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.25)' }]}>
-        <ShieldCheck size={20} color="#10b981" />
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={styles.securityTitle}>Loyalty Reward Transparency</Text>
-          <Text style={[styles.securityDesc, { color: isDark ? '#a7f3d0' : '#065f46' }]}>
-            GameLoot provides verified advertising revenue sharing from game sponsorships and rewarded drops. Micro-rewards reflect genuine activity without real-money purchase requirements.
-          </Text>
-        </View>
+      {/* Quick Legal & Policies Buttons */}
+      <View style={[styles.legalCard, { backgroundColor: colors.surfaceCard, borderColor: colors.border }]}>
+        <TouchableOpacity
+          style={styles.legalBtn}
+          onPress={() => handleOpenLegal('privacy')}
+          activeOpacity={0.7}
+        >
+          <Shield size={16} color={colors.primary} />
+          <Text style={[styles.legalBtnText, { color: colors.text }]}>Privacy Policy</Text>
+          <Text style={[styles.legalBtnArrow, { color: colors.textMuted }]}>→</Text>
+        </TouchableOpacity>
+
+        <View style={[styles.legalDivider, { backgroundColor: colors.border }]} />
+
+        <TouchableOpacity
+          style={styles.legalBtn}
+          onPress={() => handleOpenLegal('terms')}
+          activeOpacity={0.7}
+        >
+          <FileText size={16} color={colors.primary} />
+          <Text style={[styles.legalBtnText, { color: colors.text }]}>Terms of Service</Text>
+          <Text style={[styles.legalBtnArrow, { color: colors.textMuted }]}>→</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Logout Button */}
+      {user ? (
+        <TouchableOpacity
+          style={[styles.logoutBtn, { borderColor: 'rgba(239, 68, 68, 0.3)' }]}
+          onPress={onLogout}
+          activeOpacity={0.8}
+        >
+          <LogOut size={16} color="#ef4444" style={{ marginRight: 8 }} />
+          <Text style={styles.logoutBtnText}>Sign Out of GameLoot</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {/* Legal Modal Component */}
+      <LegalModal
+        visible={legalModalVisible}
+        initialTab={legalModalTab}
+        onClose={() => setLegalModalVisible(false)}
+        isDark={isDark}
+      />
     </ScrollView>
   );
 }
@@ -168,72 +254,104 @@ const styles = StyleSheet.create({
   },
   scroll: {
     padding: 16,
-    paddingBottom: 32
+    paddingBottom: 40
   },
-  walletCard: {
+  balanceCard: {
     borderRadius: 22,
-    padding: 20,
+    padding: 18,
     borderWidth: 1,
-    marginBottom: 16
+    marginBottom: 16,
+    shadowColor: '#517bfd',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8
   },
-  walletHeader: {
+  cardTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12
+    alignItems: 'flex-start'
   },
-  walletTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8
+  cardSub: {
+    color: '#93c5fd',
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    marginBottom: 4
   },
-  walletTitle: {
-    fontSize: 13,
-    fontWeight: '700'
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10b981'
-  },
-  statusText: {
-    color: '#10b981',
-    fontSize: 10,
-    fontWeight: '700'
+  vaultIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(81, 123, 253, 0.22)',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   balanceBig: {
     color: '#fbbf24',
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
-    letterSpacing: -1
+    letterSpacing: -0.5
   },
   balanceUsd: {
+    color: '#e2e8f0',
     fontSize: 12,
     fontWeight: '600',
+    marginTop: 3
+  },
+  profileHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  profileAvatar: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(81, 123, 253, 0.4)'
+  },
+  profileUsername: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.2
+  },
+  profileEmail: {
+    color: '#cbd5e1',
+    fontSize: 11.5,
     marginTop: 2
+  },
+  rankTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(81, 123, 253, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 6
+  },
+  rankTagText: {
+    color: '#93c5fd',
+    fontSize: 10,
+    fontWeight: '800'
   },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.12)'
   },
   statBox: {
     flex: 1
   },
   statLabel: {
-    fontSize: 11
+    color: '#94a3b8',
+    fontSize: 10.5,
+    fontWeight: '600'
   },
   statVal: {
     fontSize: 15,
@@ -242,11 +360,12 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    height: 30,
-    marginHorizontal: 16
+    height: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    marginHorizontal: 12
   },
   versionBox: {
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
     marginBottom: 16
@@ -279,31 +398,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#06b6d4',
-    borderRadius: 10,
+    borderRadius: 12,
     paddingVertical: 10,
     marginTop: 12
   },
   verCheckBtnText: {
-    color: '#090d16',
+    color: '#ffffff',
     fontSize: 12,
     fontWeight: '800'
   },
-  securityCard: {
+  legalCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 16,
+    overflow: 'hidden'
+  },
+  legalBtn: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    borderRadius: 16,
+    alignItems: 'center',
     padding: 14,
-    borderWidth: 1
+    gap: 12
   },
-  securityTitle: {
-    color: '#10b981',
-    fontSize: 12,
+  legalBtnText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  legalBtnArrow: {
+    fontSize: 14,
+    fontWeight: '700'
+  },
+  legalDivider: {
+    height: 1,
+    width: '100%'
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)'
+  },
+  logoutBtnText: {
+    color: '#ef4444',
+    fontSize: 13,
     fontWeight: '800'
-  },
-  securityDesc: {
-    fontSize: 11,
-    marginTop: 3,
-    lineHeight: 16
   }
 });

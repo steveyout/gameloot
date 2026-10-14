@@ -13,7 +13,10 @@ import {
   ExternalLink,
   AlertTriangle,
   Send,
-  Eye
+  Eye,
+  Wrench,
+  Gift,
+  Coins
 } from 'lucide-react';
 import { getSettings, updateSettings } from '../services/api';
 import { useAlert } from '../context/AlertContext';
@@ -24,13 +27,29 @@ export default function SettingsView() {
   const [saving, setSaving] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
 
-  const { success, error, info } = useAlert();
+  const { success, error, info, confirm } = useAlert();
 
   const fetchSettings = async () => {
     try {
       setLoading(true);
       const res = await getSettings();
-      if (res.success) setSettings(res.settings);
+      if (res.success) {
+        let list = res.settings || [];
+        // Ensure payouts_enabled exists in list
+        if (!list.some(s => s.setting_key === 'payouts_enabled')) {
+          list = [
+            ...list,
+            {
+              setting_key: 'payouts_enabled',
+              setting_value: 'true',
+              setting_label: 'Enable Payouts & Cashouts Tab',
+              setting_type: 'boolean',
+              description: 'When disabled, hides payout options in the app and disables the Cashout/Rewards tab'
+            }
+          ];
+        }
+        setSettings(list);
+      }
     } catch (err) {
       error(err.message);
     } finally {
@@ -55,7 +74,7 @@ export default function SettingsView() {
     setSaving(true);
     try {
       await updateSettings(settings);
-      success('System variables successfully updated & broadcasted.');
+      success('System variables successfully updated & broadcasted to mobile devices!');
     } catch (err) {
       error('Save failed: ' + err.message);
     } finally {
@@ -67,9 +86,73 @@ export default function SettingsView() {
     setSaving(true);
     try {
       await updateSettings(settings);
-      success('Immediate Force Update push notification broadcasted to all connected mobile devices!');
+      success('Immediate Force Update & Maintenance state broadcasted to all mobile devices!');
     } catch (err) {
       error('Broadcast failed: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 1-Click Quick Toggle for Maintenance Mode
+  const handleToggleMaintenance = async () => {
+    const isCurrentlyMaint = getSettingVal('maintenance_mode') === 'true';
+    const nextVal = isCurrentlyMaint ? 'false' : 'true';
+
+    const ok = await confirm({
+      title: isCurrentlyMaint ? 'Disable Maintenance Mode?' : 'Activate Maintenance Mode?',
+      message: isCurrentlyMaint
+        ? 'This will immediately unlock the mobile app and restore normal gameplay and earnings for all players.'
+        : 'This will lock all players out with the Maintenance Screen and pause game earnings until you disable it.',
+      confirmText: isCurrentlyMaint ? 'Disable Maintenance' : 'Activate Maintenance',
+      type: isCurrentlyMaint ? 'info' : 'danger'
+    });
+
+    if (!ok) return;
+
+    setSaving(true);
+    try {
+      const updated = settings.map(s => s.setting_key === 'maintenance_mode' ? { ...s, setting_value: nextVal } : s);
+      setSettings(updated);
+      await updateSettings(updated);
+      success(nextVal === 'true'
+        ? '🔴 Maintenance Mode ACTIVATED! Mobile apps locked with maintenance screen.'
+        : '🟢 Maintenance Mode DEACTIVATED! Mobile apps restored to normal operations.'
+      );
+    } catch (err) {
+      error('Failed to toggle maintenance mode: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 1-Click Quick Toggle for Payouts Tab
+  const handleTogglePayouts = async () => {
+    const isCurrentlyEnabled = getSettingVal('payouts_enabled') !== 'false';
+    const nextVal = isCurrentlyEnabled ? 'false' : 'true';
+
+    const ok = await confirm({
+      title: isCurrentlyEnabled ? 'Disable Cashout / Payouts Tab?' : 'Enable Cashout / Payouts Tab?',
+      message: isCurrentlyEnabled
+        ? 'This will hide the Cashout tab from the mobile app bottom bar and prevent players from redeeming rewards.'
+        : 'This will restore the Cashout tab in the mobile app bottom bar and allow players to redeem reward items.',
+      confirmText: isCurrentlyEnabled ? 'Disable Cashouts' : 'Enable Cashouts',
+      type: isCurrentlyEnabled ? 'danger' : 'info'
+    });
+
+    if (!ok) return;
+
+    setSaving(true);
+    try {
+      const updated = settings.map(s => s.setting_key === 'payouts_enabled' ? { ...s, setting_value: nextVal } : s);
+      setSettings(updated);
+      await updateSettings(updated);
+      success(nextVal === 'true'
+        ? '🟢 Cashouts ENABLED! Cashout tab restored to mobile navigation.'
+        : '🔴 Cashouts DISABLED! Cashout tab hidden from mobile navigation.'
+      );
+    } catch (err) {
+      error('Failed to toggle payouts: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -81,11 +164,11 @@ export default function SettingsView() {
     ['points_per_usd', 'min_payout_points', 'daily_max_points_global', 'ad_video_reward_pts', 'ad_reward_cooldown_sec'].includes(s.setting_key)
   );
   const securitySettings = settings.filter(s =>
-    ['ping_interval_seconds', 'maintenance_mode', 'google_play_disclaimer'].includes(s.setting_key)
+    ['ping_interval_seconds', 'google_play_disclaimer'].includes(s.setting_key)
   );
-  const otherSettings = settings.filter(s =>
-    !appSettings.includes(s) && !economySettings.includes(s) && !securitySettings.includes(s)
-  );
+
+  const isMaintActive = getSettingVal('maintenance_mode') === 'true';
+  const isPayoutActive = getSettingVal('payouts_enabled') !== 'false';
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
@@ -97,7 +180,7 @@ export default function SettingsView() {
             <span>App Version & Platform Control</span>
           </h2>
           <p className="text-xs text-slate-400 m-0 mt-0.5">
-            Manage Android app updates, forced update enforcement, and Google Play ad economy
+            Manage live maintenance mode, cashout availability, forced updates, and ad economy
           </p>
         </div>
 
@@ -120,6 +203,111 @@ export default function SettingsView() {
             <Radio className="w-4 h-4 animate-pulse" />
             <span>Broadcast Push</span>
           </button>
+        </div>
+      </div>
+
+      {/* Quick Master Switches: Maintenance Mode & Payouts Tab */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Maintenance Switch Card */}
+        <div className={`p-4 rounded-2xl border transition-all ${
+          isMaintActive
+            ? 'bg-rose-950/40 border-rose-500/50 shadow-lg shadow-rose-950/40'
+            : 'bg-slate-900/80 border-slate-800'
+        }`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                isMaintActive ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-800 text-slate-400'
+              }`}>
+                <Wrench className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white m-0">Maintenance Mode</h4>
+                <p className="text-[11px] text-slate-400 m-0 mt-0.5">
+                  {isMaintActive
+                    ? 'Lock mobile apps with maintenance screen'
+                    : 'System is running live for all players'}
+                </p>
+              </div>
+            </div>
+
+            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
+              isMaintActive
+                ? 'bg-rose-500 text-white animate-pulse'
+                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+            }`}>
+              {isMaintActive ? 'ACTIVE' : 'OFFLINE'}
+            </span>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+            <span className="text-[11px] text-slate-400">
+              {isMaintActive ? 'Players are locked out' : 'Normal gameplay active'}
+            </span>
+            <button
+              type="button"
+              onClick={handleToggleMaintenance}
+              disabled={saving}
+              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs cursor-pointer transition-all ${
+                isMaintActive
+                  ? 'bg-emerald-500 hover:bg-emerald-400 text-black'
+                  : 'bg-rose-600 hover:bg-rose-500 text-white'
+              }`}
+            >
+              {isMaintActive ? 'End Maintenance' : 'Enable Maintenance'
+            }</button>
+          </div>
+        </div>
+
+        {/* Payouts Tab Switch Card */}
+        <div className={`p-4 rounded-2xl border transition-all ${
+          !isPayoutActive
+            ? 'bg-amber-950/40 border-amber-500/50 shadow-lg shadow-amber-950/40'
+            : 'bg-slate-900/80 border-slate-800'
+        }`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                !isPayoutActive ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'
+              }`}>
+                <Gift className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white m-0">Cashout / Payouts Tab</h4>
+                <p className="text-[11px] text-slate-400 m-0 mt-0.5">
+                  {isPayoutActive
+                    ? 'Cashout tab & reward catalog visible in app'
+                    : 'Cashout tab is completely hidden & paused in app'}
+                </p>
+              </div>
+            </div>
+
+            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
+              isPayoutActive
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                : 'bg-amber-500 text-black'
+            }`}>
+              {isPayoutActive ? 'ENABLED' : 'PAUSED / HIDDEN'}
+            </span>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+            <span className="text-[11px] text-slate-400">
+              {isPayoutActive ? 'Tab visible on bottom bar' : 'Tab hidden from bottom bar'}
+            </span>
+            <button
+              type="button"
+              onClick={handleTogglePayouts}
+              disabled={saving}
+              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs cursor-pointer transition-all ${
+                isPayoutActive
+                  ? 'bg-amber-600 hover:bg-amber-500 text-white'
+                  : 'bg-emerald-500 hover:bg-emerald-400 text-black'
+              }`}
+            >
+              {isPayoutActive ? 'Disable & Hide Tab' : 'Enable Cashout Tab'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -223,7 +411,7 @@ export default function SettingsView() {
           </div>
         </div>
 
-        {/* Section 3: Anti-Cheat & System Flags */}
+        {/* Section 3: Anti-Cheat & Security Controls */}
         <div className="glass-card rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
             <Shield className="w-5 h-5 text-emerald-400" />
@@ -234,7 +422,7 @@ export default function SettingsView() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {securitySettings.concat(otherSettings).map((s) => (
+            {securitySettings.map((s) => (
               <div key={s.setting_key} className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
                 <label className="text-xs font-bold text-white block mb-0.5">
                   {s.setting_label || s.setting_key}
@@ -247,7 +435,7 @@ export default function SettingsView() {
                     className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs font-medium focus:border-emerald-400 outline-none"
                   >
                     <option value="false">Disabled / Normal Mode</option>
-                    <option value="true">Enabled / Maintenance Active</option>
+                    <option value="true">Enabled / Active</option>
                   </select>
                 ) : (
                   <input
@@ -270,7 +458,7 @@ export default function SettingsView() {
             className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            <span>{saving ? 'Applying System Configuration...' : 'Save Configuration'}</span>
+            <span>{saving ? 'Applying System Configuration...' : 'Save Configuration & Broadcast'}</span>
           </button>
         </div>
       </form>
