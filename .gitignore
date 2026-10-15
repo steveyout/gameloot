@@ -22,6 +22,7 @@ ios/
 *.aab
 *.jks
 *.keystore
+!mobile/release.keystore
 *.p8
 *.p12
 *.key

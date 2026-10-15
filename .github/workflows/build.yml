@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build-and-release-app:
-    name: Build Android APK & AAB Bundle
+    name: Build Android Release (AAB & APK)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -65,55 +65,99 @@ jobs:
         working-directory: ./mobile
         run: npx expo prebuild -p android --no-install
 
-      - name: Build Android APK & AAB Bundle with Gradle
-        working-directory: ./mobile/android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleRelease bundleRelease --no-daemon || (./gradlew assembleDebug bundleDebug --no-daemon)
-
-      - name: Collect Output Binaries (APK & AAB)
+      - name: Configure Production Release Signing
         working-directory: ./mobile
         run: |
-          RELEASE_APK=$(find android/app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -n 1)
-          DEBUG_APK=$(find android/app/build/outputs/apk/debug -name "*.apk" 2>/dev/null | head -n 1)
-          TARGET_APK=${RELEASE_APK:-$DEBUG_APK}
-          if [ -n "$TARGET_APK" ]; then
-            echo "Found APK at: $TARGET_APK"
-            cp "$TARGET_APK" ./GameLoot.apk
-            ls -lh ./GameLoot.apk
-          else
-            echo "Warning: No APK file was found in android/app/build/outputs/apk"
+          python3 -c "
+          import re
+          path = 'android/app/build.gradle'
+          with open(path, 'r', encoding='utf-8') as f:
+              content = f.read()
+
+          release_signing = '''        release {
+              storeFile file('release.keystore')
+              storePassword (System.getenv('RELEASE_STORE_PASSWORD') ?: 'gameloot2026')
+              keyAlias (System.getenv('RELEASE_KEY_ALIAS') ?: 'gameloot')
+              keyPassword (System.getenv('RELEASE_KEY_PASSWORD') ?: 'gameloot2026')
+          }'''
+
+          content = re.sub(r'(signingConfigs\s*\{[\s\S]*?debug\s*\{[\s\S]*?\})', r'\1\n' + release_signing, content)
+          content = re.sub(r'(buildTypes\s*\{[\s\S]*?release\s*\{[\s\S]*?)signingConfig signingConfigs\.debug', r'\1signingConfig signingConfigs.release', content)
+
+          with open(path, 'w', encoding='utf-8') as f:
+              f.write(content)
+          print('Successfully configured release signing in android/app/build.gradle!')
+          "
+
+          # Deploy release keystore
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "Deploying release keystore from GitHub Secret ANDROID_KEYSTORE_BASE64..."
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          elif [ -f release.keystore ]; then
+            echo "Deploying release.keystore from mobile repository..."
+            cp release.keystore android/app/release.keystore
           fi
 
-          RELEASE_AAB=$(find android/app/build/outputs/bundle/release -name "*.aab" 2>/dev/null | head -n 1)
-          DEBUG_AAB=$(find android/app/build/outputs/bundle/debug -name "*.aab" 2>/dev/null | head -n 1)
-          TARGET_AAB=${RELEASE_AAB:-$DEBUG_AAB}
-          if [ -n "$TARGET_AAB" ]; then
-            echo "Found AAB at: $TARGET_AAB"
-            cp "$TARGET_AAB" ./GameLoot.aab
-            ls -lh ./GameLoot.aab
-          else
-            echo "Warning: No AAB file was found in android/app/build/outputs/bundle"
-          fi
-
-          if [ ! -f ./GameLoot.apk ] && [ ! -f ./GameLoot.aab ]; then
-            echo "Error: Neither APK nor AAB was generated."
+          if [ ! -f android/app/release.keystore ]; then
+            echo "Error: android/app/release.keystore not found!"
             exit 1
           fi
 
-      - name: Upload APK Artifact
-        if: hashFiles('mobile/GameLoot.apk') != ''
+          echo "Release keystore deployed successfully:"
+          ls -lh android/app/release.keystore
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'gameloot2026' }}
+          RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'gameloot' }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'gameloot2026' }}
+
+      - name: Build Production Android Release Binaries (AAB & APK)
+        working-directory: ./mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease assembleRelease --no-daemon
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'gameloot2026' }}
+          RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'gameloot' }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'gameloot2026' }}
+
+      - name: Collect & Verify Release Binaries
+        working-directory: ./mobile
+        run: |
+          RELEASE_AAB=$(find android/app/build/outputs/bundle/release -name "*.aab" 2>/dev/null | head -n 1)
+          RELEASE_APK=$(find android/app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -n 1)
+
+          if [ -z "$RELEASE_AAB" ]; then
+            echo "Error: No release AAB was generated in android/app/build/outputs/bundle/release"
+            exit 1
+          fi
+          if [ -z "$RELEASE_APK" ]; then
+            echo "Error: No release APK was generated in android/app/build/outputs/apk/release"
+            exit 1
+          fi
+
+          echo "Found Release AAB at: $RELEASE_AAB"
+          cp "$RELEASE_AAB" ./GameLoot.aab
+          ls -lh ./GameLoot.aab
+
+          echo "Found Release APK at: $RELEASE_APK"
+          cp "$RELEASE_APK" ./GameLoot.apk
+          ls -lh ./GameLoot.apk
+
+          echo "=========================================================="
+          echo "Success: Release AAB and APK successfully built and signed!"
+          echo "=========================================================="
+
+      - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GameLoot-apk
+          name: GameLoot-release-apk
           path: mobile/GameLoot.apk
           retention-days: 14
 
-      - name: Upload AAB Bundle Artifact (Google Play)
-        if: hashFiles('mobile/GameLoot.aab') != ''
+      - name: Upload Release AAB Bundle Artifact (Google Play)
         uses: actions/upload-artifact@v4
         with:
-          name: GameLoot-aab
+          name: GameLoot-release-aab
           path: mobile/GameLoot.aab
           retention-days: 14
 
@@ -124,17 +168,18 @@ jobs:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v1.0.{0}', github.run_number) }}
           name: ${{ startsWith(github.ref, 'refs/tags/v') && format('GameLoot {0}', github.ref_name) || format('GameLoot v1.0.{0}', github.run_number) }}
           body: |
-            ## GameLoot Mobile App
+            ## GameLoot Mobile App (Production Release)
 
-            Automated Android release build.
+            Automated Android production release build signed in **Release Mode**.
 
             - **Version Tag**: `${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v1.0.{0}', github.run_number) }}`
             - **Target API Host**: `https://gameloot.youplex.cc`
+            - **Signing Mode**: `Release (Production Keystore)`
             - **Commit**: `${{ github.sha }}`
 
             ### Downloads & Artifacts
-            - **`GameLoot.aab`**: Android App Bundle (upload directly to Google Play Console).
-            - **`GameLoot.apk`**: Standalone APK (direct installation on Android devices and emulators).
+            - **`GameLoot.aab`**: Production Android App Bundle (upload directly to Google Play Console).
+            - **`GameLoot.apk`**: Production Signed APK (for direct installation on physical Android devices).
           files: |
             mobile/GameLoot.apk
             mobile/GameLoot.aab
