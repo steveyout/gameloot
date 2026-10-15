@@ -9,6 +9,43 @@
       "client_info": {
         "mobilesdk_app_id": "1:854151275080:android:61dcfd340fa89fba39ee7d",
         "android_client_info": {
+          "package_name": "com.gameloot.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "854151275080-dtt2tnmkf0ps2focu7ul1dnhcb0qm1qd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gameloot.app",
+            "certificate_hash": "6ac0ec3d83cf36e96041f743834598c1f9325a32"
+          }
+        },
+        {
+          "client_id": "854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWb3BZi7hGpSg3PfRVv1eUzqfx3kbjrB8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "854151275080-m8kjng2jotbflnuir8ooq5ibhmgguaj0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:854151275080:android:61dcfd340fa89fba39ee7d",
+        "android_client_info": {
           "package_name": "cc.youplex.gameloot"
         }
       },

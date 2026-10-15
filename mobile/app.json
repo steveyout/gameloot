@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "gameloot",
+    "name": "GameLoot - Play & Earn",
     "slug": "gameloot",
     "scheme": "gameloot",
     "version": "1.0.0",
@@ -14,10 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "cc.youplex.gameloot"
+      "bundleIdentifier": "com.gameloot.app"
     },
     "android": {
-      "package": "cc.youplex.gameloot",
+      "package": "com.gameloot.app",
       "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "adaptiveIcon": {
