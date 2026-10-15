@@ -15,6 +15,8 @@ router.post('/app-version', clientController.checkAppUpdate);
 // Discovery
 router.get('/categories', clientController.getCategories);
 router.get('/games', clientController.getGames);
+router.get('/leaderboard/games', clientController.getGameLeaderboard);
+router.get('/leaderboard/players', clientController.getPlayerLeaderboard);
 router.get('/rewards', clientController.getRewards);
 router.get('/quizzes', clientController.getQuizzes);
 router.get('/surf-tasks', clientController.getSurfTasks);

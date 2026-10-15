@@ -30,7 +30,7 @@ async function getCategories(req, res) {
 
 async function getGames(req, res) {
   try {
-    const { category, search, featured } = req.query;
+    const { category, search, featured, page, limit } = req.query;
     const where = { is_active: true };
 
     if (category) where.category_id = category;
@@ -42,14 +42,27 @@ async function getGames(req, res) {
       ];
     }
 
-    const games = await Game.findAll({
+    const parsedLimit = limit ? Math.min(100, Math.max(1, parseInt(limit, 10))) : null;
+    const parsedPage = page ? Math.max(1, parseInt(page, 10)) : 1;
+    const offset = parsedLimit ? (parsedPage - 1) * parsedLimit : undefined;
+
+    const queryOptions = {
       where,
       include: [{ model: Category, as: 'category', attributes: ['name', 'slug'] }],
       order: [['featured', 'DESC'], ['play_count', 'DESC']]
-    });
+    };
+
+    if (parsedLimit) {
+      queryOptions.limit = parsedLimit;
+      if (offset !== undefined) queryOptions.offset = offset;
+    }
+
+    const games = await Game.findAll(queryOptions);
 
     return res.json({
       success: true,
+      page: parsedPage,
+      limit: parsedLimit,
       games: games.map(g => ({
         ...g.toJSON(),
         category_name: g.category?.name || 'Arcade'
@@ -57,6 +70,98 @@ async function getGames(req, res) {
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to load games', error: err.message });
+  }
+}
+
+// Paginated Game Ranks / Leaderboard (Lazy Loading)
+async function getGameLeaderboard(req, res) {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const offset = (page - 1) * limit;
+
+    const { count, rows: games } = await Game.findAndCountAll({
+      where: { is_active: true },
+      attributes: ['id', 'title', 'slug', 'thumbnail_url', 'rating', 'play_count', 'reward_rate'],
+      include: [{ model: Category, as: 'category', attributes: ['name', 'slug'] }],
+      order: [
+        ['rating', 'DESC'],
+        ['play_count', 'DESC']
+      ],
+      limit,
+      offset
+    });
+
+    return res.json({
+      success: true,
+      page,
+      limit,
+      total: count,
+      hasMore: offset + games.length < count,
+      games: games.map((g, index) => ({
+        id: g.id,
+        title: g.title,
+        slug: g.slug,
+        thumbnail_url: g.thumbnail_url,
+        rating: g.rating,
+        play_count: g.play_count,
+        reward_rate: g.reward_rate,
+        rank: offset + index + 1,
+        category_name: g.category?.name || 'Arcade'
+      }))
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to load game leaderboard', error: err.message });
+  }
+}
+
+// Paginated Player Global Rankings (Lazy Loading)
+async function getPlayerLeaderboard(req, res) {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const offset = (page - 1) * limit;
+
+    const { count, rows: users } = await User.findAndCountAll({
+      where: { status: 'active' },
+      attributes: ['id', 'username', 'avatar', 'total_earned', 'points_balance'],
+      order: [
+        ['total_earned', 'DESC'],
+        ['points_balance', 'DESC']
+      ],
+      limit,
+      offset
+    });
+
+    const getRankTag = (rank) => {
+      if (rank === 1) return 'Grandmaster';
+      if (rank <= 3) return 'Master';
+      if (rank <= 10) return 'Diamond';
+      if (rank <= 25) return 'Platinum';
+      if (rank <= 50) return 'Gold';
+      return 'Rising Star';
+    };
+
+    return res.json({
+      success: true,
+      page,
+      limit,
+      total: count,
+      hasMore: offset + users.length < count,
+      players: users.map((u, index) => {
+        const rank = offset + index + 1;
+        return {
+          id: u.id,
+          username: u.username,
+          avatar: u.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${u.username}`,
+          score: u.total_earned || u.points_balance || 0,
+          rank,
+          tag: getRankTag(rank)
+        };
+      })
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to load player leaderboard', error: err.message });
   }
 }
 
@@ -574,6 +679,8 @@ module.exports = {
   checkAppUpdate,
   getCategories,
   getGames,
+  getGameLeaderboard,
+  getPlayerLeaderboard,
   getRewards,
   getQuizzes,
   getSurfTasks,

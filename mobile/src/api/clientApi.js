@@ -113,13 +113,24 @@ export async function getCategories() {
   return request('/client/categories');
 }
 
-export async function getGames(category = null, search = null) {
+export async function getGames(category = null, search = null, page = null, limit = null) {
   let q = '';
   const params = [];
   if (category) params.push('category=' + encodeURIComponent(category));
   if (search) params.push('search=' + encodeURIComponent(search));
+  if (page) params.push('page=' + encodeURIComponent(page));
+  if (limit) params.push('limit=' + encodeURIComponent(limit));
   if (params.length) q = '?' + params.join('&');
   return request('/client/games' + q);
+}
+
+// Lazy-Loaded Leaderboards
+export async function getGameLeaderboard(page = 1, limit = 20) {
+  return request('/client/leaderboard/games?page=' + page + '&limit=' + limit);
+}
+
+export async function getPlayerLeaderboard(page = 1, limit = 20) {
+  return request('/client/leaderboard/players?page=' + page + '&limit=' + limit);
 }
 
 // 4. Play-To-Earn Heartbeat Session (Proof of Play)

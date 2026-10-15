@@ -54,7 +54,7 @@ export default function LobbyScreen({
     try {
       setLoading(true);
       const [gamesRes, storedRecent] = await Promise.all([
-        getGames(),
+        getGames(null, null, 1, 35),
         AsyncStorage.getItem(RECENT_GAMES_STORAGE_KEY)
       ]);
 
