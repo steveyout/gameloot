@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build-and-release-app:
-    name: Build Android APK & Release
+    name: Build Android APK & AAB Bundle
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -65,31 +65,56 @@ jobs:
         working-directory: ./mobile
         run: npx expo prebuild -p android --no-install
 
-      - name: Build Android APK with Gradle
+      - name: Build Android APK & AAB Bundle with Gradle
         working-directory: ./mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon || ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease bundleRelease --no-daemon || (./gradlew assembleDebug bundleDebug --no-daemon)
 
-      - name: Collect Output APK
+      - name: Collect Output Binaries (APK & AAB)
         working-directory: ./mobile
         run: |
           RELEASE_APK=$(find android/app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -n 1)
           DEBUG_APK=$(find android/app/build/outputs/apk/debug -name "*.apk" 2>/dev/null | head -n 1)
           TARGET_APK=${RELEASE_APK:-$DEBUG_APK}
-          if [ -z "$TARGET_APK" ]; then
-            echo "Error: No APK file was generated in android/app/build/outputs/apk"
+          if [ -n "$TARGET_APK" ]; then
+            echo "Found APK at: $TARGET_APK"
+            cp "$TARGET_APK" ./GameLoot.apk
+            ls -lh ./GameLoot.apk
+          else
+            echo "Warning: No APK file was found in android/app/build/outputs/apk"
+          fi
+
+          RELEASE_AAB=$(find android/app/build/outputs/bundle/release -name "*.aab" 2>/dev/null | head -n 1)
+          DEBUG_AAB=$(find android/app/build/outputs/bundle/debug -name "*.aab" 2>/dev/null | head -n 1)
+          TARGET_AAB=${RELEASE_AAB:-$DEBUG_AAB}
+          if [ -n "$TARGET_AAB" ]; then
+            echo "Found AAB at: $TARGET_AAB"
+            cp "$TARGET_AAB" ./GameLoot.aab
+            ls -lh ./GameLoot.aab
+          else
+            echo "Warning: No AAB file was found in android/app/build/outputs/bundle"
+          fi
+
+          if [ ! -f ./GameLoot.apk ] && [ ! -f ./GameLoot.aab ]; then
+            echo "Error: Neither APK nor AAB was generated."
             exit 1
           fi
-          echo "Found APK at: $TARGET_APK"
-          cp "$TARGET_APK" ./GameLoot.apk
-          ls -lh ./GameLoot.apk
 
       - name: Upload APK Artifact
+        if: hashFiles('mobile/GameLoot.apk') != ''
         uses: actions/upload-artifact@v4
         with:
           name: GameLoot-apk
           path: mobile/GameLoot.apk
+          retention-days: 14
+
+      - name: Upload AAB Bundle Artifact (Google Play)
+        if: hashFiles('mobile/GameLoot.aab') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameLoot-aab
+          path: mobile/GameLoot.aab
           retention-days: 14
 
       - name: Publish to GitHub Releases
@@ -107,10 +132,12 @@ jobs:
             - **Target API Host**: `https://gameloot.youplex.cc`
             - **Commit**: `${{ github.sha }}`
 
-            ### Installation
-            Download the attached **`GameLoot.apk`** below and install it directly on your Android phone or emulator.
+            ### Downloads & Artifacts
+            - **`GameLoot.aab`**: Android App Bundle (upload directly to Google Play Console).
+            - **`GameLoot.apk`**: Standalone APK (direct installation on Android devices and emulators).
           files: |
             mobile/GameLoot.apk
+            mobile/GameLoot.aab
           draft: false
           prerelease: false
         env:

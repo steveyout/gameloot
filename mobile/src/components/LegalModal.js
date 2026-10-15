@@ -336,8 +336,28 @@ export default function LegalModal({
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={styles.deleteNoticeTitle}>Account Deletion (Google Play Compliance)</Text>
                 <Text style={[styles.deleteNoticeText, { color: textMuted }]}>
-                  You have the right to request the permanent deletion of your account and personal data at any time. Simply use Settings &gt; Delete Account in the app or email us at {PRIVACY_EMAIL}.
+                  You have the right to request the permanent deletion of your account and personal data at any time. Simply use Settings &gt; Delete Account in the app or access our public deletion form.
                 </Text>
+                <TouchableOpacity
+                  style={{
+                    marginTop: 8,
+                    backgroundColor: '#ef4444',
+                    paddingHorizontal: 12,
+                    paddingVertical: 7,
+                    borderRadius: 8,
+                    alignSelf: 'flex-start',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                  onPress={() => Linking.openURL(`${host}/delete-account`).catch(() => {})}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>
+                    Open Web Deletion Form
+                  </Text>
+                  <ExternalLink size={12} color="#ffffff" />
+                </TouchableOpacity>
               </View>
             </View>
           )}

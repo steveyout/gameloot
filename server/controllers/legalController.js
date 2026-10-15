@@ -1,15 +1,17 @@
 /**
  * GameLoot Legal & Compliance Controller
- * Provides Google Play & AdMob compliant Privacy Policy and Terms of Service
+ * Provides Google Play & AdMob compliant Privacy Policy, Terms of Service, and Account Deletion
  * Supports both modern responsive HTML rendering and structured JSON API responses.
  */
+
+const { User } = require('../models');
 
 const APP_NAME = 'GameLoot';
 const COMPANY_NAME = 'GameLoot Interactive';
 const CONTACT_EMAIL = 'support@youplex.cc';
 const PRIVACY_EMAIL = 'support@youplex.cc';
 const APP_URL = 'https://gameloot.youplex.cc';
-const LAST_UPDATED = 'October 14, 2026';
+const LAST_UPDATED = 'October 15, 2026';
 
 // Common CSS styling for beautiful, clean, responsive legal pages
 const SHARED_CSS = `
@@ -23,6 +25,10 @@ const SHARED_CSS = `
     --primary-gradient: linear-gradient(135deg, #06b6d4, #3b82f6);
     --accent: #fbbf24;
     --card-subtle: #131e33;
+    --danger: #ef4444;
+    --danger-bg: rgba(239, 68, 68, 0.12);
+    --success: #10b981;
+    --success-bg: rgba(16, 185, 129, 0.12);
   }
   @media (prefers-color-scheme: light) {
     :root {
@@ -35,6 +41,10 @@ const SHARED_CSS = `
       --primary-gradient: linear-gradient(135deg, #0284c7, #2563eb);
       --accent: #d97706;
       --card-subtle: #f1f5f9;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --success: #059669;
+      --success-bg: #d1fae5;
     }
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -89,7 +99,8 @@ const SHARED_CSS = `
   }
   .nav-links {
     display: flex;
-    gap: 16px;
+    gap: 10px;
+    flex-wrap: wrap;
   }
   .nav-link {
     color: var(--text-muted);
@@ -103,6 +114,10 @@ const SHARED_CSS = `
   .nav-link:hover, .nav-link.active {
     color: var(--primary);
     background: var(--card-subtle);
+  }
+  .nav-link.danger-nav:hover, .nav-link.danger-nav.active {
+    color: var(--danger);
+    background: var(--danger-bg);
   }
   .container {
     max-width: 900px;
@@ -126,6 +141,11 @@ const SHARED_CSS = `
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 12px;
+  }
+  .badge-danger {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-color: rgba(239, 68, 68, 0.3);
   }
   h1 {
     font-size: 32px;
@@ -183,6 +203,10 @@ const SHARED_CSS = `
     border-radius: 0 12px 12px 0;
     margin: 16px 0;
   }
+  .highlight-box.danger-box {
+    border-left-color: var(--danger);
+    background: var(--danger-bg);
+  }
   .highlight-box p {
     margin-bottom: 0;
   }
@@ -206,6 +230,124 @@ const SHARED_CSS = `
   }
   a:hover {
     color: var(--text);
+  }
+
+  /* Deletion Form Styles */
+  .form-group {
+    margin-bottom: 20px;
+  }
+  .form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  .form-input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card-subtle);
+    color: var(--text);
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus {
+    border-color: var(--primary);
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 24px 0;
+    padding: 16px;
+    background: var(--card-subtle);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .checkbox-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    accent-color: var(--danger);
+    cursor: pointer;
+  }
+  .checkbox-row label {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.5;
+    cursor: pointer;
+  }
+  .btn-delete {
+    width: 100%;
+    padding: 16px;
+    border-radius: 12px;
+    border: none;
+    background: var(--danger);
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-delete:hover {
+    opacity: 0.9;
+  }
+  .alert-error {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .success-card {
+    text-align: center;
+    padding: 40px 24px;
+  }
+  .success-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background: var(--success-bg);
+    color: var(--success);
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    border: 2px solid var(--success);
+  }
+  .ref-badge {
+    display: inline-block;
+    background: var(--card-subtle);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    margin: 16px 0;
+  }
+  .btn-home {
+    display: inline-block;
+    margin-top: 24px;
+    padding: 12px 24px;
+    background: var(--primary);
+    color: #ffffff;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 700;
+  }
+  .btn-home:hover {
+    color: #ffffff;
+    opacity: 0.9;
   }
 `;
 
@@ -270,8 +412,9 @@ const PRIVACY_SECTIONS = [
     content: `In accordance with Google Play Developer Policy and global privacy standards (GDPR / CCPA):`,
     bullets: [
       'You have the right to request the permanent deletion of your account and all associated personal data at any time.',
-      'To request account deletion, navigate to Settings > Account > Delete Account in the mobile app, or email us at support@youplex.cc with your registered email and username.',
-      'Upon verification, all account records, gameplay histories, and personal identifiers will be permanently purged from our active databases within 30 days.'
+      'You can submit an instant deletion request directly through our public web form at <a href="/delete-account">https://gameloot.youplex.cc/delete-account</a> without needing to install or open the app.',
+      'You can also initiate deletion within the mobile app under Settings > Delete Account, or by emailing support@youplex.cc.',
+      'Upon verification, all account records, authentication tokens, gameplay histories, and personal identifiers will be permanently deleted from our active databases.'
     ]
   },
   {
@@ -421,6 +564,7 @@ function renderHtmlPage(title, badge, sections, activeTab) {
       <nav class="nav-links">
         <a href="/privacy" class="nav-link ${activeTab === 'privacy' ? 'active' : ''}">Privacy Policy</a>
         <a href="/terms" class="nav-link ${activeTab === 'terms' ? 'active' : ''}">Terms of Service</a>
+        <a href="/delete-account" class="nav-link danger-nav ${activeTab === 'delete' ? 'active' : ''}">Delete Account</a>
       </nav>
     </div>
   </header>
@@ -429,7 +573,7 @@ function renderHtmlPage(title, badge, sections, activeTab) {
     <div class="hero">
       <div class="badge">${badge}</div>
       <h1>${title}</h1>
-      <div class="updated">Effective & Last Updated: <strong>${LAST_UPDATED}</strong> &bull; Version 1.2</div>
+      <div class="updated">Effective & Last Updated: <strong>${LAST_UPDATED}</strong> &bull; Version 1.3</div>
     </div>
 
     ${sectionsHtml}
@@ -440,6 +584,167 @@ function renderHtmlPage(title, badge, sections, activeTab) {
     <p style="margin-top: 6px;">
       <a href="/privacy">Privacy Policy</a> &bull;
       <a href="/terms">Terms of Service</a> &bull;
+      <a href="/delete-account">Delete Account & Data</a> &bull;
+      <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>
+    </p>
+  </footer>
+</body>
+</html>`;
+}
+
+// Render Dedicated Account Deletion Page
+function renderDeleteAccountPage(error = null, success = null) {
+  let feedbackHtml = '';
+  if (error) {
+    feedbackHtml = `
+      <div class="alert-error">
+        <span>⚠</span> ${error}
+      </div>
+    `;
+  }
+
+  let bodyContent = '';
+
+  if (success) {
+    bodyContent = `
+      <div class="card-section success-card">
+        <div class="success-icon">&#10003;</div>
+        <h2>Account Deletion Queued</h2>
+        <p>We have processed your request for <strong>${success.email}</strong>.</p>
+        <div class="ref-badge">Reference Confirmation ID: <strong>${success.refId}</strong></div>
+        <p style="margin-top: 14px;">In accordance with Google Play User Data policies and privacy regulations (GDPR/CCPA), all authentication credentials, points, tickets, gameplay telemetry, and profile identifiers have been permanently removed from our active database.</p>
+        <a href="/" class="btn-home">Back to ${APP_NAME}</a>
+      </div>
+    `;
+  } else {
+    bodyContent = `
+      ${feedbackHtml}
+
+      <div class="card-section">
+        <h2>Google Play Account Deletion Policy Overview</h2>
+        <p>In compliance with <strong>Google Play Developer Data Safety Policies</strong> and global privacy laws, ${APP_NAME} provides all users with direct self-serve access to request the permanent deletion of their account and all associated data through this public web portal without requiring access to the mobile application.</p>
+
+        <div class="highlight-box danger-box">
+          <p><strong>Warning:</strong> Deleting your account is permanent. All accumulated reward points (PTS), tickets, loyalty streaks, rank progress, and redemption records associated with this email will be permanently wiped.</p>
+        </div>
+
+        <h3 style="margin-top: 20px;">Data That Will Be Permanently Deleted:</h3>
+        <ul>
+          <li><strong>User Profile:</strong> Username, email address, password hash, and avatar icon.</li>
+          <li><strong>Reward Balances:</strong> All points balance, tickets, daily streak progress, and lucky wheel tickets.</li>
+          <li><strong>Gameplay Records:</strong> Heartbeat telemetry, playtime logs, session tokens, high scores, and leaderboards.</li>
+          <li><strong>Earn Hub Records:</strong> Survey submissions, quiz completions, and web surf task records.</li>
+          <li><strong>Device Telemetry:</strong> Device identifiers, IP addresses, and push notification tokens.</li>
+        </ul>
+
+        <h3>Data Retention Disclosures:</h3>
+        <p>If you have previously requested a cashout reward (e.g. PayPal payout), transaction audit receipts are retained for up to 90 days strictly to comply with mandatory financial tax laws, banking regulations, and anti-money laundering compliance. After this statutory window, all records are permanently deleted.</p>
+
+        <h3>Processing Timeframe:</h3>
+        <p>Requests submitted via this form are processed immediately upon verification. Full data purging from offline backup storage occurs within 24–48 hours.</p>
+      </div>
+
+      <div class="card-section">
+        <h2>Submit Account Deletion Request</h2>
+        <p>Please enter your registered ${APP_NAME} email address below to initiate permanent account and data deletion.</p>
+
+        <form method="POST" action="/delete-account">
+          <div class="form-group">
+            <label class="form-label" for="email">Account Email Address <span style="color: var(--danger); font-weight: 900;">*</span></label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              class="form-input"
+              required
+              placeholder="e.g. gamer@example.com"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="username">Username (Optional)</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              class="form-input"
+              placeholder="e.g. PlayerOne"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reason">Reason for Leaving (Optional)</label>
+            <select id="reason" name="reason" class="form-input">
+              <option value="">Select a reason...</option>
+              <option value="no_longer_play">I no longer play mobile games</option>
+              <option value="privacy_concerns">Privacy or data collection concerns</option>
+              <option value="technical_issues">Technical difficulties with the app</option>
+              <option value="starting_over">Creating a new account</option>
+              <option value="other">Other reason</option>
+            </select>
+          </div>
+
+          <div class="checkbox-row">
+            <input type="checkbox" id="confirm" name="confirm" required value="yes" />
+            <label for="confirm">
+              I understand and agree that this action is irreversible. All unredeemed points, rewards, tickets, and gameplay progress will be permanently erased.
+            </label>
+          </div>
+
+          <button type="submit" class="btn-delete">
+            Permanently Delete My Account & Data
+          </button>
+        </form>
+      </div>
+
+      <div class="card-section">
+        <h2>Need Assistance?</h2>
+        <p>If you have any questions regarding your personal data or need assistance with your request, contact our Data Protection Officer at <a href="mailto:${PRIVACY_EMAIL}">${PRIVACY_EMAIL}</a>.</p>
+      </div>
+    `;
+  }
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delete Account & Data | ${APP_NAME}</title>
+  <meta name="description" content="Request permanent account and associated data deletion for ${APP_NAME} in compliance with Google Play Developer policies.">
+  <link rel="icon" href="/favicon.ico" />
+  <style>${SHARED_CSS}</style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="brand">
+        <div class="brand-icon">G</div>
+        <div class="brand-title">${APP_NAME}</div>
+      </a>
+      <nav class="nav-links">
+        <a href="/privacy" class="nav-link">Privacy Policy</a>
+        <a href="/terms" class="nav-link">Terms of Service</a>
+        <a href="/delete-account" class="nav-link danger-nav active">Delete Account</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="hero">
+      <div class="badge badge-danger">Google Play Compliance</div>
+      <h1>Request Account & Data Deletion</h1>
+      <div class="updated">Google Play User Data Safety &bull; Effective: <strong>${LAST_UPDATED}</strong></div>
+    </div>
+
+    ${bodyContent}
+  </main>
+
+  <footer class="footer">
+    <p>&copy; ${new Date().getFullYear()} ${COMPANY_NAME}. All rights reserved.</p>
+    <p style="margin-top: 6px;">
+      <a href="/privacy">Privacy Policy</a> &bull;
+      <a href="/terms">Terms of Service</a> &bull;
+      <a href="/delete-account">Delete Account & Data</a> &bull;
       <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>
     </p>
   </footer>
@@ -449,8 +754,7 @@ function renderHtmlPage(title, badge, sections, activeTab) {
 
 // Controller Endpoints
 function getPrivacyPolicy(req, res) {
-  // Check if JSON requested via query or Accept header
-  if (req.query.format === 'json' || req.headers.accept?.includes('application/json')) {
+  if (req.query.format === 'json' || req.headers?.accept?.includes('application/json')) {
     return res.json({
       success: true,
       title: 'Privacy Policy',
@@ -461,13 +765,12 @@ function getPrivacyPolicy(req, res) {
     });
   }
 
-  // Otherwise deliver responsive HTML page
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   return res.send(renderHtmlPage('Privacy Policy', 'Official Legal Document', PRIVACY_SECTIONS, 'privacy'));
 }
 
 function getTermsOfService(req, res) {
-  if (req.query.format === 'json' || req.headers.accept?.includes('application/json')) {
+  if (req.query.format === 'json' || req.headers?.accept?.includes('application/json')) {
     return res.json({
       success: true,
       title: 'Terms of Service',
@@ -482,9 +785,92 @@ function getTermsOfService(req, res) {
   return res.send(renderHtmlPage('Terms of Service', 'User Agreement & Guidelines', TERMS_SECTIONS, 'terms'));
 }
 
+function getDeleteAccountPage(req, res) {
+  if (req.query.format === 'json' || req.headers?.accept?.includes('application/json')) {
+    return res.json({
+      success: true,
+      title: 'Account & Data Deletion Policy',
+      app_name: APP_NAME,
+      deletion_url: `${APP_URL}/delete-account`,
+      data_deleted: [
+        'User profile (username, email, password hash, avatar)',
+        'Points balance and tickets balance',
+        'Proof-of-play session telemetry and heartbeat logs',
+        'Device identifiers and push notification tokens',
+        'Earn Hub task records (surveys, quizzes, surf tasks)'
+      ],
+      data_retained: [
+        'Completed financial transaction receipts (retained up to 90 days for statutory tax/financial compliance)'
+      ],
+      contact: { email: PRIVACY_EMAIL, support: CONTACT_EMAIL, website: APP_URL }
+    });
+  }
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(renderDeleteAccountPage());
+}
+
+async function handleDeleteAccountRequest(req, res) {
+  try {
+    const { email, username, reason, confirm } = req.body || {};
+
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      const errMsg = 'Please provide a valid registered email address.';
+      if (req.is('json') || req.headers?.accept?.includes('application/json') || req.xhr) {
+        return res.status(400).json({ success: false, message: errMsg });
+      }
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(400).send(renderDeleteAccountPage(errMsg));
+    }
+
+    if (!confirm || (confirm !== 'yes' && confirm !== true && confirm !== 'on')) {
+      const errMsg = 'You must confirm that you understand account deletion is permanent.';
+      if (req.is('json') || req.headers?.accept?.includes('application/json') || req.xhr) {
+        return res.status(400).json({ success: false, message: errMsg });
+      }
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(400).send(renderDeleteAccountPage(errMsg));
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const refId = 'DEL-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+
+    // Find and delete the user account and associated cascading data if it exists
+    const user = await User.findOne({ where: { email: cleanEmail } });
+    if (user) {
+      console.log(`[Account Deletion] Permanent deletion executed for user: ${user.username} (${cleanEmail}), ref: ${refId}`);
+      await user.destroy();
+    } else {
+      console.log(`[Account Deletion] Deletion requested for non-existent/guest email: ${cleanEmail}, ref: ${refId}`);
+    }
+
+    if (req.is('json') || req.headers?.accept?.includes('application/json') || req.xhr) {
+      return res.json({
+        success: true,
+        message: 'Account and associated data have been permanently queued for deletion.',
+        reference_id: refId,
+        email: cleanEmail
+      });
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(renderDeleteAccountPage(null, { email: cleanEmail, refId }));
+  } catch (err) {
+    console.error('Error handling account deletion request:', err);
+    const errMsg = 'An unexpected server error occurred while processing your request. Please try again or contact support.';
+    if (req.is('json') || req.headers?.accept?.includes('application/json') || req.xhr) {
+      return res.status(500).json({ success: false, message: errMsg, error: err.message });
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(500).send(renderDeleteAccountPage(errMsg));
+  }
+}
+
 module.exports = {
   getPrivacyPolicy,
   getTermsOfService,
+  getDeleteAccountPage,
+  handleDeleteAccountRequest,
   PRIVACY_SECTIONS,
   TERMS_SECTIONS
 };

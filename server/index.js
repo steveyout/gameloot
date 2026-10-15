@@ -24,10 +24,7 @@ app.set('trust proxy', 1);
 
 // Socket.io for Real-time Instant Notifications
 const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
+  cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 initSocket(io);
 
@@ -59,8 +56,8 @@ const adminRoutes = require('./routes/admin');
 const clientRoutes = require('./routes/client');
 const legalRoutes = require('./routes/legal');
 
-// Public Privacy Policy & Terms of Service (Root URLs & API endpoints - 100% Public, No Login Required)
-// e.g. https://gameloot.youplex.cc/privacy, /terms, /tos, /api/privacy, /api/terms
+// Public Privacy Policy, Terms of Service & Account Deletion (Root URLs & API endpoints - 100% Public, No Login Required)
+// e.g. https://gameloot.youplex.cc/privacy, /terms, /delete-account, /api/privacy, /api/terms, /api/delete-account
 app.use('/', legalRoutes);
 app.use('/api', legalRoutes);
 app.use('/api/legal', legalRoutes);
@@ -103,7 +100,16 @@ async function setupFrontend() {
   const adminRoot = path.resolve(__dirname, '../admin');
 
   const isLegalPath = (p) => {
-    return p.startsWith('/privacy') || p.startsWith('/terms') || p.startsWith('/tos') || p.startsWith('/api');
+    return (
+      p.startsWith('/privacy') ||
+      p.startsWith('/terms') ||
+      p.startsWith('/tos') ||
+      p.startsWith('/delete-account') ||
+      p.startsWith('/account-deletion') ||
+      p.startsWith('/delete_account') ||
+      p.startsWith('/legal') ||
+      p.startsWith('/api')
+    );
   };
 
   if (process.env.NODE_ENV === 'production' && fs.existsSync(adminDist)) {
@@ -171,6 +177,7 @@ async function startServer() {
       console.log(`🌐 Admin Panel:     http://localhost:${PORT}`);
       console.log(`📜 Privacy Policy:  http://localhost:${PORT}/privacy`);
       console.log(`📜 Terms:           http://localhost:${PORT}/terms`);
+      console.log(`🗑️ Delete Account:  http://localhost:${PORT}/delete-account`);
       console.log(`⚡ API Health:       http://localhost:${PORT}/api/health`);
       console.log(`🔌 WebSockets:       ws://localhost:${PORT} (Instant Notifications)`);
       console.log('=============================================================\n');
@@ -182,5 +189,3 @@ async function startServer() {
 }
 
 startServer();
-
-module.exports = { app, server };

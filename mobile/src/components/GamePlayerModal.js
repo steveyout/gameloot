@@ -16,10 +16,37 @@ import { startPlaySession, pingPlaySession, claimPlaySession } from '../api/clie
 import { logEvent } from '../services/firebase';
 
 /**
- * Safe HTML5 Game Bridge & WebView Optimizer
- * 1. Rewrites target="_blank" links (like the Famobi Play button) to target="_self" so it navigates in-place instead of creating dead blank windows.
- * 2. Overrides window.open to keep gameplay inside the current WebView.
- * 3. Keeps all standard APIs intact so ad-loaders and game engines never hang or throw TypeErrors.
+ * Known 3rd-party advertising & telemetry hostnames to intercept in WebView
+ */
+const BLOCKED_AD_DOMAINS = [
+  'googleads.g.doubleclick.net',
+  'pagead2.googlesyndication.com',
+  'adservice.google.com',
+  'googlesyndication.com',
+  'securepubads.g.doubleclick.net',
+  'adclick.g.doubleclick.net',
+  'tpc.googlesyndication.com',
+  'pubads.g.doubleclick.net',
+  'criteo.com',
+  'criteo.net',
+  'adnxs.com',
+  'taboola.com',
+  'outbrain.com',
+  'popads.net',
+  'popcash.net',
+  'propellerads.com',
+  'monetag.com',
+  'adsterra.com',
+  'inmobi.com'
+];
+
+/**
+ * Intelligent HTML5 Game Optimizer & Ad-Free Bridge
+ * 1. Rewrites target="_blank" links (like the Famobi Play button) to target="_self" so it navigates in-place.
+ * 2. Overrides window.open to suppress external ad popups while allowing game navigation.
+ * 3. Injects CSS that hides banner ads & wrappers while guaranteeing game canvas & #fg-overlay stay 100% visible.
+ * 4. Implements a complete Google IMA SDK mock that auto-skips video preroll & interstitial ads seamlessly.
+ * 5. Hooks Famobi / Gamepix showAd callbacks to immediately trigger gameplay with zero ad interruption.
  */
 const GAME_WEBVIEW_INJECTED_JS = `
 (function() {
@@ -39,10 +66,27 @@ const GAME_WEBVIEW_INJECTED_JS = `
     }
   }, true);
 
-  // 2. Prevent window.open from opening separate windows - navigate current window instead
+  // 2. Intelligent window.open filter: Block ad popups, navigate game URLs in-place
   var _origOpen = window.open;
   window.open = function(url, target, features) {
     if (url && typeof url === 'string') {
+      var low = url.toLowerCase();
+      if (
+        low.indexOf('doubleclick') !== -1 ||
+        low.indexOf('googleads') !== -1 ||
+        low.indexOf('googlesyndication') !== -1 ||
+        low.indexOf('adservice') !== -1 ||
+        low.indexOf('adclick') !== -1 ||
+        low.indexOf('criteo') !== -1 ||
+        low.indexOf('adnxs') !== -1 ||
+        low.indexOf('outbrain') !== -1 ||
+        low.indexOf('taboola') !== -1 ||
+        low.indexOf('popads') !== -1 ||
+        low.indexOf('monetag') !== -1 ||
+        low.indexOf('adsterra') !== -1
+      ) {
+        return { closed: true, close: function() {} };
+      }
       if (!target || target === '_blank' || target === '_self') {
         window.location.href = url;
         return window;
@@ -50,6 +94,192 @@ const GAME_WEBVIEW_INJECTED_JS = `
     }
     return _origOpen ? _origOpen.apply(window, arguments) : null;
   };
+
+  // 3. Inject CSS to hide banner ads & ensure game canvas and #fg-overlay are NEVER hidden
+  function injectAdHidingCSS() {
+    if (document.getElementById('gameloot-clean-styles')) return;
+    var style = document.createElement('style');
+    style.id = 'gameloot-clean-styles';
+    style.textContent = [
+      'ins.adsbygoogle,',
+      'iframe[id*="google_ads"],',
+      'div[id*="google_ads"],',
+      'div[id*="aswift"],',
+      'iframe[src*="googleads"],',
+      'iframe[src*="doubleclick"],',
+      'iframe[src*="googlesyndication"],',
+      '#fg-ad-wrapper,',
+      '.famobi-advertisement,',
+      '.fg-advertisement,',
+      '.ad-container,',
+      '.ad-slot,',
+      '.banner-ad,',
+      '#ad-container,',
+      'div[id*="gpt-passback"],',
+      'div[id*="ad_banner"],',
+      'div[class*="ad_banner"],',
+      'div[class*="banner-ad"],',
+      '.advertisement {',
+      '  display: none !important;',
+      '  visibility: hidden !important;',
+      '  height: 0 !important;',
+      '  max-height: 0 !important;',
+      '  overflow: hidden !important;',
+      '  pointer-events: none !important;',
+      '}',
+      '#fg-overlay,',
+      '#fg-game,',
+      '#canvas,',
+      'canvas,',
+      '#game,',
+      '.game-container,',
+      '#spilgames-game-container,',
+      '#game-holder {',
+      '  display: block !important;',
+      '  visibility: visible !important;',
+      '  opacity: 1 !important;',
+      '}'
+    ].join(' ');
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  if (document.head || document.documentElement) {
+    injectAdHidingCSS();
+  } else {
+    document.addEventListener('DOMContentLoaded', injectAdHidingCSS);
+  }
+
+  // 4. Safe & Complete Google IMA SDK Mock (Auto-completes & skips video ads)
+  try {
+    function Emitter() {
+      var listeners = {};
+      this.addEventListener = function(type, cb) {
+        if (!listeners[type]) listeners[type] = [];
+        listeners[type].push(cb);
+      };
+      this.removeEventListener = function(type, cb) {
+        if (listeners[type]) {
+          listeners[type] = listeners[type].filter(function(fn) { return fn !== cb; });
+        }
+      };
+      this._fire = function(type, evt) {
+        var cbs = listeners[type] || [];
+        for (var i = 0; i < cbs.length; i++) {
+          try { cbs[i](evt || { type: type }); } catch(e) {}
+        }
+      };
+    }
+
+    function AdsManager() {
+      Emitter.call(this);
+      var self = this;
+      this.init = function(w, h, mode) {};
+      this.start = function() {
+        setTimeout(function() {
+          self._fire('loaded');
+          self._fire('started');
+          self._fire('complete');
+          self._fire('allAdsCompleted');
+          self._fire('contentResumeRequested');
+        }, 10);
+      };
+      this.stop = function() {};
+      this.pause = function() {};
+      this.resume = function() {};
+      this.resize = function() {};
+      this.getVolume = function() { return 1; };
+      this.setVolume = function() {};
+      this.destroy = function() {};
+    }
+
+    function AdsLoader(container) {
+      Emitter.call(this);
+      var self = this;
+      this.requestAds = function(req) {
+        var mgr = new AdsManager();
+        setTimeout(function() {
+          self._fire('adsManagerLoaded', {
+            getAdsManager: function() { return mgr; }
+          });
+        }, 10);
+      };
+      this.contentComplete = function() {};
+      this.destroy = function() {};
+    }
+
+    window.google = window.google || {};
+    window.google.ima = {
+      AdDisplayContainer: function(c, v) { this.initialize = function() {}; this.destroy = function() {}; },
+      AdsLoader: AdsLoader,
+      AdsManagerLoadedEvent: { Type: { ADS_MANAGER_LOADED: 'adsManagerLoaded' } },
+      AdErrorEvent: { Type: { AD_ERROR: 'adError' } },
+      AdEvent: {
+        Type: {
+          CONTENT_PAUSE_REQUESTED: 'contentPauseRequested',
+          CONTENT_RESUME_REQUESTED: 'contentResumeRequested',
+          ALL_ADS_COMPLETED: 'allAdsCompleted',
+          COMPLETE: 'complete',
+          LOADED: 'loaded',
+          STARTED: 'started',
+          SKIPPED: 'skipped',
+          FIRST_QUARTILE: 'firstQuartile',
+          MIDPOINT: 'midpoint',
+          THIRD_QUARTILE: 'thirdQuartile',
+          PAUSED: 'paused',
+          RESUMED: 'resumed'
+        }
+      },
+      ViewMode: { NORMAL: 'normal', FULLSCREEN: 'fullscreen' },
+      AdsRenderingSettings: function() {},
+      AdsRequest: function() {},
+      settings: {
+        setVpaidMode: function() {},
+        setLocale: function() {},
+        setAutoPlayAdBreaks: function() {},
+        setPlayerType: function() {},
+        setPlayerVersion: function() {}
+      }
+    };
+  } catch(e) {}
+
+  // 5. Famobi Game Ad Bypass Hook
+  function hookFamobi(obj) {
+    if (!obj || obj.__gameloot_hooked) return;
+    try {
+      obj.__gameloot_hooked = true;
+      obj.hasAdProvider = function() { return false; };
+      var origShowAd = obj.showAd;
+      obj.showAd = function(cb) {
+        if (typeof cb === 'function') {
+          setTimeout(cb, 10);
+        } else if (typeof origShowAd === 'function') {
+          try { origShowAd.call(obj, cb); } catch(e) {}
+        }
+      };
+      var origRewardedAd = obj.rewardedAd;
+      obj.rewardedAd = function(cb) {
+        if (typeof cb === 'function') {
+          setTimeout(function() { cb(true); }, 10);
+        } else if (typeof origRewardedAd === 'function') {
+          try { origRewardedAd.call(obj, cb); } catch(e) {}
+        }
+      };
+    } catch(e) {}
+  }
+
+  if (window.famobi) hookFamobi(window.famobi);
+  try {
+    var _famobiInstance = window.famobi;
+    Object.defineProperty(window, 'famobi', {
+      configurable: true,
+      enumerable: true,
+      get: function() { return _famobiInstance; },
+      set: function(val) {
+        _famobiInstance = val;
+        hookFamobi(val);
+      }
+    });
+  } catch(e) {}
 })();
 true;
 `;
@@ -223,6 +453,24 @@ export default function GamePlayerModal({
     }
   };
 
+  // Safe ad network request filter for WebView
+  const handleShouldStartLoadWithRequest = (request) => {
+    const url = (request?.url || '').toLowerCase();
+    if (!url || url.startsWith('about:') || url.startsWith('data:') || url.startsWith('blob:')) {
+      return true;
+    }
+    // Never block the game's own embed URL or domain
+    if (game?.embed_url && url.startsWith(game.embed_url.toLowerCase())) {
+      return true;
+    }
+    for (const domain of BLOCKED_AD_DOMAINS) {
+      if (url.includes(domain)) {
+        return false; // Intercept & block ad network tracking / asset
+      }
+    }
+    return true;
+  };
+
   if (!visible || !game) return null;
 
   return (
@@ -252,7 +500,7 @@ export default function GamePlayerModal({
               </View>
               <View style={styles.shieldPill}>
                 <Shield size={10} color="#10b981" />
-                <Text style={styles.shieldPillText}>Instant Play</Text>
+                <Text style={styles.shieldPillText}>Ad-Free</Text>
               </View>
             </View>
           </View>
@@ -260,8 +508,8 @@ export default function GamePlayerModal({
           {/* Points earned counter + Claim / Exit */}
           <View style={styles.hudRight}>
             <View style={styles.earnedPill}>
-              <Text style={styles.earnedLabel}>Accrued</Text>
-              <Text style={styles.earnedValue}>+{claimablePoints} PTS</Text>
+              <Text style={styles.earnedLabel}>PTS EARNED</Text>
+              <Text style={styles.earnedValue}>+{claimablePoints}</Text>
             </View>
 
             <TouchableOpacity
@@ -281,7 +529,7 @@ export default function GamePlayerModal({
             <View style={styles.loadingBox}>
               <ActivityIndicator size="large" color="#06b6d4" />
               <Text style={styles.loadingText}>Initializing {game.title}...</Text>
-              <Text style={styles.loadingSub}>Loading instant game canvas</Text>
+              <Text style={styles.loadingSub}>Loading ad-free instant game canvas</Text>
             </View>
           ) : (
             <WebView
@@ -303,6 +551,7 @@ export default function GamePlayerModal({
               startInLoadingState={true}
               injectedJavaScriptBeforeContentLoaded={GAME_WEBVIEW_INJECTED_JS}
               injectedJavaScript={GAME_WEBVIEW_INJECTED_JS}
+              onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
               renderLoading={() => (
                 <View style={styles.loadingBox}>
                   <ActivityIndicator size="large" color="#06b6d4" />
@@ -473,78 +722,83 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#090d16',
-    padding: 20
+    backgroundColor: '#090d16'
   },
   loadingText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    marginTop: 12
+    marginTop: 14
   },
   loadingSub: {
     color: '#94a3b8',
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 4
   },
   claimOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(5, 7, 15, 0.92)',
+    backgroundColor: 'rgba(9, 13, 22, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
-    zIndex: 999
+    padding: 20
   },
   claimCard: {
     width: '100%',
     maxWidth: 340,
     backgroundColor: '#0f172a',
     borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#1e293b',
     padding: 24,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155'
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10
   },
   claimIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16
   },
   claimTitle: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#ffffff'
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: -0.3
   },
   claimSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#94a3b8',
     textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 16
+    marginTop: 6,
+    marginBottom: 18
   },
   rewardBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#1e293b',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderColor: 'rgba(245, 158, 11, 0.3)',
     borderWidth: 1,
-    borderColor: '#f59e0b',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
     marginBottom: 20
   },
   rewardText: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#fbbf24'
   },
   rewardUsd: {
     fontSize: 12,
-    color: '#94a3b8'
+    fontWeight: '600',
+    color: '#cbd5e1'
   },
   continueBtn: {
     width: '100%',
@@ -554,8 +808,8 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   continueBtnText: {
-    color: '#090d16',
-    fontSize: 14,
+    color: '#ffffff',
+    fontSize: 15,
     fontWeight: '800'
   }
 });

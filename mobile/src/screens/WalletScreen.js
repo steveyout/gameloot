@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
-  ActivityIndicator
+  ActivityIndicator,
+  Linking,
+  Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -26,7 +28,8 @@ import {
   Flame,
   Shield,
   FileText,
-  LogOut
+  LogOut,
+  Trash2
 } from 'lucide-react-native';
 import { getUserProfile } from '../api/clientApi';
 import { useTheme } from '../context/ThemeContext';
@@ -221,6 +224,31 @@ export default function WalletScreen({
         >
           <FileText size={16} color={colors.primary} />
           <Text style={[styles.legalBtnText, { color: colors.text }]}>Terms of Service</Text>
+          <Text style={[styles.legalBtnArrow, { color: colors.textMuted }]}>→</Text>
+        </TouchableOpacity>
+
+        <View style={[styles.legalDivider, { backgroundColor: colors.border }]} />
+
+        <TouchableOpacity
+          style={styles.legalBtn}
+          onPress={() => {
+            Alert.alert(
+              'Delete Account & Data',
+              'In compliance with Google Play Developer policies, you can request permanent deletion of your account and associated personal data via our public web portal.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Open Deletion Form',
+                  style: 'destructive',
+                  onPress: () => Linking.openURL('https://gameloot.youplex.cc/delete-account').catch(() => {})
+                }
+              ]
+            );
+          }}
+          activeOpacity={0.7}
+        >
+          <Trash2 size={16} color="#ef4444" />
+          <Text style={[styles.legalBtnText, { color: '#ef4444' }]}>Delete Account & Data</Text>
           <Text style={[styles.legalBtnArrow, { color: colors.textMuted }]}>→</Text>
         </TouchableOpacity>
       </View>
