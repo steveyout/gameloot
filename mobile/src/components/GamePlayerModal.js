@@ -16,37 +16,11 @@ import { startPlaySession, pingPlaySession, claimPlaySession } from '../api/clie
 import { logEvent } from '../services/firebase';
 
 /**
- * Known 3rd-party advertising & telemetry hostnames to intercept in WebView
- */
-const BLOCKED_AD_DOMAINS = [
-  'googleads.g.doubleclick.net',
-  'pagead2.googlesyndication.com',
-  'adservice.google.com',
-  'googlesyndication.com',
-  'securepubads.g.doubleclick.net',
-  'adclick.g.doubleclick.net',
-  'tpc.googlesyndication.com',
-  'pubads.g.doubleclick.net',
-  'criteo.com',
-  'criteo.net',
-  'adnxs.com',
-  'taboola.com',
-  'outbrain.com',
-  'popads.net',
-  'popcash.net',
-  'propellerads.com',
-  'monetag.com',
-  'adsterra.com',
-  'inmobi.com'
-];
-
-/**
- * Intelligent HTML5 Game Optimizer & Ad-Free Bridge
- * 1. Rewrites target="_blank" links (like the Famobi Play button) to target="_self" so it navigates in-place.
+ * GameLoot Ad-Free Game Bridge (Mozilla / uBlock Origin Standard)
+ * 1. Rewrites target="_blank" links (such as game start/play buttons) to target="_self" so they navigate in-place.
  * 2. Overrides window.open to suppress external ad popups while allowing game navigation.
- * 3. Injects CSS that hides banner ads & wrappers while guaranteeing game canvas & #fg-overlay stay 100% visible.
- * 4. Implements a complete Google IMA SDK mock that auto-skips video preroll & interstitial ads seamlessly.
- * 5. Hooks Famobi / Gamepix showAd callbacks to immediately trigger gameplay with zero ad interruption.
+ * 3. Incorporates the official Mozilla/uBO Google IMA SDK shim so video ads & interstitials complete in 0ms without white screens.
+ * 4. Incorporates the official uBO Google AdSense & Google Publisher Tag (GPT) shims to eliminate banner ads safely.
  */
 const GAME_WEBVIEW_INJECTED_JS = `
 (function() {
@@ -66,24 +40,23 @@ const GAME_WEBVIEW_INJECTED_JS = `
     }
   }, true);
 
-  // 2. Intelligent window.open filter: Block ad popups, navigate game URLs in-place
+  // 2. Prevent ad popups from opening separate windows - navigate current window instead
   var _origOpen = window.open;
   window.open = function(url, target, features) {
     if (url && typeof url === 'string') {
       var low = url.toLowerCase();
       if (
-        low.indexOf('doubleclick') !== -1 ||
+        low.indexOf('doubleclick.net') !== -1 ||
         low.indexOf('googleads') !== -1 ||
-        low.indexOf('googlesyndication') !== -1 ||
-        low.indexOf('adservice') !== -1 ||
-        low.indexOf('adclick') !== -1 ||
-        low.indexOf('criteo') !== -1 ||
-        low.indexOf('adnxs') !== -1 ||
-        low.indexOf('outbrain') !== -1 ||
-        low.indexOf('taboola') !== -1 ||
-        low.indexOf('popads') !== -1 ||
-        low.indexOf('monetag') !== -1 ||
-        low.indexOf('adsterra') !== -1
+        low.indexOf('googlesyndication.com') !== -1 ||
+        low.indexOf('adservice.google') !== -1 ||
+        low.indexOf('criteo.com') !== -1 ||
+        low.indexOf('adnxs.com') !== -1 ||
+        low.indexOf('outbrain.com') !== -1 ||
+        low.indexOf('taboola.com') !== -1 ||
+        low.indexOf('popads.net') !== -1 ||
+        low.indexOf('monetag.com') !== -1 ||
+        low.indexOf('adsterra.com') !== -1
       ) {
         return { closed: true, close: function() {} };
       }
@@ -95,191 +68,430 @@ const GAME_WEBVIEW_INJECTED_JS = `
     return _origOpen ? _origOpen.apply(window, arguments) : null;
   };
 
-  // 3. Inject CSS to hide banner ads & ensure game canvas and #fg-overlay are NEVER hidden
-  function injectAdHidingCSS() {
-    if (document.getElementById('gameloot-clean-styles')) return;
+  // 3. Mozilla / uBlock Origin Google IMA SDK Shim (Auto-resolves video ads in 0ms)
+  try {
+    if (!window.google || !window.google.ima || !window.google.ima.VERSION) {
+      var VERSION = "3.764.0";
+      var ima = {};
+
+      function AdDisplayContainer(containerElement) {
+        try {
+          var div = document.createElement("div");
+          div.style.setProperty("display", "none", "important");
+          div.style.setProperty("visibility", "collapse", "important");
+          if (containerElement && typeof containerElement.appendChild === 'function') {
+            containerElement.appendChild(div);
+          }
+        } catch(e) {}
+      }
+      AdDisplayContainer.prototype.destroy = function() {};
+      AdDisplayContainer.prototype.initialize = function() {};
+
+      function ImaSdkSettings() {
+        this.c = true;
+        this.f = {};
+        this.i = false;
+        this.l = "";
+        this.p = "";
+        this.r = 0;
+        this.t = "";
+        this.v = "";
+      }
+      ImaSdkSettings.prototype.getCompanionBackfill = function() {};
+      ImaSdkSettings.prototype.getDisableCustomPlaybackForIOS10Plus = function() { return this.i; };
+      ImaSdkSettings.prototype.getFeatureFlags = function() { return this.f; };
+      ImaSdkSettings.prototype.getLocale = function() { return this.l; };
+      ImaSdkSettings.prototype.getNumRedirects = function() { return this.r; };
+      ImaSdkSettings.prototype.getPlayerType = function() { return this.t; };
+      ImaSdkSettings.prototype.getPlayerVersion = function() { return this.v; };
+      ImaSdkSettings.prototype.getPpid = function() { return this.p; };
+      ImaSdkSettings.prototype.isCookiesEnabled = function() { return this.c; };
+      ImaSdkSettings.prototype.setAutoPlayAdBreaks = function() {};
+      ImaSdkSettings.prototype.setCompanionBackfill = function() {};
+      ImaSdkSettings.prototype.setCookiesEnabled = function(c) { this.c = !!c; };
+      ImaSdkSettings.prototype.setDisableCustomPlaybackForIOS10Plus = function(i) { this.i = !!i; };
+      ImaSdkSettings.prototype.setFeatureFlags = function(f) { this.f = f; };
+      ImaSdkSettings.prototype.setLocale = function(l) { this.l = l; };
+      ImaSdkSettings.prototype.setNumRedirects = function(r) { this.r = r; };
+      ImaSdkSettings.prototype.setPlayerType = function(t) { this.t = t; };
+      ImaSdkSettings.prototype.setPlayerVersion = function(v) { this.v = v; };
+      ImaSdkSettings.prototype.setPpid = function(p) { this.p = p; };
+      ImaSdkSettings.prototype.setSessionId = function() {};
+      ImaSdkSettings.prototype.setVpaidAllowed = function() {};
+      ImaSdkSettings.prototype.setVpaidMode = function() {};
+      ImaSdkSettings.CompanionBackfillMode = { ALWAYS: "always", ON_MASTER_AD: "on_master_ad" };
+      ImaSdkSettings.VpaidMode = { DISABLED: 0, ENABLED: 1, INSECURE: 2 };
+
+      function EventHandler() {
+        this.listeners = {};
+      }
+      EventHandler.prototype._dispatch = function(e) {
+        var list = this.listeners[e.type] || [];
+        for (var i = 0; i < list.length; i++) {
+          try { list[i](e); } catch(r) {}
+        }
+      };
+      EventHandler.prototype.addEventListener = function(types, cb) {
+        if (!Array.isArray(types)) types = [types];
+        for (var i = 0; i < types.length; i++) {
+          var t = types[i];
+          if (!this.listeners[t]) this.listeners[t] = [];
+          this.listeners[t].push(cb);
+        }
+      };
+      EventHandler.prototype.removeEventListener = function(types, cb) {
+        if (!Array.isArray(types)) types = [types];
+        for (var i = 0; i < types.length; i++) {
+          var t = types[i];
+          var list = this.listeners[t];
+          if (list) {
+            this.listeners[t] = list.filter(function(fn) { return fn !== cb; });
+          }
+        }
+      };
+
+      function AdsLoader() {
+        EventHandler.call(this);
+        this.settings = new ImaSdkSettings();
+      }
+      AdsLoader.prototype = Object.create(EventHandler.prototype);
+      AdsLoader.prototype.contentComplete = function() {};
+      AdsLoader.prototype.destroy = function() {};
+      AdsLoader.prototype.getSettings = function() { return this.settings; };
+      AdsLoader.prototype.getVersion = function() { return VERSION; };
+      AdsLoader.prototype.requestAds = function(req, ctx) {
+        var self = this;
+        setTimeout(function() {
+          var evt = new ima.AdsManagerLoadedEvent(ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED, req, ctx);
+          self._dispatch(evt);
+        }, 10);
+      };
+
+      function AdsManager() {
+        EventHandler.call(this);
+        this.volume = 1;
+        this._enablePreloading = false;
+      }
+      AdsManager.prototype = Object.create(EventHandler.prototype);
+      AdsManager.prototype.collapse = function() {};
+      AdsManager.prototype.configureAdsManager = function() {};
+      AdsManager.prototype.destroy = function() {};
+      AdsManager.prototype.discardAdBreak = function() {};
+      AdsManager.prototype.expand = function() {};
+      AdsManager.prototype.focus = function() {};
+      AdsManager.prototype.getAdSkippableState = function() { return true; };
+      AdsManager.prototype.getCuePoints = function() { return [0]; };
+      AdsManager.prototype.getCurrentAd = function() { return currentAd; };
+      AdsManager.prototype.getCurrentAdCuePoints = function() { return []; };
+      AdsManager.prototype.getRemainingTime = function() { return 0; };
+      AdsManager.prototype.getVolume = function() { return this.volume; };
+      AdsManager.prototype.init = function() {
+        if (this._enablePreloading) {
+          this._dispatch(new ima.AdEvent(ima.AdEvent.Type.LOADED));
+        }
+      };
+      AdsManager.prototype.isCustomClickTrackingUsed = function() { return false; };
+      AdsManager.prototype.isCustomPlaybackUsed = function() { return false; };
+      AdsManager.prototype.pause = function() {};
+      AdsManager.prototype.requestNextAdBreak = function() {};
+      AdsManager.prototype.resize = function() {};
+      AdsManager.prototype.resume = function() {};
+      AdsManager.prototype.setVolume = function(v) { this.volume = v; };
+      AdsManager.prototype.skip = function() {};
+      AdsManager.prototype.start = function() {
+        var self = this;
+        setTimeout(function() {
+          var types = [
+            ima.AdEvent.Type.LOADED,
+            ima.AdEvent.Type.STARTED,
+            ima.AdEvent.Type.COMPLETE,
+            ima.AdEvent.Type.ALL_ADS_COMPLETED,
+            ima.AdEvent.Type.CONTENT_RESUME_REQUESTED
+          ];
+          for (var i = 0; i < types.length; i++) {
+            try { self._dispatch(new ima.AdEvent(types[i])); } catch(e) {}
+          }
+        }, 10);
+      };
+      AdsManager.prototype.stop = function() {};
+      AdsManager.prototype.updateAdsRenderingSettings = function() {};
+
+      function AdsRenderingSettings() {}
+      function AdsRequest() {
+        this.setAdWillAutoPlay = function() {};
+        this.setAdWillPlayMuted = function() {};
+        this.setContinuousPlayback = function() {};
+      }
+
+      function AdPodInfo() {
+        this.getAdPosition = function() { return 1; };
+        this.getIsBumper = function() { return false; };
+        this.getMaxDuration = function() { return -1; };
+        this.getPodIndex = function() { return 1; };
+        this.getTimeOffset = function() { return 0; };
+        this.getTotalAds = function() { return 1; };
+      }
+
+      function Ad() {
+        this._pi = new AdPodInfo();
+      }
+      Ad.prototype.getAdId = function() { return ""; };
+      Ad.prototype.getAdPodInfo = function() { return this._pi; };
+      Ad.prototype.getAdSystem = function() { return ""; };
+      Ad.prototype.getAdvertiserName = function() { return ""; };
+      Ad.prototype.getApiFramework = function() { return null; };
+      Ad.prototype.getCompanionAds = function() { return []; };
+      Ad.prototype.getContentType = function() { return ""; };
+      Ad.prototype.getCreativeAdId = function() { return ""; };
+      Ad.prototype.getCreativeId = function() { return ""; };
+      Ad.prototype.getDealId = function() { return ""; };
+      Ad.prototype.getDescription = function() { return ""; };
+      Ad.prototype.getDuration = function() { return 0; };
+      Ad.prototype.getHeight = function() { return 0; };
+      Ad.prototype.getMediaUrl = function() { return null; };
+      Ad.prototype.getMinSuggestedDuration = function() { return -2; };
+      Ad.prototype.getSkipTimeOffset = function() { return 0; };
+      Ad.prototype.getSurveyUrl = function() { return null; };
+      Ad.prototype.getTitle = function() { return ""; };
+      Ad.prototype.getTraffickingParameters = function() { return {}; };
+      Ad.prototype.getTraffickingParametersString = function() { return ""; };
+      Ad.prototype.getUiElements = function() { return [""]; };
+      Ad.prototype.getUniversalAdIdRegistry = function() { return "unknown"; };
+      Ad.prototype.getUniversalAdIds = function() { return []; };
+      Ad.prototype.getUniversalAdIdValue = function() { return "unknown"; };
+      Ad.prototype.getVastMediaBitrate = function() { return 0; };
+      Ad.prototype.getVastMediaHeight = function() { return 0; };
+      Ad.prototype.getVastMediaWidth = function() { return 0; };
+      Ad.prototype.getWidth = function() { return 0; };
+      Ad.prototype.getWrapperAdIds = function() { return [""]; };
+      Ad.prototype.getWrapperAdSystems = function() { return [""]; };
+      Ad.prototype.getWrapperCreativeIds = function() { return [""]; };
+      Ad.prototype.isLinear = function() { return true; };
+      Ad.prototype.isSkippable = function() { return true; };
+
+      var currentAd = new Ad();
+
+      function AdEvent(type) {
+        this.type = type;
+      }
+      AdEvent.prototype.getAd = function() { return currentAd; };
+      AdEvent.prototype.getAdData = function() { return {}; };
+      AdEvent.Type = {
+        AD_BREAK_READY: "adBreakReady",
+        AD_BUFFERING: "adBuffering",
+        AD_CAN_PLAY: "adCanPlay",
+        AD_METADATA: "adMetadata",
+        AD_PROGRESS: "adProgress",
+        ALL_ADS_COMPLETED: "allAdsCompleted",
+        CLICK: "click",
+        COMPLETE: "complete",
+        CONTENT_PAUSE_REQUESTED: "contentPauseRequested",
+        CONTENT_RESUME_REQUESTED: "contentResumeRequested",
+        DURATION_CHANGE: "durationChange",
+        EXPANDED_CHANGED: "expandedChanged",
+        FIRST_QUARTILE: "firstQuartile",
+        IMPRESSION: "impression",
+        INTERACTION: "interaction",
+        LINEAR_CHANGE: "linearChange",
+        LINEAR_CHANGED: "linearChanged",
+        LOADED: "loaded",
+        LOG: "log",
+        MIDPOINT: "midpoint",
+        PAUSED: "pause",
+        RESUMED: "resume",
+        SKIPPABLE_STATE_CHANGED: "skippableStateChanged",
+        SKIPPED: "skip",
+        STARTED: "start",
+        THIRD_QUARTILE: "thirdQuartile",
+        USER_CLOSE: "userClose",
+        VIDEO_CLICKED: "videoClicked",
+        VIDEO_ICON_CLICKED: "videoIconClicked",
+        VIEWABLE_IMPRESSION: "viewable_impression",
+        VOLUME_CHANGED: "volumeChange",
+        VOLUME_MUTED: "mute"
+      };
+
+      var manager = new AdsManager();
+
+      function AdsManagerLoadedEvent(type, request, context) {
+        this.type = type;
+        this.adsRequest = request;
+        this.userRequestContext = context;
+      }
+      AdsManagerLoadedEvent.prototype.getAdsManager = function(c, settings) {
+        if (settings && settings.enablePreloading) {
+          manager._enablePreloading = true;
+        }
+        return manager;
+      };
+      AdsManagerLoadedEvent.prototype.getUserRequestContext = function() {
+        return this.userRequestContext || {};
+      };
+      AdsManagerLoadedEvent.Type = {
+        ADS_MANAGER_LOADED: "adsManagerLoaded"
+      };
+
+      function AdError(type, code, vast, message, request, context) {
+        this.errorCode = code;
+        this.message = message;
+        this.type = type;
+        this.adsRequest = request;
+        this.userRequestContext = context;
+        this.vastErrorCode = vast;
+      }
+      AdError.prototype.getErrorCode = function() { return this.errorCode; };
+      AdError.prototype.getInnerError = function() { return null; };
+      AdError.prototype.getMessage = function() { return this.message; };
+      AdError.prototype.getType = function() { return this.type; };
+      AdError.prototype.getVastErrorCode = function() { return this.vastErrorCode; };
+
+      function AdErrorEvent(error) {
+        this.type = "adError";
+        this.error = error;
+      }
+      AdErrorEvent.prototype.getError = function() { return this.error; };
+      AdErrorEvent.prototype.getUserRequestContext = function() {
+        return this.error ? this.error.userRequestContext : {};
+      };
+      AdErrorEvent.Type = { AD_ERROR: "adError" };
+
+      Object.assign(ima, {
+        AdDisplayContainer: AdDisplayContainer,
+        AdError: AdError,
+        AdErrorEvent: AdErrorEvent,
+        AdEvent: AdEvent,
+        AdPodInfo: AdPodInfo,
+        AdsLoader: AdsLoader,
+        AdsManager: manager,
+        AdsManagerLoadedEvent: AdsManagerLoadedEvent,
+        AdsRenderingSettings: AdsRenderingSettings,
+        AdsRequest: AdsRequest,
+        ImaSdkSettings: ImaSdkSettings,
+        settings: new ImaSdkSettings(),
+        VERSION: VERSION,
+        ViewMode: { FULLSCREEN: "fullscreen", NORMAL: "normal" }
+      });
+
+      window.google = window.google || {};
+      window.google.ima = ima;
+    }
+  } catch(e) {}
+
+  // 4. uBlock Origin Google AdSense Shim (Fills placeholders cleanly with 0 ads)
+  try {
+    window.adsbygoogle = window.adsbygoogle || {
+      loaded: true,
+      push: function() {}
+    };
+  } catch(e) {}
+
+  // 5. uBlock Origin Google Publisher Tag (GPT) Shim (Doubleclick/DFP)
+  try {
+    var noop = function() {};
+    var noopThis = function() { return this; };
+    var noopNull = function() { return null; };
+    var noopArray = function() { return []; };
+    var noopStr = function() { return ''; };
+
+    var pubAdsService = {
+      addEventListener: noopThis,
+      clear: noop,
+      clearCategoryExclusions: noopThis,
+      clearTagForChildDirectedTreatment: noopThis,
+      clearTargeting: noopThis,
+      collapseEmptyDivs: noop,
+      defineOutOfPagePassback: function() { return {}; },
+      definePassback: function() { return {}; },
+      disableInitialLoad: noop,
+      display: noop,
+      enableAsyncRendering: noop,
+      enableLazyLoad: noop,
+      enableSingleRequest: noop,
+      enableSyncRendering: noop,
+      enableVideoAds: noop,
+      get: noopNull,
+      getAttributeKeys: noopArray,
+      getTargeting: noopArray,
+      getTargetingKeys: noopArray,
+      getSlots: noopArray,
+      refresh: noop,
+      removeEventListener: noop,
+      set: noopThis,
+      setCategoryExclusion: noopThis,
+      setCentering: noop,
+      setCookieOptions: noopThis,
+      setForceSafeFrame: noopThis,
+      setLocation: noopThis,
+      setPublisherProvidedId: noopThis,
+      setPrivacySettings: noopThis,
+      setRequestNonPersonalizedAds: noopThis,
+      setSafeFrameConfig: noopThis,
+      setTagForChildDirectedTreatment: noopThis,
+      setTargeting: noopThis,
+      setVideoContent: noopThis,
+      updateCorrelator: noop
+    };
+
+    var gpt = window.googletag || {};
+    var cmd = gpt.cmd || [];
+    gpt.apiReady = true;
+    gpt.cmd = [];
+    gpt.cmd.push = function(fn) {
+      try { fn(); } catch(e) {}
+      return 1;
+    };
+    gpt.companionAds = function() { return { addEventListener: noopThis, enableSyncLoading: noop, setRefreshUnfilledSlots: noop }; };
+    gpt.content = function() { return { addEventListener: noopThis, setContent: noop }; };
+    gpt.defineOutOfPageSlot = function() { return { addService: noopThis, setTargeting: noopThis }; };
+    gpt.defineSlot = function() { return { addService: noopThis, setTargeting: noopThis }; };
+    gpt.destroySlots = noop;
+    gpt.disablePublisherConsole = noop;
+    gpt.display = noop;
+    gpt.enableServices = noop;
+    gpt.getVersion = noopStr;
+    gpt.pubads = function() { return pubAdsService; };
+    gpt.pubadsReady = true;
+    gpt.setAdIframeTitle = noop;
+    gpt.sizeMapping = function() { return { addSize: noopThis, build: noopNull }; };
+    window.googletag = gpt;
+    while (cmd.length > 0) {
+      gpt.cmd.push(cmd.shift());
+    }
+  } catch(e) {}
+
+  // 6. Safe CSS for Collapsing Ad Placeholders (Never touches game canvas or overlay)
+  function injectSafeAdHider() {
+    if (document.getElementById('gameloot-ad-hider')) return;
     var style = document.createElement('style');
-    style.id = 'gameloot-clean-styles';
+    style.id = 'gameloot-ad-hider';
     style.textContent = [
       'ins.adsbygoogle,',
-      'iframe[id*="google_ads"],',
-      'div[id*="google_ads"],',
-      'div[id*="aswift"],',
+      '.adsbygoogle,',
       'iframe[src*="googleads"],',
       'iframe[src*="doubleclick"],',
       'iframe[src*="googlesyndication"],',
-      '#fg-ad-wrapper,',
-      '.famobi-advertisement,',
-      '.fg-advertisement,',
-      '.ad-container,',
-      '.ad-slot,',
-      '.banner-ad,',
-      '#ad-container,',
-      'div[id*="gpt-passback"],',
-      'div[id*="ad_banner"],',
-      'div[class*="ad_banner"],',
-      'div[class*="banner-ad"],',
-      '.advertisement {',
+      'iframe[id^="aswift_"],',
+      'div[id^="aswift_"],',
+      'iframe[id^="google_ads_iframe"],',
+      'div[id^="google_ads_iframe"],',
+      '.google-auto-placed {',
       '  display: none !important;',
-      '  visibility: hidden !important;',
       '  height: 0 !important;',
+      '  min-height: 0 !important;',
       '  max-height: 0 !important;',
       '  overflow: hidden !important;',
       '  pointer-events: none !important;',
-      '}',
-      '#fg-overlay,',
-      '#fg-game,',
-      '#canvas,',
-      'canvas,',
-      '#game,',
-      '.game-container,',
-      '#spilgames-game-container,',
-      '#game-holder {',
-      '  display: block !important;',
-      '  visibility: visible !important;',
-      '  opacity: 1 !important;',
+      '  opacity: 0 !important;',
       '}'
     ].join(' ');
     (document.head || document.documentElement).appendChild(style);
   }
 
   if (document.head || document.documentElement) {
-    injectAdHidingCSS();
+    injectSafeAdHider();
   } else {
-    document.addEventListener('DOMContentLoaded', injectAdHidingCSS);
+    document.addEventListener('DOMContentLoaded', injectSafeAdHider);
   }
-
-  // 4. Safe & Complete Google IMA SDK Mock (Auto-completes & skips video ads)
-  try {
-    function Emitter() {
-      var listeners = {};
-      this.addEventListener = function(type, cb) {
-        if (!listeners[type]) listeners[type] = [];
-        listeners[type].push(cb);
-      };
-      this.removeEventListener = function(type, cb) {
-        if (listeners[type]) {
-          listeners[type] = listeners[type].filter(function(fn) { return fn !== cb; });
-        }
-      };
-      this._fire = function(type, evt) {
-        var cbs = listeners[type] || [];
-        for (var i = 0; i < cbs.length; i++) {
-          try { cbs[i](evt || { type: type }); } catch(e) {}
-        }
-      };
-    }
-
-    function AdsManager() {
-      Emitter.call(this);
-      var self = this;
-      this.init = function(w, h, mode) {};
-      this.start = function() {
-        setTimeout(function() {
-          self._fire('loaded');
-          self._fire('started');
-          self._fire('complete');
-          self._fire('allAdsCompleted');
-          self._fire('contentResumeRequested');
-        }, 10);
-      };
-      this.stop = function() {};
-      this.pause = function() {};
-      this.resume = function() {};
-      this.resize = function() {};
-      this.getVolume = function() { return 1; };
-      this.setVolume = function() {};
-      this.destroy = function() {};
-    }
-
-    function AdsLoader(container) {
-      Emitter.call(this);
-      var self = this;
-      this.requestAds = function(req) {
-        var mgr = new AdsManager();
-        setTimeout(function() {
-          self._fire('adsManagerLoaded', {
-            getAdsManager: function() { return mgr; }
-          });
-        }, 10);
-      };
-      this.contentComplete = function() {};
-      this.destroy = function() {};
-    }
-
-    window.google = window.google || {};
-    window.google.ima = {
-      AdDisplayContainer: function(c, v) { this.initialize = function() {}; this.destroy = function() {}; },
-      AdsLoader: AdsLoader,
-      AdsManagerLoadedEvent: { Type: { ADS_MANAGER_LOADED: 'adsManagerLoaded' } },
-      AdErrorEvent: { Type: { AD_ERROR: 'adError' } },
-      AdEvent: {
-        Type: {
-          CONTENT_PAUSE_REQUESTED: 'contentPauseRequested',
-          CONTENT_RESUME_REQUESTED: 'contentResumeRequested',
-          ALL_ADS_COMPLETED: 'allAdsCompleted',
-          COMPLETE: 'complete',
-          LOADED: 'loaded',
-          STARTED: 'started',
-          SKIPPED: 'skipped',
-          FIRST_QUARTILE: 'firstQuartile',
-          MIDPOINT: 'midpoint',
-          THIRD_QUARTILE: 'thirdQuartile',
-          PAUSED: 'paused',
-          RESUMED: 'resumed'
-        }
-      },
-      ViewMode: { NORMAL: 'normal', FULLSCREEN: 'fullscreen' },
-      AdsRenderingSettings: function() {},
-      AdsRequest: function() {},
-      settings: {
-        setVpaidMode: function() {},
-        setLocale: function() {},
-        setAutoPlayAdBreaks: function() {},
-        setPlayerType: function() {},
-        setPlayerVersion: function() {}
-      }
-    };
-  } catch(e) {}
-
-  // 5. Famobi Game Ad Bypass Hook
-  function hookFamobi(obj) {
-    if (!obj || obj.__gameloot_hooked) return;
-    try {
-      obj.__gameloot_hooked = true;
-      obj.hasAdProvider = function() { return false; };
-      var origShowAd = obj.showAd;
-      obj.showAd = function(cb) {
-        if (typeof cb === 'function') {
-          setTimeout(cb, 10);
-        } else if (typeof origShowAd === 'function') {
-          try { origShowAd.call(obj, cb); } catch(e) {}
-        }
-      };
-      var origRewardedAd = obj.rewardedAd;
-      obj.rewardedAd = function(cb) {
-        if (typeof cb === 'function') {
-          setTimeout(function() { cb(true); }, 10);
-        } else if (typeof origRewardedAd === 'function') {
-          try { origRewardedAd.call(obj, cb); } catch(e) {}
-        }
-      };
-    } catch(e) {}
-  }
-
-  if (window.famobi) hookFamobi(window.famobi);
-  try {
-    var _famobiInstance = window.famobi;
-    Object.defineProperty(window, 'famobi', {
-      configurable: true,
-      enumerable: true,
-      get: function() { return _famobiInstance; },
-      set: function(val) {
-        _famobiInstance = val;
-        hookFamobi(val);
-      }
-    });
-  } catch(e) {}
 })();
 true;
 `;
@@ -453,24 +665,6 @@ export default function GamePlayerModal({
     }
   };
 
-  // Safe ad network request filter for WebView
-  const handleShouldStartLoadWithRequest = (request) => {
-    const url = (request?.url || '').toLowerCase();
-    if (!url || url.startsWith('about:') || url.startsWith('data:') || url.startsWith('blob:')) {
-      return true;
-    }
-    // Never block the game's own embed URL or domain
-    if (game?.embed_url && url.startsWith(game.embed_url.toLowerCase())) {
-      return true;
-    }
-    for (const domain of BLOCKED_AD_DOMAINS) {
-      if (url.includes(domain)) {
-        return false; // Intercept & block ad network tracking / asset
-      }
-    }
-    return true;
-  };
-
   if (!visible || !game) return null;
 
   return (
@@ -551,7 +745,6 @@ export default function GamePlayerModal({
               startInLoadingState={true}
               injectedJavaScriptBeforeContentLoaded={GAME_WEBVIEW_INJECTED_JS}
               injectedJavaScript={GAME_WEBVIEW_INJECTED_JS}
-              onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
               renderLoading={() => (
                 <View style={styles.loadingBox}>
                   <ActivityIndicator size="large" color="#06b6d4" />
